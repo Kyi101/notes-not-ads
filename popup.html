@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attention Redirector</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <div>
+          <p class="kicker">Attention Redirector</p>
+          <h1>Make the web quieter.</h1>
+        </div>
+        <input id="globalToggle" type="checkbox" role="switch" aria-label="Enable extension">
+      </header>
+
+      <div class="tide-preview" aria-hidden="true"></div>
+
+      <section class="site-row" aria-label="Current site">
+        <span>
+          <strong>This site</strong>
+          <small id="siteLabel">Current domain</small>
+        </span>
+        <input id="siteToggle" type="checkbox" role="switch" aria-label="Enable on this site">
+      </section>
+
+      <section class="control-section">
+        <div class="section-label">
+          <span>Replacement</span>
+          <small>Tide</small>
+        </div>
+        <div class="segmented" aria-label="Replacement mode">
+          <button type="button" data-mode="quiet" aria-pressed="true">Quiet</button>
+          <button type="button" data-mode="anchor" aria-pressed="false">Anchor</button>
+        </div>
+
+        <label id="anchorField" class="anchor-field" for="anchorNote">
+          <span>Current intention</span>
+          <input
+            id="anchorNote"
+            type="text"
+            maxlength="180"
+            placeholder="Finish what deserves your attention."
+          >
+        </label>
+      </section>
+
+      <section class="control-section presence-section">
+        <div class="section-label">
+          <span>Visual presence</span>
+          <output id="presenceValue" for="visualPresence">Full Ambient</output>
+        </div>
+        <input id="visualPresence" type="range" min="0" max="10" step="1" value="10">
+        <div class="range-labels" aria-hidden="true">
+          <span>Clean</span>
+          <span>Full Ambient</span>
+        </div>
+      </section>
+
+      <div class="primary-actions">
+        <button id="replaceNow" type="button" class="primary-button">Rescan page</button>
+        <button id="openOptions" type="button" class="secondary-button">Options</button>
+      </div>
+
+      <details class="advanced">
+        <summary>Advanced</summary>
+        <button id="inspectClutter" type="button" class="text-button">Inspect missed clutter</button>
+      </details>
+
+      <p id="statusText" class="status-text">Checking page status...</p>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

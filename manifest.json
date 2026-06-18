@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Attention Redirector",
+  "version": "0.1.0",
+  "description": "Replaces obvious ad and clutter surfaces with calm Tide visuals or one user-written intention.",
+  "permissions": ["storage", "activeTab", "scripting", "declarativeNetRequest"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "action": {
+    "default_title": "Attention Redirector",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules/rules_1.json"
+      },
+      {
+        "id": "easylist",
+        "enabled": true,
+        "path": "rules/easylist_dnr.json"
+      }
+    ]
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "exclude_matches": [
+        "https://docs.google.com/*",
+        "https://mail.google.com/*",
+        "https://drive.google.com/*",
+        "https://accounts.google.com/*"
+      ],
+      "js": ["src/cosmetic-filters.js", "src/content.js"],
+      "css": ["src/content.css"],
+      "run_at": "document_end",
+      "all_frames": false
+    }
+  ]
+}

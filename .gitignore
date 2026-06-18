@@ -1,0 +1,9 @@
+data/
+runs/
+screenshots/
+node_modules/
+dist/
+build/
+_metadata/
+.DS_Store
+*.log

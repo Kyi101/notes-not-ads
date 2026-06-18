@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "description": "Real-world and controlled ad-heavy pages for Attention Redirector live benchmarking.",
+  "cases": [
+    {
+      "id": "forbes",
+      "group": "real",
+      "url": "https://www.forbes.com/",
+      "notes": "Ad-heavy publisher homepage."
+    },
+    {
+      "id": "dailymail-uk",
+      "group": "real",
+      "url": "https://www.dailymail.co.uk/home/index.html",
+      "notes": "Ad-heavy tabloid homepage with rails and video ads."
+    },
+    {
+      "id": "nypost",
+      "group": "real",
+      "url": "https://nypost.com/",
+      "notes": "Ad-heavy news homepage."
+    },
+    {
+      "id": "thesun-uk",
+      "group": "real",
+      "url": "https://www.thesun.co.uk/",
+      "notes": "Ad-heavy tabloid homepage."
+    },
+    {
+      "id": "mirror-uk",
+      "group": "real",
+      "url": "https://www.mirror.co.uk/",
+      "notes": "Ad-heavy tabloid homepage."
+    },
+    {
+      "id": "canary-portal-ua",
+      "group": "real",
+      "url": "https://canary-portal.example/ua/",
+      "notes": "Full-page cross-origin branding takeover with click-triggered popup behavior."
+    },
+    {
+      "id": "tmz",
+      "group": "real",
+      "url": "https://www.tmz.com/",
+      "notes": "Entertainment site with display ads."
+    },
+    {
+      "id": "people",
+      "group": "real",
+      "url": "https://www.people.com/",
+      "notes": "Entertainment/lifestyle site with display ads."
+    },
+    {
+      "id": "weather",
+      "group": "real",
+      "url": "https://weather.com/",
+      "notes": "Weather portal with heavy dynamic widgets and ads."
+    },
+    {
+      "id": "accuweather",
+      "group": "real",
+      "url": "https://www.accuweather.com/",
+      "notes": "Weather site with dynamic ad slots."
+    },
+    {
+      "id": "fandom",
+      "group": "real",
+      "url": "https://www.fandom.com/",
+      "notes": "Fandom network entry page; wiki article cases may be added later."
+    },
+    {
+      "id": "game8",
+      "group": "real",
+      "url": "https://game8.co/",
+      "notes": "Game guide site with display/native ads."
+    },
+    {
+      "id": "screenrant",
+      "group": "real",
+      "url": "https://screenrant.com/",
+      "notes": "Entertainment content site with display ads."
+    },
+    {
+      "id": "cnet",
+      "group": "real",
+      "url": "https://www.cnet.com/",
+      "notes": "Tech publisher with ad slots and native modules."
+    },
+    {
+      "id": "techradar",
+      "group": "real",
+      "url": "https://www.techradar.com/",
+      "notes": "Tech publisher with display ads."
+    },
+    {
+      "id": "tomsguide",
+      "group": "real",
+      "url": "https://www.tomsguide.com/",
+      "notes": "Tech/lifestyle site with refreshing display ads."
+    },
+    {
+      "id": "allrecipes",
+      "group": "real",
+      "url": "https://www.allrecipes.com/",
+      "notes": "Recipe site with display/native ads."
+    },
+    {
+      "id": "foodnetwork",
+      "group": "real",
+      "url": "https://www.foodnetwork.com/",
+      "notes": "Recipe/media site with top banner ads."
+    },
+    {
+      "id": "yahoo",
+      "group": "real",
+      "url": "https://www.yahoo.com/",
+      "notes": "Portal with safeframe rail ads and commerce/native modules."
+    },
+    {
+      "id": "msn",
+      "group": "real",
+      "url": "https://www.msn.com/",
+      "notes": "Portal with native and display ads."
+    },
+    {
+      "id": "bleacherreport",
+      "group": "real",
+      "url": "https://bleacherreport.com/",
+      "notes": "Sports publisher with display/native ads."
+    },
+    {
+      "id": "espn",
+      "group": "real",
+      "url": "https://www.espn.com/",
+      "notes": "Sports publisher with dynamic ad slots."
+    },
+    {
+      "id": "adblock-tester",
+      "group": "controlled",
+      "url": "https://adblock-tester.com/",
+      "notes": "Controlled adblock score page; total score includes network/script checks."
+    },
+    {
+      "id": "canyoublockit",
+      "group": "controlled",
+      "url": "https://canyoublockit.com/",
+      "notes": "Controlled adblock test page."
+    },
+    {
+      "id": "getblockify",
+      "group": "controlled",
+      "url": "https://getblockify.com/adblock-test",
+      "notes": "Controlled adblock test page."
+    },
+    {
+      "id": "turtlecute",
+      "group": "controlled",
+      "url": "https://adblock.turtlecute.org/",
+      "notes": "Controlled adblock test page."
+    }
+  ]
+}

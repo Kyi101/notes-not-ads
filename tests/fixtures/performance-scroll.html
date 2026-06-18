@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attention Redirector Performance Fixture</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #eef1ed;
+        color: #1c2824;
+        font-family: Arial, sans-serif;
+      }
+
+      .page-shell {
+        width: min(1080px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 32px 0 80px;
+      }
+
+      .page-intro,
+      .content-panel {
+        padding: 24px;
+        border: 1px solid #d4dbd7;
+        border-radius: 12px;
+        background: #fff;
+      }
+
+      .page-intro {
+        margin-bottom: 28px;
+      }
+
+      .content-panel {
+        min-height: 180px;
+        margin: 22px 0;
+      }
+
+      .content-panel h2 {
+        margin: 0 0 10px;
+        font-size: 22px;
+      }
+
+      .content-panel p {
+        max-width: 72ch;
+        margin: 0;
+        color: #65716c;
+        line-height: 1.65;
+      }
+
+      .perf-ad-slot {
+        position: relative;
+        width: 100%;
+        height: 250px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        border: 1px solid #cbd4cf;
+        background:
+          linear-gradient(135deg, #d8dedb, #f8faf8 55%, #cbd5d0);
+        color: #64706b;
+      }
+
+      .perf-ad-slot:nth-of-type(6n) {
+        height: 90px;
+      }
+
+      .perf-ad-slot:nth-of-type(10n) {
+        height: 320px;
+      }
+
+      .creative {
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="page-intro">
+        <h1>Long-page scroll benchmark</h1>
+        <p>Deterministic content and ad surfaces for browser performance measurement.</p>
+      </header>
+      <div id="fixtureRoot"></div>
+    </div>
+
+    <script>
+      const slotCount = Math.max(
+        1,
+        Math.min(
+          120,
+          Number.parseInt(new URLSearchParams(location.search).get("slots") || "60", 10)
+        )
+      );
+      const root = document.getElementById("fixtureRoot");
+
+      for (let index = 0; index < slotCount; index += 1) {
+        const content = document.createElement("section");
+        content.className = "content-panel";
+        content.innerHTML = `
+          <h2>Reading section ${index + 1}</h2>
+          <p>
+            This stable body copy separates benchmark surfaces and creates a
+            realistic long document without remote images, scripts, or network
+            variance.
+          </p>
+        `;
+
+        const slot = document.createElement("div");
+        slot.id = `performance-ad-${index + 1}`;
+        slot.className = "perf-ad-slot";
+        slot.dataset.adSlot = `performance-leaderboard-${index + 1}`;
+        slot.innerHTML = `<div class="creative">Advertisement surface ${index + 1}</div>`;
+
+        root.append(content, slot);
+      }
+    </script>
+  </body>
+</html>

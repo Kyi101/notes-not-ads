@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attention Redirector Fixture</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Georgia, serif;
+        background: #f7f7f4;
+        color: #202624;
+      }
+
+      header,
+      nav,
+      article,
+      main {
+        box-sizing: border-box;
+      }
+
+      header {
+        padding: 20px 32px;
+        border-bottom: 1px solid #ddd;
+        background: #fff;
+      }
+
+      nav {
+        display: flex;
+        gap: 16px;
+        padding: 10px 32px;
+        background: #eef1ee;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 330px;
+        gap: 28px;
+        max-width: 1120px;
+        margin: 24px auto;
+        padding: 0 24px;
+      }
+
+      article {
+        padding: 24px;
+        background: #fff;
+      }
+
+      article p {
+        font-size: 18px;
+        line-height: 1.65;
+      }
+
+      .ad-leaderboard {
+        width: 728px;
+        height: 90px;
+        margin: 18px auto;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #b67b2b;
+        background: #fff2d9;
+      }
+
+      .refreshing-ad-slot {
+        width: 728px;
+        height: 90px;
+        margin: 18px auto;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #9a5f20;
+        background: #fff2d9;
+      }
+
+      .sidebar-ad {
+        width: 300px;
+        height: 250px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #b67b2b;
+        background: #fff2d9;
+      }
+
+      .animated-rectangle {
+        width: 300px;
+        height: 250px;
+        margin-top: 18px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #7f4aa0;
+        background: #f2e7ff;
+        animation: pulse 1.5s infinite;
+      }
+
+      .sponsored-card {
+        width: 300px;
+        min-height: 120px;
+        margin-top: 18px;
+        padding: 16px;
+        border: 1px dashed #5c8394;
+        background: #e9f6fb;
+      }
+
+      .plain-missed-rectangle {
+        width: 260px;
+        height: 120px;
+        margin-top: 18px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #4b6670;
+        background: #edf3f5;
+      }
+
+      .sticky-offer {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 9999;
+        width: 280px;
+        height: 160px;
+        padding: 16px;
+        border: 1px solid #986d21;
+        background: #fff7e8;
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
+      }
+
+      .sticky-offer button {
+        float: right;
+      }
+
+      .hidden-login {
+        display: none;
+      }
+
+      .adthrive-footer {
+        position: fixed;
+        left: 50%;
+        bottom: 0;
+        z-index: 8000;
+        width: 320px;
+        height: 100px;
+        transform: translateX(-50%);
+        background: #fff8df;
+      }
+
+      .adthrive-footer iframe {
+        width: 320px;
+        height: 100px;
+        border: 0;
+      }
+
+      .search-shell {
+        width: 300px;
+        height: 250px;
+        margin-top: 18px;
+        background: #fff8df;
+      }
+
+      .search-shell iframe {
+        width: 300px;
+        height: 250px;
+        border: 0;
+      }
+
+      .partial-ad-unit {
+        width: min(980px, calc(100vw - 64px));
+        min-height: 300px;
+        margin: 24px auto;
+        padding: 14px;
+        border-radius: 22px;
+        background: #edf3f5;
+      }
+
+      .partial-ad-unit__label {
+        display: block;
+        margin-bottom: 10px;
+        color: #97adba;
+        font-family: Arial, sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-align: center;
+        text-transform: uppercase;
+      }
+
+      .partial-ad-unit__frame {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 160px;
+        min-height: 260px;
+        overflow: hidden;
+        border: 1px solid #e57523;
+        background: #fff;
+      }
+
+      .partial-ad-unit__creative {
+        display: grid;
+        place-items: center;
+        min-height: 260px;
+        background: #e7f1ff;
+        color: #173b66;
+        font-family: Arial, sans-serif;
+        font-size: 28px;
+        font-weight: 800;
+      }
+
+      .partial-ad-unit__sidecar {
+        display: grid;
+        place-items: center;
+        border-left: 1px solid #d6dedc;
+        background: #fbfdfb;
+      }
+
+      .click-through-ad {
+        display: block;
+        width: 260px;
+        height: 140px;
+        margin-top: 18px;
+        padding: 14px;
+        border: 1px solid #bb5a1d;
+        background: #fff0e4;
+        color: #552512;
+        text-decoration: none;
+      }
+
+      .commercial-unit {
+        width: 260px;
+        height: 130px;
+        margin-top: 18px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #6c7e8c;
+        background: #eef4f7;
+        color: #2c4657;
+        font-family: Arial, sans-serif;
+        font-weight: 700;
+      }
+
+      .article-video-shell {
+        position: relative;
+        width: 400px;
+        height: 225px;
+        margin-top: 24px;
+        background: #24313a;
+        color: #fff;
+      }
+
+      .script-iframe-shell {
+        width: 600px;
+        height: 200px;
+        margin-top: 24px;
+        background: #f6eadb;
+      }
+
+      .script-iframe-shell iframe {
+        width: 600px;
+        height: 200px;
+        border: 0;
+      }
+
+      .article-video-shell__label {
+        padding: 14px;
+      }
+
+      .ima-ad-container {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(20, 26, 31, 0.92);
+        color: #fff;
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+      }
+
+      .floating-video-unit {
+        position: fixed;
+        right: 32px;
+        top: 232px;
+        z-index: 2147483647;
+        width: 485px;
+        height: 291px;
+        display: grid;
+        place-items: center;
+        background: #1f2933;
+        color: #fff;
+        font-family: Arial, sans-serif;
+      }
+
+      .schulist-bottom-banner {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 2147483646;
+        height: 0;
+        padding-top: 5%;
+        overflow: visible;
+        background: rgba(0, 0, 0, 0.8);
+      }
+
+      .schulist-bottom-banner img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .schulist-bottom-banner span {
+        position: absolute;
+        top: 0;
+        right: 24px;
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.72);
+        color: #fff;
+        transform: translateY(-50%);
+      }
+
+      .branding-takeover {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+      }
+
+      .branding-takeover iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+
+        50% {
+          transform: scale(1.015);
+        }
+
+        100% {
+          transform: scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Fixture article</h1>
+    </header>
+    <nav>
+      <a href="#home">Home</a>
+      <a href="#news">News</a>
+      <a href="#about">About</a>
+    </nav>
+
+    <div id="top-ad" class="ad-leaderboard" data-ad-slot="leaderboard">
+      Advertisement leaderboard
+    </div>
+
+    <div id="refreshing-top-ad" class="refreshing-ad-slot" data-ad-slot="refreshing-leaderboard">
+      Advertisement refreshing leaderboard
+    </div>
+
+    <div id="commerce-showcase" class="partial-ad-unit">
+      <span class="partial-ad-unit__label">Advertisement</span>
+      <div class="partial-ad-unit__frame">
+        <div class="partial-ad-unit__creative">
+          Product grid creative
+        </div>
+        <div id="commerce-showcase-ad-sidecar" class="partial-ad-unit__sidecar ad-controls">
+          Advertisement controls
+        </div>
+      </div>
+    </div>
+
+    <main>
+      <article>
+        <h2>Article body should not be replaced</h2>
+        <p>
+          This fixture keeps article content, navigation, and forms near obvious
+          clutter slots so the extension can prove conservative behavior.
+        </p>
+        <p>
+          The article body includes ordinary text and should remain untouched.
+          Selector tuning should prefer misses over breaking this content.
+        </p>
+        <div id="video_53812-container" class="article-video-shell">
+          <div class="article-video-shell__label">Article video player</div>
+          <div
+            id="video_53812_ima-ad-container"
+            class="video_53812_ima-ad-container ima-ad-container"
+          >
+            Advertisement: 0:11
+            <iframe
+              title="IMA bridge"
+              data-src="https://imasdk.googleapis.com/js/core/bridge3.767.1_en.html"
+              srcdoc="<p>IMA ad bridge</p>"
+            ></iframe>
+          </div>
+        </div>
+        <div id="script-iframe-shell" class="script-iframe-shell">
+          <iframe
+            id="script-injected-frame"
+            data-src="javascript:void((function(){var script=document.createElement('script');script.innerHTML='document.write(&quot;ad&quot;)';document.write(script.outerHTML);})())"
+          ></iframe>
+        </div>
+        <form>
+          <label>
+            Email
+            <input type="email" value="reader@example.com">
+          </label>
+        </form>
+      </article>
+
+      <aside>
+        <div id="side-rail-ad" class="sidebar-ad">
+          Sponsored ad
+        </div>
+        <div id="animated-promo" class="animated-rectangle">
+          Animated rectangle
+        </div>
+        <div id="native-sponsored" class="sponsored-card">
+          Sponsored story from a partner
+        </div>
+        <div id="plain-missed-rectangle" class="plain-missed-rectangle">
+          Plain missed rectangle
+        </div>
+        <a id="click-through-ad" class="click-through-ad" href="https://ads.example.test">
+          Click-through advertising rectangle
+        </a>
+        <div id="cosmetic-only-slot" class="commercial-unit">
+          Cosmetic-rule-only unit
+        </div>
+        <div id="search-results-ad-shell" class="search-shell">
+          <iframe
+            id="google_ads_iframe_/fixture/search_right_top_0"
+            aria-label="Advertisement"
+            title="Advertisement"
+            srcdoc="<p>Advertisement 3rd party ad content</p>"
+          ></iframe>
+        </div>
+      </aside>
+    </main>
+
+    <div id="sticky-offer" class="sticky-offer" role="dialog" aria-label="Persistent offer">
+      <button type="button">Close</button>
+      <strong>Persistent offer</strong>
+      <p>Persistent fixed promotional rectangle.</p>
+    </div>
+
+    <div
+      id="AdThrive_Footer_1_desktop"
+      class="adthrive-ad adthrive-footer adthrive-footer-1 adthrive-sticky"
+    >
+      <iframe
+        id="google_ads_iframe_/18190176,15510053/AdThrive_Footer_1/test_0"
+        aria-label="Advertisement"
+        title="Advertisement"
+        srcdoc="<p>Advertisement 3rd party ad content</p>"
+      ></iframe>
+    </div>
+
+    <div id="floating-video-unit" class="floating-video-unit">
+      Advertisement floating video
+      <iframe
+        title="floating video bridge"
+        data-src="https://imasdk.googleapis.com/js/core/bridge3.767.1_en.html"
+        srcdoc="<p>floating video ad bridge</p>"
+      ></iframe>
+    </div>
+
+    <div id="schulist-bottom-banner" class="schulist-bottom-banner">
+      <img
+        src="https://s.schulist.link/media/8/6/86711158817001_286.webp"
+        alt="ads"
+      >
+      <span>×</span>
+    </div>
+
+    <div
+      id="framework-owned-ad"
+      class="refreshing-ad-slot"
+      data-ad-slot="framework-owned-leaderboard"
+    >
+      <span id="framework-owned-ad-child">Framework-owned advertisement child</span>
+    </div>
+
+    <div id="brnd8e78c7f2c" class="branding-takeover">
+      <iframe
+        id="ibrnd8e78c7f2c"
+        data-src="https://s.schulist.link/iframeHS/39587/fixture"
+        srcdoc="<p>Full-page betting branding takeover</p>"
+      ></iframe>
+    </div>
+
+    <div class="hidden-login">
+      <input type="password" value="hidden-modal-password">
+    </div>
+    <script>
+      window.setTimeout(() => {
+        const slot = document.getElementById("refreshing-top-ad");
+        if (slot) {
+          slot.innerHTML = "<strong>Refreshed ad creative should not remain</strong>";
+        }
+      }, 900);
+
+      window.setTimeout(() => {
+        const slot = document.createElement("div");
+        slot.id = "late-injected-ad";
+        slot.className = "sidebar-ad late-injected-ad";
+        slot.dataset.adSlot = "late-injected-rectangle";
+        slot.textContent = "Late injected advertisement";
+
+        const observer = new MutationObserver(() => {
+          if (slot.classList.contains("attention-redirector-slot")) {
+            window.__lateAdReplacedAt = performance.now();
+            observer.disconnect();
+          }
+        });
+        observer.observe(slot, {
+          attributes: true,
+          attributeFilter: ["class"]
+        });
+
+        window.__lateAdInsertedAt = performance.now();
+        document.body.appendChild(slot);
+      }, 450);
+
+      window.setTimeout(() => {
+        const slot = document.getElementById("framework-owned-ad");
+        const child = document.getElementById("framework-owned-ad-child");
+        try {
+          slot.className = "refreshing-ad-slot";
+          slot.removeChild(child);
+          window.__frameworkReconcileStatus = "removed";
+        } catch (error) {
+          window.__frameworkReconcileStatus = error.name;
+        }
+      }, 1100);
+    </script>
+  </body>
+</html>

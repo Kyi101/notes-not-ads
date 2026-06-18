@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attention Redirector Options</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="options-shell">
+      <header class="page-header">
+        <div>
+          <p class="kicker">Attention Redirector</p>
+          <h1>Make the page quieter.</h1>
+          <p class="intro">
+            Set the default treatment for detected ad and clutter surfaces.
+            Saved changes apply to open pages immediately.
+          </p>
+        </div>
+        <div class="tide-mark" aria-hidden="true">
+          <span></span>
+        </div>
+      </header>
+
+      <form id="optionsForm">
+        <section class="settings-section">
+          <div class="section-heading">
+            <div>
+              <p class="section-number">01</p>
+              <h2>Default behavior</h2>
+            </div>
+            <p>These defaults apply everywhere except disabled sites.</p>
+          </div>
+
+          <label class="switch-row">
+            <span>
+              <strong>Attention Redirector</strong>
+              <small>Detect and visually replace likely ad surfaces.</small>
+            </span>
+            <input id="enabled" type="checkbox" role="switch">
+          </label>
+
+          <fieldset class="mode-fieldset">
+            <legend>Default mode</legend>
+            <div class="mode-grid">
+              <label class="mode-option">
+                <input type="radio" name="mode" value="quiet">
+                <span>
+                  <strong>Quiet</strong>
+                  <small>Tide only. No text competing for attention.</small>
+                </span>
+              </label>
+              <label class="mode-option">
+                <input type="radio" name="mode" value="anchor">
+                <span>
+                  <strong>Anchor</strong>
+                  <small>Place one intention over the Tide field.</small>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label id="anchorField" class="field-label" for="anchorNote">
+            Anchor note
+            <input
+              id="anchorNote"
+              type="text"
+              maxlength="160"
+              placeholder="Finish what deserves your attention."
+            >
+            <small>Used only in Anchor mode.</small>
+          </label>
+        </section>
+
+        <section class="settings-section">
+          <div class="section-heading">
+            <div>
+              <p class="section-number">02</p>
+              <h2>Visual presence</h2>
+            </div>
+            <p>Choose how much detected ad surface becomes Tide.</p>
+          </div>
+
+          <div class="presence-control">
+            <div class="presence-readout">
+              <span id="presenceValue">Full Ambient</span>
+              <strong id="presenceNumber">10</strong>
+            </div>
+            <input
+              id="visualPresence"
+              type="range"
+              min="0"
+              max="10"
+              step="1"
+              aria-describedby="presenceDescription"
+            >
+            <div class="range-labels" aria-hidden="true">
+              <span>0 · Clean</span>
+              <span>10 · Full Ambient</span>
+            </div>
+            <p id="presenceDescription" class="control-note">
+              All detected surfaces become Tide.
+            </p>
+          </div>
+
+          <label class="field-label" for="reducedMotion">
+            Motion
+            <select id="reducedMotion">
+              <option value="system">Follow system preference</option>
+              <option value="still">Always still</option>
+            </select>
+          </label>
+
+          <aside class="plain-note">
+            <strong>What Clean means</strong>
+            <p>
+              Clean hides detected elements in the page DOM. It does not block
+              ad requests or scripts at the network layer.
+            </p>
+          </aside>
+        </section>
+
+        <section class="settings-section">
+          <div class="section-heading">
+            <div>
+              <p class="section-number">03</p>
+              <h2>Disabled sites</h2>
+            </div>
+            <p>One domain per line. Subdomains are included automatically.</p>
+          </div>
+
+          <label class="field-label" for="disabledDomains">
+            Domains
+            <textarea
+              id="disabledDomains"
+              rows="6"
+              spellcheck="false"
+              placeholder="example.com"
+            ></textarea>
+          </label>
+        </section>
+
+        <details class="advanced-section">
+          <summary>
+            <span>
+              <strong>Advanced</strong>
+              <small>Inspection and diagnostic guidance</small>
+            </span>
+            <span class="summary-mark" aria-hidden="true">+</span>
+          </summary>
+          <div class="advanced-body">
+            <h2>Missed something?</h2>
+            <p>
+              Open the extension on that page and choose
+              <strong>Inspect missed clutter</strong>. The inspector shows what
+              the detector sees and can save a compact report.
+            </p>
+            <p>
+              Detection remains conservative around forms, navigation,
+              editors, and sensitive pages.
+            </p>
+          </div>
+        </details>
+
+        <footer class="action-footer">
+          <button id="saveButton" class="primary-button" type="submit">
+            Save settings
+          </button>
+          <button id="resetButton" class="secondary-button" type="button">
+            Reset defaults
+          </button>
+          <span id="saveStatus" class="save-status" role="status"></span>
+        </footer>
+      </form>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>
