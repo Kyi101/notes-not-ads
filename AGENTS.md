@@ -24,6 +24,7 @@ calm Tide field and an optional user-written intention.
 - Live site eval: `npm run eval:live -- --limit 5`
 - Diagnose one supplied miss: `npm run diagnose:live -- https://example.com/`
 - Diagnose controlled adblock testers: `npm run diagnose:controlled-testers`
+- Build clean release ZIP: `npm run package:release`
 - Multi-card scroll benchmark: `npm run benchmark:performance`
 - Quiet/Anchor UI prototype: `npm run prototype:modes`
 - Validate manifest JSON: `node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"`
@@ -53,12 +54,15 @@ calm Tide field and an optional user-written intention.
 - `scripts/eval-live-sites.mjs` - live-site eval runner for real ad-heavy pages and controlled test pages.
 - `scripts/diagnose-live-miss.mjs` - targeted capture for supplied live misses: screenshots, frames, overlays, popups, and request hosts.
 - `scripts/diagnose-controlled-testers.mjs` - exploratory controlled-tester harness for Canyoublockit, GetBlockify, and Turtlecute baseline extraction.
+- `scripts/package-release.mjs` - clean Git archive release ZIP builder for Chrome Web Store upload.
 - `scripts/benchmark-performance.mjs` - local multi-card scroll/frame/CDP performance benchmark.
 - `scripts/serve-prototype.mjs` - dependency-free local server for throwaway UI prototypes.
 - `scripts/build-content.mjs` - concatenates content-script partials into `src/content.js`.
 - `scripts/update-lists.mjs` - EasyList/DNR ingestion script; dry-run by default and requires `--write` before mutating generated list artifacts.
 - `rules/rules_1.json` - hand-curated static DNR seed rules and local DNR smoke-test probe.
 - `rules/easylist_dnr.json` - generated static DNR rules packaged with the extension.
+- `docs/privacy-policy.md` - draft public privacy policy for Chrome Web Store submission.
+- `docs/chrome-web-store.md` - draft store listing, permission explanations, reviewer instructions, and asset checklist.
 - `prototypes/attention-modes.html` - throwaway Ambient motion comparison with Breath, Tide, and Lumen plus Ambient/Editorial Anchor typography.
 - `prototypes/attention-modes-compare.html` - side-by-side Breath/Tide/Lumen review surface with shared mode and palette controls.
 - `evals/live-sites.json` - real-world and controlled URL cases for the live eval runner.

@@ -87,6 +87,25 @@ npm run test:extension
 
 The test starts a local `127.0.0.1` server and opens Chromium, so it may need permission in sandboxed agent sessions.
 
+## Release Package
+
+Build the Chrome Web Store ZIP only from a clean committed tree:
+
+```bash
+npm run check
+npm run package:release
+```
+
+The release ZIP is written to `dist/`, which is ignored. The script uses a
+runtime-file allowlist, so local artifacts and development files such as
+`node_modules/`, `runs/`, `screenshots/`, `_metadata/`, tests, prototypes, and
+developer scripts are excluded.
+
+Release drafts live in `docs/`:
+
+- `docs/privacy-policy.md`
+- `docs/chrome-web-store.md`
+
 ## Performance Benchmark
 
 Use the deterministic long-page benchmark to compare disabled, still Tide, and

@@ -493,3 +493,14 @@ banner assets.
 - `scripts/test-release-contract.mjs` asserts representative curated DNR and Turtlecute cosmetic seeds remain packaged.
 - Risky or legitimate-service endpoints such as Yandex maps are not blocked merely to improve a synthetic score.
 - The next scale step should be a curated EasyPrivacy pipeline, not indefinite manual domain accretion.
+
+## 2026-06-19 - Telemetry Strategy: Launch at Zero, Opt-In Later
+
+**Decision**: The v1 launch of Attention Redirector will contain **zero** data collection or telemetry. All user settings, notes, and operations remain strictly local (`chrome.storage.local`). Telemetry may be introduced in a future (v1.x) update, but it must be explicitly user-triggered (e.g., a "Report broken site" button) and fully anonymized.
+
+**Why**: The extension uses broad host access so it can inspect normal webpages and apply static network blocking. Chrome Web Store review guidance says broad host permissions and powerful capabilities can increase review scrutiny and time. Including remote logging, metrics, or telemetry in v1 would add privacy surface and review complexity. Launching at zero developer data collection builds immediate user trust and keeps the review story simple, though it does not guarantee review speed or approval.
+
+**Consequences**:
+- No external APIs or analytic scripts (e.g., Google Analytics, Sentry, Mixpanel) will be bundled in the extension payload.
+- We rely strictly on Chrome Web Store console crash reports and user feedback (reviews/emails) for initial bug discovery.
+- Any future telemetry addition requires a major Privacy Policy update, explicit UI disclosure, and must never track passive browsing history.
