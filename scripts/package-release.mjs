@@ -31,12 +31,20 @@ const requiredReleasePaths = [
 const optionalReleaseDirs = ["icons", "_locales"];
 
 if (!allowDirty) {
-  try {
-    execFileSync("git", ["diff-index", "--quiet", "HEAD", "--"], {
+  execFileSync("git", ["update-index", "-q", "--refresh"], {
+    cwd: projectRoot,
+    stdio: "pipe"
+  });
+  const status = execFileSync(
+    "git",
+    ["status", "--porcelain", "--untracked-files=normal"],
+    {
       cwd: projectRoot,
-      stdio: "pipe"
-    });
-  } catch (_error) {
+      encoding: "utf8"
+    }
+  ).trim();
+
+  if (status) {
     throw new Error(
       "Release package requires a clean Git worktree. Commit changes or pass --allow-dirty for local inspection only."
     );
