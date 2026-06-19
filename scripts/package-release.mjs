@@ -1,18 +1,17 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
-const allowDirty = process.argv.includes("--allow-dirty");
 const manifest = JSON.parse(
   await readFile(path.join(projectRoot, "manifest.json"), "utf8")
 );
 const version = manifest.version;
 const outputDir = path.join(projectRoot, "dist");
 const outputPath = path.join(outputDir, `attention-redirector-${version}.zip`);
+const ZIP_DOS_TIME = 0;
+const ZIP_DOS_DATE = (1 << 5) | 1; // 1980-01-01
 const requiredReleasePaths = [
   "manifest.json",
   "popup.html",
@@ -29,64 +28,158 @@ const requiredReleasePaths = [
   "rules/easylist_dnr.json"
 ];
 const optionalReleaseDirs = ["icons", "_locales"];
-
-if (!allowDirty) {
-  execFileSync("git", ["update-index", "-q", "--refresh"], {
-    cwd: projectRoot,
-    stdio: "pipe"
-  });
-  const status = execFileSync(
-    "git",
-    ["status", "--porcelain", "--untracked-files=normal"],
-    {
-      cwd: projectRoot,
-      encoding: "utf8"
-    }
-  ).trim();
-
-  if (status) {
-    throw new Error(
-      "Release package requires a clean Git worktree. Commit changes or pass --allow-dirty for local inspection only."
-    );
+const CRC_TABLE = Array.from({ length: 256 }, (_value, index) => {
+  let crc = index;
+  for (let bit = 0; bit < 8; bit += 1) {
+    crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
   }
-}
-
-mkdirSync(outputDir, { recursive: true });
-rmSync(outputPath, { force: true });
-
-const trackedFiles = new Set(
-  execFileSync("git", ["ls-tree", "-r", "--name-only", "HEAD"], {
-    cwd: projectRoot,
-    encoding: "utf8"
-  })
-    .split("\n")
-    .filter(Boolean)
-);
-const missingRequiredPaths = requiredReleasePaths.filter((filePath) => {
-  return !trackedFiles.has(filePath);
+  return crc >>> 0;
 });
 
-if (missingRequiredPaths.length) {
-  throw new Error(
-    `Release package is missing required tracked files: ${missingRequiredPaths.join(", ")}`
-  );
-}
+const releasePaths = [
+  ...requiredReleasePaths,
+  ...(await collectOptionalReleasePaths(optionalReleaseDirs))
+].sort();
+const archive = await createZipArchive(releasePaths);
 
-const optionalTrackedPaths = [...trackedFiles].filter((filePath) => {
-  return optionalReleaseDirs.some((dir) => {
-    return filePath === dir || filePath.startsWith(`${dir}/`);
-  });
-});
-const releasePaths = [...requiredReleasePaths, ...optionalTrackedPaths];
-
-execFileSync(
-  "git",
-  ["archive", "--format=zip", `--output=${outputPath}`, "HEAD", ...releasePaths],
-  {
-    cwd: projectRoot,
-    stdio: "inherit"
-  }
-);
+await mkdir(outputDir, { recursive: true });
+await rm(outputPath, { force: true });
+await writeFile(outputPath, archive);
 
 console.log(`Wrote ${outputPath}`);
 console.log(`Included ${releasePaths.length} runtime files.`);
+console.log("Run `git status --short` before packaging a public release.");
+
+async function collectOptionalReleasePaths(dirs) {
+  const filePaths = [];
+
+  for (const dir of dirs) {
+    try {
+      const dirStat = await stat(path.join(projectRoot, dir));
+      if (!dirStat.isDirectory()) {
+        continue;
+      }
+    } catch (_error) {
+      continue;
+    }
+
+    filePaths.push(...(await listFiles(dir)));
+  }
+
+  return filePaths;
+}
+
+async function listFiles(relativeDir) {
+  const absoluteDir = path.join(projectRoot, relativeDir);
+  const entries = await readdir(absoluteDir, { withFileTypes: true });
+  const filePaths = [];
+
+  for (const entry of entries) {
+    const relativePath = `${relativeDir}/${entry.name}`;
+    if (entry.isDirectory()) {
+      filePaths.push(...(await listFiles(relativePath)));
+      continue;
+    }
+    if (entry.isFile()) {
+      filePaths.push(relativePath);
+    }
+  }
+
+  return filePaths;
+}
+
+async function createZipArchive(filePaths) {
+  const chunks = [];
+  const centralDirectory = [];
+  let offset = 0;
+
+  for (const filePath of filePaths) {
+    const absolutePath = path.join(projectRoot, filePath);
+    const fileData = await readFile(absolutePath);
+    const nameData = Buffer.from(filePath.replaceAll(path.sep, "/"));
+    const checksum = crc32(fileData);
+    const localHeader = createLocalFileHeader(nameData, checksum, fileData.length);
+    const centralHeader = createCentralDirectoryHeader(
+      nameData,
+      checksum,
+      fileData.length,
+      offset
+    );
+
+    chunks.push(localHeader, nameData, fileData);
+    centralDirectory.push(centralHeader, nameData);
+    offset += localHeader.length + nameData.length + fileData.length;
+  }
+
+  const centralOffset = offset;
+  const centralChunks = centralDirectory.flat();
+  const centralSize = centralChunks.reduce((total, chunk) => total + chunk.length, 0);
+  const endRecord = createEndOfCentralDirectory(
+    filePaths.length,
+    centralSize,
+    centralOffset
+  );
+
+  return Buffer.concat([...chunks, ...centralChunks, endRecord]);
+}
+
+function createLocalFileHeader(nameData, checksum, fileSize) {
+  const buffer = Buffer.alloc(30);
+  buffer.writeUInt32LE(0x04034b50, 0);
+  buffer.writeUInt16LE(20, 4);
+  buffer.writeUInt16LE(0, 6);
+  buffer.writeUInt16LE(0, 8);
+  buffer.writeUInt16LE(ZIP_DOS_TIME, 10);
+  buffer.writeUInt16LE(ZIP_DOS_DATE, 12);
+  buffer.writeUInt32LE(checksum, 14);
+  buffer.writeUInt32LE(fileSize, 18);
+  buffer.writeUInt32LE(fileSize, 22);
+  buffer.writeUInt16LE(nameData.length, 26);
+  buffer.writeUInt16LE(0, 28);
+  return buffer;
+}
+
+function createCentralDirectoryHeader(nameData, checksum, fileSize, localOffset) {
+  const buffer = Buffer.alloc(46);
+  buffer.writeUInt32LE(0x02014b50, 0);
+  buffer.writeUInt16LE(20, 4);
+  buffer.writeUInt16LE(20, 6);
+  buffer.writeUInt16LE(0, 8);
+  buffer.writeUInt16LE(0, 10);
+  buffer.writeUInt16LE(ZIP_DOS_TIME, 12);
+  buffer.writeUInt16LE(ZIP_DOS_DATE, 14);
+  buffer.writeUInt32LE(checksum, 16);
+  buffer.writeUInt32LE(fileSize, 20);
+  buffer.writeUInt32LE(fileSize, 24);
+  buffer.writeUInt16LE(nameData.length, 28);
+  buffer.writeUInt16LE(0, 30);
+  buffer.writeUInt16LE(0, 32);
+  buffer.writeUInt16LE(0, 34);
+  buffer.writeUInt16LE(0, 36);
+  buffer.writeUInt32LE(0, 38);
+  buffer.writeUInt32LE(localOffset, 42);
+  return buffer;
+}
+
+function createEndOfCentralDirectory(fileCount, centralSize, centralOffset) {
+  const buffer = Buffer.alloc(22);
+  buffer.writeUInt32LE(0x06054b50, 0);
+  buffer.writeUInt16LE(0, 4);
+  buffer.writeUInt16LE(0, 6);
+  buffer.writeUInt16LE(fileCount, 8);
+  buffer.writeUInt16LE(fileCount, 10);
+  buffer.writeUInt32LE(centralSize, 12);
+  buffer.writeUInt32LE(centralOffset, 16);
+  buffer.writeUInt16LE(0, 20);
+  return buffer;
+}
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+
+  for (const byte of buffer) {
+    crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ byte) & 0xff];
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}

@@ -89,10 +89,11 @@ The test starts a local `127.0.0.1` server and opens Chromium, so it may need pe
 
 ## Release Package
 
-Build the Chrome Web Store ZIP only from a clean committed tree:
+Build the Chrome Web Store ZIP from the runtime allowlist:
 
 ```bash
 npm run check
+git status --short
 npm run package:release
 ```
 
@@ -101,7 +102,8 @@ runtime-file allowlist, so local artifacts and development files such as
 `node_modules/`, `runs/`, `screenshots/`, `_metadata/`, tests, prototypes, and
 developer scripts are excluded.
 
-Release drafts live in `docs/`:
+Only package a public release when `git status --short` is clean. Release
+drafts live in `docs/`:
 
 - `docs/privacy-policy.md`
 - `docs/chrome-web-store.md`
