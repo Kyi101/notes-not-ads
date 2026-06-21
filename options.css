@@ -275,6 +275,31 @@ input[role="switch"]:checked::after {
   margin-top: 20px;
 }
 
+.field-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-header small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.anchor-message-list {
+  display: grid;
+  gap: 8px;
+}
+
+.anchor-message-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
 input[type="text"],
 select,
 textarea {
@@ -301,6 +326,17 @@ textarea {
 
 #anchorField[data-active="false"] {
   opacity: 0.52;
+}
+
+.inline-button {
+  justify-self: start;
+  min-height: 36px;
+  padding-inline: 13px;
+}
+
+.anchor-remove-button {
+  min-height: 40px;
+  padding-inline: 12px;
 }
 
 .presence-control {
@@ -488,7 +524,8 @@ summary:focus-visible {
   }
 
   .section-heading,
-  .mode-grid {
+  .mode-grid,
+  .anchor-message-row {
     grid-template-columns: 1fr;
   }
 

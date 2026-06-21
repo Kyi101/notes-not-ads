@@ -9,6 +9,7 @@ function replaceCandidate(element) {
   const surfaceKey = createSurfaceKey(element, rect);
   const preservesSiteChildren = slot === element;
 
+  ensureReplacementRootStyles(slot);
   slot.dataset.attentionRedirectorReplaced = "true";
   slot.dataset.attentionRedirectorSurfaceKey = surfaceKey;
   slot.dataset.attentionRedirectorWidth = String(Math.round(rect.width));
@@ -34,7 +35,7 @@ function replaceCandidate(element) {
 }
 
 function applySettingsToReplacedSlots() {
-  document.querySelectorAll(".attention-redirector-slot").forEach((slot) => {
+  queryAllScanRoots(".attention-redirector-slot").forEach((slot) => {
     if (slot instanceof HTMLElement) {
       renderReplacementSlot(slot);
     }
@@ -63,11 +64,13 @@ function renderReplacementSlot(slot) {
     }
     slot.dataset.attentionRedirectorPresentation = "clean";
     removeReplacementCards(slot);
-    slot.style.display = "none";
+    hideReplacementSlot(slot);
     return;
   }
 
   slot.style.removeProperty("display");
+  slot.style.removeProperty("visibility");
+  slot.style.removeProperty("pointer-events");
   slot.dataset.attentionRedirectorPresentation = "ambient";
   const card = buildCard(createCardModel(surfaceKey), rect);
   removeReplacementCards(slot);
@@ -78,6 +81,19 @@ function renderReplacementSlot(slot) {
   }
   observeCardMotion(card);
   installReplacementGuard(slot, card);
+}
+
+function hideReplacementSlot(slot) {
+  slot.style.removeProperty("display");
+  slot.style.setProperty("visibility", "hidden", "important");
+  slot.style.setProperty("pointer-events", "none", "important");
+}
+
+function ensureReplacementRootStyles(slot) {
+  const root = getContainingOpenShadowRoot(slot);
+  if (root) {
+    ensureShadowRootStyles(root);
+  }
 }
 
 function removeReplacementCards(slot) {
@@ -269,9 +285,17 @@ function createCardModel(surfaceKey) {
 
   return {
     mode: state.settings.mode,
-    body: state.settings.anchorNote,
+    body: selectAnchorNote(surfaceKey),
     motionDelay: -(((hashString(surfaceKey) + sequence) % 6) * 5)
   };
+}
+
+function selectAnchorNote(surfaceKey) {
+  const notes = normalizeAnchorNotes(
+    state.settings.anchorNotes,
+    state.settings.anchorNote
+  );
+  return notes[hashString(surfaceKey) % notes.length];
 }
 
 function hashString(value) {
@@ -377,6 +401,29 @@ function hasAdLikeSource(element) {
   return AD_SOURCE_RE.test(`${ownSrc} ${srcValues}`);
 }
 
+function hasAdScriptEvidence(element) {
+  return AD_SCRIPT_TEXT_RE.test(getAdScriptText(element));
+}
+
+function hasBoundedAdScriptEvidence(element) {
+  if (!hasAdScriptEvidence(element)) {
+    return false;
+  }
+
+  return isBoundedAdContainerRect(element.getBoundingClientRect());
+}
+
+function getAdScriptText(element) {
+  const scripts = element.matches("script")
+    ? [element]
+    : Array.from(element.querySelectorAll("script")).slice(0, 4);
+
+  return scripts
+    .map((script) => script.textContent || "")
+    .join(" ")
+    .slice(0, 2200);
+}
+
 function getSourceValues(element) {
   const nodes = [element, ...Array.from(element.querySelectorAll("iframe,img,embed,source"))];
   const values = [];
@@ -457,11 +504,11 @@ function hasSoftUnsafeIdentifierInAncestors(element) {
 }
 
 function hasHardUnsafeAncestor(element) {
-  return Boolean(element.closest(HARD_UNSAFE_ANCESTOR_SELECTOR));
+  return Boolean(closestAcrossRoots(element, HARD_UNSAFE_ANCESTOR_SELECTOR));
 }
 
 function hasSoftUnsafeAncestor(element) {
-  return Boolean(element.closest(SOFT_UNSAFE_ANCESTOR_SELECTOR));
+  return Boolean(closestAcrossRoots(element, SOFT_UNSAFE_ANCESTOR_SELECTOR));
 }
 
 function isVisibleRect(rect) {
@@ -470,6 +517,32 @@ function isVisibleRect(rect) {
 
 function isSmallContainer(rect) {
   return rect.width <= 420 || rect.height <= 320;
+}
+
+function isBoundedAdContainerRect(rect) {
+  return (
+    isVisibleRect(rect) &&
+    rect.width <= 1100 &&
+    rect.height <= 340 &&
+    rect.width * rect.height <= 260000
+  );
+}
+
+function isNarrowContentRail(element, rect) {
+  if (rect.width > 360 || rect.height <= 760) {
+    return false;
+  }
+
+  const text = String(element.innerText || element.textContent || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return (
+    text.length > 180 &&
+    element.children.length > 3 &&
+    !hasOwnAdIdentifier(element) &&
+    !isBrandingTakeover(element)
+  );
 }
 
 function isTooLargeForMvp(rect) {
@@ -536,7 +609,7 @@ function isCommonAdSize(rect) {
 
 function isSidebarElement(element) {
   return Boolean(
-    element.closest("aside,[role='complementary']") ||
+    closestAcrossRoots(element, "aside,[role='complementary']") ||
       /(^|[\s_.:-])(sidebar|rail|right-column|rightcol)([\s_.:-]|$)/i.test(
         getIdentifierText(element.parentElement || element)
       )
@@ -553,6 +626,72 @@ function isLikelyHeroBanner(element) {
     ) ||
     (rect.width > window.innerWidth * 0.75 && rect.height > 180)
   );
+}
+
+function findLinkedMediaAdContainer(element) {
+  if (!isLinkedCommonMediaAd(element)) {
+    return null;
+  }
+
+  const link = closestAcrossRoots(element, "a[href]");
+  if (!link) {
+    return null;
+  }
+
+  let current = link.parentElement;
+  let depth = 0;
+
+  while (current && current !== document.body && depth < 3) {
+    if (
+      current instanceof HTMLElement &&
+      !current.matches("main,article,nav,header,footer,form") &&
+      containsOnlyLinkedMediaAd(current, link, element) &&
+      hasSimilarRect(element, current) &&
+      safeToReplace(current)
+    ) {
+      return current;
+    }
+
+    current = current.parentElement;
+    depth += 1;
+  }
+
+  return null;
+}
+
+function isLinkedCommonMediaAd(element) {
+  if (!(element instanceof HTMLElement) || !element.matches("img,embed")) {
+    return false;
+  }
+
+  if (!closestAcrossRoots(element, "a[href]") || !isSidebarElement(element)) {
+    return false;
+  }
+
+  const rect = element.getBoundingClientRect();
+  return isVisibleRect(rect) && isCommonAdSize(rect) && !isLikelyHeroBanner(element);
+}
+
+function containsOnlyLinkedMediaAd(container, link, media) {
+  if (container.querySelector("form,input,textarea,select,[contenteditable='true']")) {
+    return false;
+  }
+
+  const children = Array.from(container.children).filter((child) => {
+    return !child.matches("script,style,noscript");
+  });
+  if (children.length !== 1 || children[0] !== link) {
+    return false;
+  }
+
+  if (!link.contains(media) || link.textContent.trim()) {
+    return false;
+  }
+
+  const linkedMedia = Array.from(
+    link.querySelectorAll("img,embed,iframe,picture")
+  );
+  return linkedMedia.length >= 1 && linkedMedia.length <= 2;
 }
 
 function hasSimilarRect(child, parent) {

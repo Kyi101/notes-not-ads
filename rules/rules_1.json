@@ -1240,5 +1240,95 @@
       "urlFilter": "||books-analytics-events.apple.com^",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
+  },
+  {
+    "id": 139,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||bidmatic.io^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 140,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||rcvlink.com^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 141,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||onetag-sys.com^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 142,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||lijit.com^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 143,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||mfadsrvr.com^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 144,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||id5-sync.com^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 145,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||zfctrack.net^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 146,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||mygaru.com^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 147,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||trustedstack.com^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 148,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||4dex.io^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
   }
 ]

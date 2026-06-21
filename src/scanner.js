@@ -1,4 +1,4 @@
-async function runScan({ force }) {
+async function runScan({ force, contextNodes = [document] }) {
   if (!state.settingsReady) {
     return 0;
   }
@@ -15,7 +15,9 @@ async function runScan({ force }) {
   let inserted = 0;
 
   try {
-    const candidates = collectCandidates();
+    const candidates = collectCandidates(
+      expandScanContexts(force ? [document] : contextNodes)
+    );
 
     for (const candidate of candidates) {
       if (!force && inserted >= 6) {
@@ -29,16 +31,31 @@ async function runScan({ force }) {
     }
   } finally {
     state.isScanning = false;
+    if (state.pendingScanNodes && state.pendingScanNodes.size > 0) {
+      scheduleScan(80);
+    }
   }
 
   return inserted;
 }
 
-function collectCandidates() {
+function collectCandidates(contextNodes = [document]) {
   state.cosmeticMatches = new WeakMap();
+  const rawNodes = [];
+
+  for (const context of contextNodes) {
+    if (!context) continue;
+    if (context instanceof HTMLElement && context.matches(SCAN_SELECTOR)) {
+      rawNodes.push(context);
+    }
+    if (context.querySelectorAll) {
+      rawNodes.push(...Array.from(context.querySelectorAll(SCAN_SELECTOR)));
+    }
+  }
+
   const nodes = [
-    ...Array.from(document.querySelectorAll(SCAN_SELECTOR)),
-    ...collectCosmeticCandidateNodes()
+    ...rawNodes,
+    ...collectCosmeticCandidateNodes(contextNodes)
   ];
   const candidates = [];
   const seen = new Set();
@@ -69,7 +86,7 @@ function collectCandidates() {
     .sort((a, b) => getArea(a) - getArea(b));
 }
 
-function collectCosmeticCandidateNodes() {
+function collectCosmeticCandidateNodes(contextNodes = [document]) {
   const nodes = [];
   const seen = new Set();
   const maxMatches = 260;
@@ -101,17 +118,36 @@ function collectCosmeticCandidateNodes() {
     let matches = [];
 
     if (chunk.selectorString) {
-      try {
-        matches = Array.from(document.querySelectorAll(chunk.selectorString));
-      } catch (_error) {}
+      for (const context of contextNodes) {
+        if (!context) continue;
+        try {
+          if (context instanceof HTMLElement && context.matches(chunk.selectorString)) {
+            if (!matches.includes(context)) matches.push(context);
+          }
+          if (context.querySelectorAll) {
+            const found = Array.from(context.querySelectorAll(chunk.selectorString));
+            for (const el of found) {
+              if (!matches.includes(el)) matches.push(el);
+            }
+          }
+        } catch (_error) {}
+      }
     } else {
       for (const rule of chunk) {
-        try {
-          const ruleMatches = Array.from(document.querySelectorAll(rule.selector));
-          for (const el of ruleMatches) {
-            if (!matches.includes(el)) matches.push(el);
-          }
-        } catch (e) {}
+        for (const context of contextNodes) {
+          if (!context) continue;
+          try {
+            if (context instanceof HTMLElement && context.matches(rule.selector)) {
+              if (!matches.includes(context)) matches.push(context);
+            }
+            if (context.querySelectorAll) {
+              const ruleMatches = Array.from(context.querySelectorAll(rule.selector));
+              for (const el of ruleMatches) {
+                if (!matches.includes(el)) matches.push(el);
+              }
+            }
+          } catch (e) {}
+        }
       }
     }
 
@@ -322,6 +358,10 @@ function safeToReplace(element) {
     return false;
   }
 
+  if (element.shadowRoot) {
+    return false;
+  }
+
   if (containsExplicitVideoAdLayer(element) && !hasOwnAdIdentifier(element)) {
     return false;
   }
@@ -354,12 +394,16 @@ function safeToReplace(element) {
     return false;
   }
 
-  if (element.closest("a[href]") && !hasAdLikeSource(element)) {
+  if (closestAcrossRoots(element, "a[href]") && !hasAdLikeSource(element)) {
     return false;
   }
 
   const rect = element.getBoundingClientRect();
   if (!isVisibleRect(rect)) {
+    return false;
+  }
+
+  if (isNarrowContentRail(element, rect)) {
     return false;
   }
 
@@ -677,6 +721,10 @@ function getSafetyBlocks(element) {
     blocks.push("structural page section");
   }
 
+  if (element.shadowRoot) {
+    blocks.push("open shadow host");
+  }
+
   if (containsExplicitVideoAdLayer(element) && !hasOwnAdIdentifier(element)) {
     blocks.push("contains explicit video ad child");
   }
@@ -716,13 +764,17 @@ function getSafetyBlocks(element) {
     blocks.push("contains form/editor controls");
   }
 
-  if (element.closest("a[href]") && !hasAdLikeSource(element)) {
+  if (closestAcrossRoots(element, "a[href]") && !hasAdLikeSource(element)) {
     blocks.push("inside normal link");
   }
 
   const rect = element.getBoundingClientRect();
   if (!isVisibleRect(rect)) {
     blocks.push("not visibly sized");
+  }
+
+  if (isNarrowContentRail(element, rect)) {
+    blocks.push("mixed narrow content rail");
   }
 
   if (isTooLargeForMvp(rect) && !canReplaceExplicitLargeAd(element, rect)) {
@@ -734,8 +786,9 @@ function getSafetyBlocks(element) {
 
 function isExtensionElement(element) {
   return Boolean(
-    element.closest(
-      ".attention-redirector-slot,.attention-redirector-card,.attention-redirector-inspector,.attention-redirector-inspector-box,.attention-redirector-manual-hover,.attention-redirector-manual-capture"
+    closestAcrossRoots(
+      element,
+      ".attention-redirector-slot,.attention-redirector-card,.attention-redirector-inspector,.attention-redirector-inspector-box,.attention-redirector-manual-hover,.attention-redirector-manual-capture,.attention-redirector-style"
     )
   );
 }
@@ -923,4 +976,3 @@ function normalizeDomain(value) {
 function stripWww(hostname) {
   return hostname.replace(/^www\./, "");
 }
-

@@ -236,12 +236,28 @@ button:disabled {
   opacity: 0.4;
 }
 
-.anchor-field span {
+.anchor-field__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.anchor-field label,
+.anchor-field small {
   color: var(--muted);
+}
+
+.anchor-field label {
   font-size: 9px;
   font-weight: 760;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.anchor-field small {
+  font-size: 10px;
+  line-height: 1.25;
 }
 
 .anchor-field input {
@@ -253,6 +269,17 @@ button:disabled {
   background: #fff;
   color: var(--ink);
   font-size: 12px;
+}
+
+.anchor-field__add {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent-dark);
+  line-height: 1;
 }
 
 .presence-section input[type="range"] {
@@ -306,9 +333,14 @@ button {
   font-weight: 700;
 }
 
+.advanced-actions {
+  display: grid;
+  gap: 7px;
+  margin-top: 7px;
+}
+
 .text-button {
   width: 100%;
-  margin-top: 7px;
   border: 1px dashed #c6ccc6;
   background: transparent;
   color: var(--ink);

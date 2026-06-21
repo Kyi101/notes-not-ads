@@ -4,19 +4,45 @@
     return;
   }
   window[CONTENT_LOADED_KEY] = true;
-  
+
   const STORAGE_KEY = "attentionRedirectorSettings";
   const INSPECTOR_REPORTS_KEY = "attentionRedirectorInspectorReports";
-  
+  const DEFAULT_ANCHOR_NOTE = "Finish what deserves your attention.";
+  const MAX_ANCHOR_NOTES = 5;
+
   const DEFAULT_SETTINGS = {
     enabled: true,
     mode: "quiet",
-    anchorNote: "Finish what deserves your attention.",
+    anchorNote: DEFAULT_ANCHOR_NOTE,
+    anchorNotes: [DEFAULT_ANCHOR_NOTE],
     visualPresence: 10,
     reducedMotion: "system",
     disabledDomains: []
   };
-  
+
+  function normalizeAnchorNotes(...sources) {
+    const notes = [];
+
+    sources.forEach((source) => {
+      const values = Array.isArray(source) ? source : [source];
+      values.forEach((value) => {
+        const note = String(value || "").trim();
+        if (note && !notes.includes(note)) {
+          notes.push(note);
+        }
+      });
+    });
+
+    return notes.length ? notes.slice(0, MAX_ANCHOR_NOTES) : [DEFAULT_ANCHOR_NOTE];
+  }
+
+  function hasAnchorNoteInput(value) {
+    if (Array.isArray(value)) {
+      return value.some(hasAnchorNoteInput);
+    }
+    return typeof value === "string" && Boolean(value.trim());
+  }
+
   const SENSITIVE_DOMAINS = [
     "accounts.google.com",
     "docs.google.com",
@@ -41,7 +67,7 @@
     "citi.com",
     "citibank.com"
   ];
-  
+
   const SENSITIVE_HOST_WORDS = [
     "bank",
     "brokerage",
@@ -50,10 +76,10 @@
     "billing",
     "wallet"
   ];
-  
+
   const SENSITIVE_PATH_RE =
     /\/(checkout|cart|basket|payment|payments|billing|invoice|invoices|pay|order|orders|purchase|subscribe|subscription|login|signin|sign-in|password|account\/security)(\/|$)/i;
-  
+
   const HARD_UNSAFE_ANCESTOR_SELECTOR = [
     "nav",
     "form",
@@ -66,14 +92,16 @@
     ".attention-redirector-inspector",
     ".attention-redirector-inspector-box"
   ].join(",");
-  
+
   const SOFT_UNSAFE_ANCESTOR_SELECTOR = ["article", "header", "footer"].join(",");
-  
+
   const SCAN_SELECTOR = [
     "div",
     "section",
     "aside",
     "ins",
+    "aside img",
+    "[role='complementary'] img",
     "iframe",
     "amp-ad",
     "shreddit-ad-post",
@@ -87,7 +115,7 @@
     "[data-ad-slot]",
     "[data-ad-client]"
   ].join(",");
-  
+
   const DEBUG_SCAN_SELECTOR = [
     "div",
     "section",
@@ -106,44 +134,194 @@
     "[data-ad-slot]",
     "[data-ad-client]"
   ].join(",");
-  
+
+  const SHADOW_ROOT_STYLE_TEXT = `
+  .attention-redirector-slot {
+    box-sizing: border-box !important;
+    isolation: isolate !important;
+  }
+  .attention-redirector-slot--preserve-children {
+    position: relative !important;
+    overflow: hidden !important;
+  }
+  .attention-redirector-slot--preserve-children > :not(.attention-redirector-card) {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  .attention-redirector-slot--preserve-children > .attention-redirector-card {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 2147483646 !important;
+    min-height: 0 !important;
+  }
+  .attention-redirector-card,
+  .attention-redirector-card *,
+  .attention-redirector-card *::before,
+  .attention-redirector-card *::after {
+    box-sizing: border-box !important;
+  }
+  .attention-redirector-card {
+    --ar-field-a: #d9e4d8;
+    --ar-field-b: #adc2ae;
+    --ar-field-c: #496555;
+    --ar-ink: #183027;
+    --ar-motion-delay: 0s;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    isolation: isolate !important;
+    contain: paint !important;
+    width: 100% !important;
+    min-height: inherit !important;
+    height: 100% !important;
+    padding: clamp(22px, 6vw, 64px) !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background: linear-gradient(145deg, var(--ar-field-a), var(--ar-field-b)) !important;
+    color: var(--ar-ink) !important;
+    font-family: Optima, Candara, "Trebuchet MS", sans-serif !important;
+    line-height: 1.08 !important;
+    text-align: center !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48), 0 10px 32px rgba(73, 101, 85, 0.16) !important;
+  }
+  .attention-redirector-card::before,
+  .attention-redirector-card::after {
+    content: "" !important;
+    position: absolute !important;
+    z-index: 0 !important;
+    display: block !important;
+    pointer-events: none !important;
+  }
+  .attention-redirector-card[data-ambient-variant="tide"]::before {
+    inset: -55% -20% !important;
+    border-radius: 44% !important;
+    background: linear-gradient(115deg, rgba(255, 255, 255, 0.24) 0%, rgba(217, 228, 216, 0.08) 42%, rgba(73, 101, 85, 0.2) 72%, rgba(255, 255, 255, 0.18) 100%) !important;
+    animation: attention-redirector-tide 32s ease-in-out infinite alternate !important;
+    animation-delay: var(--ar-motion-delay) !important;
+  }
+  .attention-redirector-card[data-ambient-variant="tide"]::after {
+    right: -18% !important;
+    bottom: -55% !important;
+    width: 66% !important;
+    aspect-ratio: 1 !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle, rgba(217, 104, 58, 0.18) 0%, rgba(217, 104, 58, 0.12) 42%, rgba(217, 104, 58, 0) 72%) !important;
+    animation: attention-redirector-tide-orb 30s ease-in-out infinite alternate !important;
+    animation-delay: var(--ar-motion-delay) !important;
+  }
+  .attention-redirector-card__hide {
+    appearance: none !important;
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    z-index: 3 !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 26px !important;
+    height: 26px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    color: currentColor !important;
+    cursor: pointer !important;
+    font-family: Arial, sans-serif !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    opacity: 0.28 !important;
+  }
+  .attention-redirector-card__body {
+    position: relative !important;
+    z-index: 2 !important;
+    display: -webkit-box !important;
+    max-width: 820px !important;
+    margin: 0 !important;
+    color: var(--ar-ink) !important;
+    font: inherit !important;
+    font-size: clamp(22px, 3.7vw, 46px) !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.035em !important;
+    line-height: 1.08 !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3 !important;
+    overflow: hidden !important;
+  }
+  .attention-redirector-card--compact {
+    padding: 12px 34px 12px 16px !important;
+    border-radius: 10px !important;
+  }
+  .attention-redirector-card--compact .attention-redirector-card__body {
+    font-size: 17px !important;
+    -webkit-line-clamp: 2 !important;
+  }
+  .attention-redirector-slot--short .attention-redirector-card {
+    padding: 7px 36px 7px 14px !important;
+    border-radius: 8px !important;
+  }
+  .attention-redirector-slot--short .attention-redirector-card__body {
+    font-size: 15px !important;
+    -webkit-line-clamp: 1 !important;
+  }
+  .attention-redirector-card--still,
+  .attention-redirector-card--still[data-ambient-variant]::before,
+  .attention-redirector-card--still[data-ambient-variant]::after,
+  .attention-redirector-card--motion-paused[data-ambient-variant]::before,
+  .attention-redirector-card--motion-paused[data-ambient-variant]::after {
+    animation: none !important;
+  }
+  @keyframes attention-redirector-tide {
+    0% { transform: translate3d(-3%, -2%, 0) rotate(0deg) scale(1); }
+    100% { transform: translate3d(3%, 2%, 0) rotate(5deg) scale(1.04); }
+  }
+  @keyframes attention-redirector-tide-orb {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    100% { transform: translate3d(-18%, -6%, 0) scale(1.08); }
+  }
+  `;
+
   const INSPECTOR_MAX_HIGHLIGHTS = 35;
   const INSPECTOR_MAX_REPORT_CANDIDATES = 20;
   const INSPECTOR_MAX_SAVED_REPORTS = 75;
-  
+
   const AD_IDENTIFIER_RE =
     /(^|[\s_.:-])(ad|ads|adslot|ad-slot|ad_unit|ad-unit|advert|advertisement|advertising|sponsor|sponsored|promoted|promo|dfp|gpt|doubleclick|adsbygoogle|native-ad|paid-placement)([\s_.:-]|$)/i;
-  
+
   const VIDEO_AD_IDENTIFIER_RE =
     /(^|[\s_.:-])(ima-ad-container|ad-container|ad_container|ima|vast|vpaid|preroll|pre-roll|midroll|mid-roll)([\s_.:-]|$)/i;
-  
+
   const BANNER_IDENTIFIER_RE =
     /(^|[\s_.:-])(banner|leaderboard)([\s_.:-]|$)/i;
-  
+
   const UNSAFE_IDENTIFIER_RE =
     /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|modal|dialog|toast|navigation|menu|navbar|breadcrumb|footer|header|search|subscribe|newsletter)/i;
-  
+
   const HARD_UNSAFE_IDENTIFIER_RE =
     /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|navigation|menu|navbar|breadcrumb|search|subscribe|newsletter)/i;
-  
+
   const SOFT_UNSAFE_IDENTIFIER_RE =
     /(modal|dialog|toast|footer|header)/i;
-  
+
   const AD_TEXT_RE =
-    /(^|\b)(advertisement|advertising|sponsored|promoted|paid placement)(\b|$)/i;
-  
+    /(advertisement|advertising|sponsored|promoted|paid placement|реклама|рекламний|рекламная)/i;
+
   const AD_SOURCE_RE =
-    /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link)/i;
-  
+    /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;
+
+  const AD_SCRIPT_TEXT_RE =
+    /(googletag|div-gpt-ad|slotRenderEnded|prebid|bidmatic|mgid|collectCommercialData|rcvlink)/i;
+
   const SCRIPT_IFRAME_SOURCE_RE =
     /(javascript:void|document\.write|document\.createElement\(['"]script|script\.innerHTML|script\.src)/i;
-  
+
   const BRANDING_TAKEOVER_IDENTIFIER_RE =
     /(^|[\s_.:-])i?brnd[a-z0-9]{6,}([\s_.:-]|$)/i;
-  
+
   const BRANDING_TAKEOVER_SOURCE_RE =
     /(?:^|[/:])iframehs(?:[/?#]|$)/i;
-  
+
   const COMMON_AD_SIZES = [
     [300, 250],
     [336, 280],
@@ -157,7 +335,7 @@
     [250, 250],
     [468, 60]
   ];
-  
+
   const state = {
     settings: mergeSettings(),
     settingsReady: false,
@@ -165,6 +343,13 @@
     scanTimer: 0,
     scanDueAt: 0,
     observer: null,
+    pendingScanNodes: new Set(),
+    observedScanRoots: new WeakSet(),
+    shadowStyleRoots: new WeakSet(),
+    dnrAllowSync: {
+      timer: 0,
+      nextAttempt: 0
+    },
     isScanning: false,
     cardSequence: 0,
     cosmeticRules: [],
@@ -181,16 +366,14 @@
       manualCapture: null,
       hoverBox: null,
       hoverInfo: null,
+      reportMode: false,
       clickHandler: null,
       pointerMoveHandler: null,
       refreshHandler: null,
       refreshTimer: 0
     }
   };
-  
-  
-  
-  
+
   async function init() {
     registerExtensionListeners();
     startObserver();
@@ -198,40 +381,46 @@
     state.settingsReady = true;
     state.cosmeticRules = loadCosmeticRulesForPage();
     syncPageDnrAllowRule();
-  
+
     if (!isPageAllowed(state.settings)) {
       stopObserver();
       return;
     }
-  
+
     await runScan({ force: true });
     startWarmupScans();
   }
-  
+
   function registerExtensionListeners() {
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if (!message || typeof message.type !== "string") {
         return false;
       }
-  
+
       if (message.type === "AR_GET_STATUS") {
         sendResponse(getStatus());
         return false;
       }
-  
+
       if (message.type === "AR_TOGGLE_INSPECTOR") {
         const inspectorStatus = toggleInspector();
         sendResponse({ ...getStatus(), ...inspectorStatus });
         return false;
       }
-  
+
+      if (message.type === "AR_START_MISSED_AD_REPORT") {
+        const inspectorStatus = startMissedAdReport();
+        sendResponse({ ...getStatus(), ...inspectorStatus });
+        return false;
+      }
+
       if (message.type === "AR_REPLACE_NOW") {
         runScan({ force: true }).then((inserted) => {
           sendResponse({ ...getStatus(), insertedNow: inserted });
         });
         return true;
       }
-  
+
       if (message.type === "AR_SETTINGS_CHANGED") {
         loadSettings().then((settings) => {
           state.settings = settings;
@@ -242,22 +431,22 @@
         });
         return true;
       }
-  
+
       return false;
     });
-  
+
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== "local" || !changes[STORAGE_KEY]) {
         return;
       }
-  
+
       state.settings = mergeSettings(changes[STORAGE_KEY].newValue);
       syncPageDnrAllowRule();
       applySettingsToReplacedSlots();
       scheduleScan(80);
     });
   }
-  
+
   function loadSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get(STORAGE_KEY, (items) => {
@@ -265,7 +454,7 @@
       });
     });
   }
-  
+
   function mergeSettings(value) {
     const stored = value && typeof value === "object" ? value : {};
     const legacyNotes = Array.isArray(stored.customNotes)
@@ -281,7 +470,7 @@
     const visualPresence = Number.isFinite(Number(stored.visualPresence))
       ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
       : legacyPresence;
-  
+
     return {
       enabled: stored.enabled !== false,
       mode,
@@ -289,6 +478,11 @@
         typeof stored.anchorNote === "string" && stored.anchorNote.trim()
           ? stored.anchorNote.trim()
           : legacyNotes[0] || DEFAULT_SETTINGS.anchorNote,
+      anchorNotes: normalizeAnchorNotes(
+        stored.anchorNotes,
+        stored.anchorNote,
+        legacyNotes
+      ),
       visualPresence,
       reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
       disabledDomains: Array.isArray(stored.disabledDomains)
@@ -296,7 +490,7 @@
         : []
     };
   }
-  
+
   function getStatus() {
     return {
       inserted: state.inserted,
@@ -309,64 +503,318 @@
       domain: location.hostname
     };
   }
-  
+
   function syncPageDnrAllowRule() {
     if (!chrome.runtime || typeof chrome.runtime.sendMessage !== "function") {
       return;
     }
-  
+
+    window.clearTimeout(state.dnrAllowSync.timer);
+
     chrome.runtime.sendMessage({
       type: "AR_SYNC_PAGE_DNR_ALLOW",
       allow: !isPageAllowed(state.settings)
+    }, (response) => {
+      const error = chrome.runtime.lastError;
+      if (!error && response && response.ok) {
+        state.dnrAllowSync.nextAttempt = 0;
+        return;
+      }
+
+      if (state.dnrAllowSync.nextAttempt >= 3) {
+        state.dnrAllowSync.nextAttempt = 0;
+        return;
+      }
+
+      state.dnrAllowSync.nextAttempt += 1;
+      state.dnrAllowSync.timer = window.setTimeout(() => {
+        syncPageDnrAllowRule();
+      }, state.dnrAllowSync.nextAttempt * 180);
     });
   }
-  
+
+  const PAGE_OBSERVER_OPTIONS = {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: [
+      "class",
+      "style",
+      "src",
+      "data-src",
+      "width",
+      "height",
+      "aria-label",
+      "title"
+    ]
+  };
+
   function startObserver() {
     if (state.observer || !document.documentElement) {
       return;
     }
-  
-    state.observer = new MutationObserver((mutations) => {
-      const hasPageMutation = mutations.some((mutation) => {
-        return (
-          !(mutation.target instanceof HTMLElement) ||
-          !isExtensionElement(mutation.target)
-        );
-      });
-  
-      if (!hasPageMutation) {
-        return;
-      }
-  
-      scheduleScan(80);
-    });
-  
-    state.observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: [
-        "class",
-        "style",
-        "src",
-        "data-src",
-        "width",
-        "height",
-        "aria-label",
-        "title"
-      ]
+
+    state.observer = new MutationObserver(handlePageMutations);
+    observeScanRoot(document.documentElement);
+
+    collectOpenShadowRoots(document).forEach((root) => {
+      observeScanRoot(root);
     });
   }
-  
+
   function stopObserver() {
     if (!state.observer) {
       return;
     }
-  
+
     state.observer.disconnect();
     state.observer = null;
+    state.observedScanRoots = new WeakSet();
   }
-  
+
+  function handlePageMutations(mutations) {
+    let queuedScan = false;
+
+    for (const mutation of mutations) {
+      const target = mutation.target;
+
+      if (mutation.type === "childList") {
+        for (const node of mutation.addedNodes) {
+          if (!(node instanceof HTMLElement) || isExtensionElement(node)) {
+            continue;
+          }
+
+          queuedScan = queueScanContext(node) || queuedScan;
+        }
+        continue;
+      }
+
+      if (
+        mutation.type === "attributes" &&
+        target instanceof HTMLElement &&
+        !isExtensionElement(target)
+      ) {
+        queuedScan = queueScanContext(target) || queuedScan;
+      }
+    }
+
+    if (queuedScan) {
+      scheduleScan(80);
+    }
+  }
+
+  function queueScanContext(node) {
+    const context = normalizeScanContext(node);
+    if (!context) {
+      return false;
+    }
+
+    state.pendingScanNodes.add(context);
+
+    if (context instanceof HTMLElement) {
+      const root = getContainingOpenShadowRoot(context);
+      if (root) {
+        ensureShadowRootStyles(root);
+      }
+    }
+
+    collectOpenShadowRoots(context).forEach((root) => {
+      observeScanRoot(root);
+      state.pendingScanNodes.add(root);
+    });
+
+    return true;
+  }
+
+  function observeScanRoot(root) {
+    const target = normalizeObservableRoot(root);
+    if (!state.observer || !target || state.observedScanRoots.has(target)) {
+      return false;
+    }
+
+    state.observedScanRoots.add(target);
+    if (isOpenShadowRoot(target)) {
+      ensureShadowRootStyles(target);
+      state.pendingScanNodes.add(target);
+    }
+
+    state.observer.observe(target, PAGE_OBSERVER_OPTIONS);
+    return true;
+  }
+
+  function expandScanContexts(contextNodes = [document]) {
+    const contexts = [];
+    const seen = new Set();
+
+    const addContext = (context) => {
+      const normalized = normalizeScanContext(context);
+      if (!normalized || seen.has(normalized)) {
+        return;
+      }
+
+      seen.add(normalized);
+      contexts.push(normalized);
+
+      if (isOpenShadowRoot(normalized)) {
+        ensureShadowRootStyles(normalized);
+        observeScanRoot(normalized);
+      }
+
+      collectOpenShadowRoots(normalized).forEach(addContext);
+    };
+
+    contextNodes.forEach(addContext);
+    return contexts.length ? contexts : [document];
+  }
+
+  function queryAllScanRoots(selector) {
+    const matches = [];
+    const seen = new Set();
+
+    expandScanContexts([document]).forEach((context) => {
+      const addMatch = (element) => {
+        if (element instanceof HTMLElement && !seen.has(element)) {
+          seen.add(element);
+          matches.push(element);
+        }
+      };
+
+      if (context instanceof HTMLElement) {
+        try {
+          if (context.matches(selector)) {
+            addMatch(context);
+          }
+        } catch (_error) {}
+      }
+
+      if (typeof context.querySelectorAll === "function") {
+        try {
+          context.querySelectorAll(selector).forEach(addMatch);
+        } catch (_error) {}
+      }
+    });
+
+    return matches;
+  }
+
+  function collectOpenShadowRoots(context, maxRoots = 80) {
+    const roots = [];
+    const seen = new Set();
+
+    const addRoot = (root) => {
+      if (!isOpenShadowRoot(root) || seen.has(root) || roots.length >= maxRoots) {
+        return;
+      }
+
+      seen.add(root);
+      roots.push(root);
+      ensureShadowRootStyles(root);
+      visitTree(root);
+    };
+
+    const visitElement = (element) => {
+      if (
+        element instanceof HTMLElement &&
+        !isExtensionElement(element) &&
+        element.shadowRoot
+      ) {
+        addRoot(element.shadowRoot);
+      }
+    };
+
+    const visitTree = (rootNode) => {
+      const walkerRoot =
+        rootNode === document ? document.documentElement : normalizeScanContext(rootNode);
+      if (!walkerRoot || roots.length >= maxRoots) {
+        return;
+      }
+
+      if (walkerRoot instanceof HTMLElement) {
+        visitElement(walkerRoot);
+      }
+
+      const walker = document.createTreeWalker(
+        walkerRoot,
+        NodeFilter.SHOW_ELEMENT
+      );
+      let current = walker.nextNode();
+      while (current && roots.length < maxRoots) {
+        if (current instanceof HTMLElement) {
+          visitElement(current);
+        }
+        current = walker.nextNode();
+      }
+    };
+
+    visitTree(context);
+    return roots;
+  }
+
+  function normalizeObservableRoot(node) {
+    if (node === document) {
+      return document.documentElement;
+    }
+
+    if (node instanceof HTMLElement || isOpenShadowRoot(node)) {
+      return node;
+    }
+
+    return null;
+  }
+
+  function normalizeScanContext(node) {
+    if (node === document || node instanceof HTMLElement || isOpenShadowRoot(node)) {
+      return node;
+    }
+
+    return null;
+  }
+
+  function isOpenShadowRoot(node) {
+    return (
+      typeof ShadowRoot === "function" &&
+      node instanceof ShadowRoot &&
+      node.mode === "open"
+    );
+  }
+
+  function getContainingOpenShadowRoot(element) {
+    if (!(element instanceof HTMLElement) || typeof element.getRootNode !== "function") {
+      return null;
+    }
+
+    const root = element.getRootNode();
+    return isOpenShadowRoot(root) ? root : null;
+  }
+
+  function ensureShadowRootStyles(root) {
+    if (!isOpenShadowRoot(root) || state.shadowStyleRoots.has(root)) {
+      return;
+    }
+
+    const style = document.createElement("style");
+    style.className = "attention-redirector-style";
+    style.textContent = SHADOW_ROOT_STYLE_TEXT;
+    root.append(style);
+    state.shadowStyleRoots.add(root);
+  }
+
+  function closestAcrossRoots(element, selector) {
+    let current = element;
+
+    while (current instanceof HTMLElement) {
+      const match = current.closest(selector);
+      if (match) {
+        return match;
+      }
+
+      const root = getContainingOpenShadowRoot(current);
+      current = root && root.host instanceof HTMLElement ? root.host : null;
+    }
+
+    return null;
+  }
+
   function startWarmupScans() {
     [500, 1500, 3500, 7000].forEach((delay) => {
       window.setTimeout(() => {
@@ -374,32 +822,42 @@
       }, delay);
     });
   }
-  
+
   function scheduleScan(delay) {
     const safeDelay = Math.max(0, Number(delay) || 0);
     const dueAt = performance.now() + safeDelay;
-  
+
     if (state.scanTimer && state.scanDueAt <= dueAt) {
       return;
     }
-  
+
     window.clearTimeout(state.scanTimer);
     state.scanDueAt = dueAt;
     state.scanTimer = window.setTimeout(() => {
       state.scanTimer = 0;
       state.scanDueAt = 0;
+
+      const contextNodes =
+        state.pendingScanNodes && state.pendingScanNodes.size > 0
+          ? Array.from(state.pendingScanNodes)
+          : [document];
+
+      if (state.pendingScanNodes) {
+        state.pendingScanNodes.clear();
+      }
+
       window.requestAnimationFrame(() => {
-        runScan({ force: false });
+        runScan({ force: false, contextNodes });
       });
     }, safeDelay);
   }
-  
+
   function toggleInspector() {
     if (state.inspector.active) {
       stopInspector();
       return { inspectorActive: false, inspectorCandidateCount: 0 };
     }
-  
+
     if (isSensitivePage()) {
       return {
         inspectorActive: false,
@@ -407,40 +865,78 @@
         inspectorError: "Inspector is skipped on sensitive pages."
       };
     }
-  
+
     startInspector();
     return {
       inspectorActive: true,
+      inspectorReportMode: false,
       inspectorCandidateCount: state.inspector.candidates.length
     };
   }
-  
-  function startInspector() {
+
+  function startMissedAdReport() {
+    if (state.inspector.active && state.inspector.reportMode) {
+      stopInspector();
+      return {
+        inspectorActive: false,
+        inspectorReportMode: false,
+        inspectorCandidateCount: 0
+      };
+    }
+
+    if (state.inspector.active) {
+      stopInspector();
+    }
+
+    if (isSensitivePage()) {
+      return {
+        inspectorActive: false,
+        inspectorReportMode: false,
+        inspectorCandidateCount: 0,
+        inspectorError: "Report flow is skipped on sensitive pages."
+      };
+    }
+
+    startInspector({ reportMode: true, manualPick: true });
+    return {
+      inspectorActive: true,
+      inspectorReportMode: true,
+      inspectorCandidateCount: state.inspector.candidates.length
+    };
+  }
+
+  function startInspector(options = {}) {
     if (state.inspector.active || !document.documentElement) {
       return;
     }
-  
+
     state.inspector.active = true;
+    state.inspector.reportMode = Boolean(options.reportMode);
+    state.inspector.manualPick = Boolean(options.manualPick);
     state.inspector.overlay = buildInspectorOverlay();
     document.documentElement.appendChild(state.inspector.overlay);
-  
+
     state.inspector.clickHandler = handleInspectorClick;
     state.inspector.pointerMoveHandler = handleInspectorPointerMove;
     state.inspector.refreshHandler = scheduleInspectorRefresh;
-  
+
     document.addEventListener("click", state.inspector.clickHandler, true);
     document.addEventListener("pointermove", state.inspector.pointerMoveHandler, true);
     window.addEventListener("scroll", state.inspector.refreshHandler, true);
     window.addEventListener("resize", state.inspector.refreshHandler);
-  
+
     refreshInspector();
+    if (state.inspector.manualPick) {
+      ensureManualCaptureLayer();
+      updateInspectorOverlay();
+    }
   }
-  
+
   function stopInspector() {
     if (!state.inspector.active) {
       return;
     }
-  
+
     document.removeEventListener("click", state.inspector.clickHandler, true);
     document.removeEventListener("pointermove", state.inspector.pointerMoveHandler, true);
     window.removeEventListener("scroll", state.inspector.refreshHandler, true);
@@ -448,16 +944,17 @@
     window.clearTimeout(state.inspector.refreshTimer);
     clearInspectorBoxes();
     clearManualHoverBox();
-  
+
     if (state.inspector.overlay) {
       state.inspector.overlay.remove();
     }
-  
+
     state.inspector.active = false;
     state.inspector.overlay = null;
     state.inspector.candidates = [];
     state.inspector.selectedInfo = null;
     state.inspector.manualPick = false;
+    state.inspector.reportMode = false;
     clearManualCaptureLayer();
     state.inspector.hoverBox = null;
     state.inspector.hoverInfo = null;
@@ -465,110 +962,122 @@
     state.inspector.pointerMoveHandler = null;
     state.inspector.refreshHandler = null;
   }
-  
+
   function buildInspectorOverlay() {
     const overlay = document.createElement("div");
     overlay.className = "attention-redirector-inspector";
-  
+    overlay.dataset.attentionRedirectorReportMode = String(
+      state.inspector.reportMode
+    );
+
     const header = document.createElement("div");
     header.className = "attention-redirector-inspector__header";
-  
+
     const titleBlock = document.createElement("div");
     const title = document.createElement("strong");
-    title.textContent = "Clutter inspector";
+    title.textContent = state.inspector.reportMode
+      ? "Report missed ad"
+      : "Diagnostic inspector";
     const subtitle = document.createElement("span");
-    subtitle.textContent = "Click a missed banner, popup, or animated slot.";
+    subtitle.textContent = state.inspector.reportMode
+      ? "Click the missed ad. A local report will be copied."
+      : "Click a missed banner, popup, or animated slot.";
     titleBlock.append(title, subtitle);
-  
+
     const closeButton = document.createElement("button");
     closeButton.type = "button";
     closeButton.textContent = "Close";
     closeButton.addEventListener("click", stopInspector);
-  
+
     header.append(titleBlock, closeButton);
-  
+
     const summary = document.createElement("p");
     summary.className = "attention-redirector-inspector__summary";
     summary.dataset.attentionRedirectorInspectorSummary = "true";
-  
+
     const details = document.createElement("pre");
     details.className = "attention-redirector-inspector__details";
     details.dataset.attentionRedirectorInspectorDetails = "true";
-  
+
     const actions = document.createElement("div");
     actions.className = "attention-redirector-inspector__actions";
-  
+
     const refreshButton = document.createElement("button");
     refreshButton.type = "button";
     refreshButton.textContent = "Refresh highlights";
     refreshButton.addEventListener("click", refreshInspector);
-  
+
     const manualPickButton = document.createElement("button");
     manualPickButton.type = "button";
     manualPickButton.textContent = "Manual pick";
     manualPickButton.dataset.attentionRedirectorManualPick = "true";
     manualPickButton.addEventListener("click", toggleManualPick);
-  
+
     const parentButton = document.createElement("button");
     parentButton.type = "button";
     parentButton.textContent = "Use parent";
     parentButton.addEventListener("click", selectInspectorParent);
-  
+
     const saveCopyButton = document.createElement("button");
     saveCopyButton.type = "button";
     saveCopyButton.textContent = "Save + copy";
     saveCopyButton.addEventListener("click", saveAndCopyInspectorReport);
-  
+
     const exportButton = document.createElement("button");
     exportButton.type = "button";
     exportButton.textContent = "Export saved";
     exportButton.addEventListener("click", copySavedInspectorReports);
-  
+
     const clearButton = document.createElement("button");
     clearButton.type = "button";
     clearButton.textContent = "Clear saved";
     clearButton.addEventListener("click", clearSavedInspectorReports);
-  
+
     const copyStatus = document.createElement("span");
     copyStatus.dataset.attentionRedirectorInspectorCopyStatus = "true";
-  
+
     const savedCount = document.createElement("span");
     savedCount.className = "attention-redirector-inspector__saved-count";
     savedCount.dataset.attentionRedirectorSavedCount = "true";
     savedCount.textContent = "Saved: checking";
-  
-    actions.append(
-      refreshButton,
-      manualPickButton,
-      parentButton,
-      saveCopyButton,
-      exportButton,
-      clearButton,
-      copyStatus,
-      savedCount
-    );
+
+    if (state.inspector.reportMode) {
+      saveCopyButton.textContent = "Copy report";
+      actions.append(saveCopyButton, copyStatus, savedCount);
+    } else {
+      actions.append(
+        refreshButton,
+        manualPickButton,
+        parentButton,
+        saveCopyButton,
+        exportButton,
+        clearButton,
+        copyStatus,
+        savedCount
+      );
+    }
     overlay.append(header, summary, details, actions);
     return overlay;
   }
-  
+
   function scheduleInspectorRefresh() {
     if (!state.inspector.active) {
       return;
     }
-  
+
     window.clearTimeout(state.inspector.refreshTimer);
     state.inspector.refreshTimer = window.setTimeout(refreshInspector, 120);
   }
-  
+
   function refreshInspector() {
     if (!state.inspector.active) {
       return;
     }
-  
+
     clearInspectorBoxes();
     state.inspector.candidates = collectInspectorCandidates();
     renderInspectorBoxes();
-  
+
     if (state.inspector.selectedInfo) {
       state.inspector.selectedInfo = inspectElement(
         state.inspector.selectedInfo.element,
@@ -576,39 +1085,39 @@
       );
       renderSelectedBox(state.inspector.selectedInfo);
     }
-  
+
     updateInspectorOverlay();
     updateSavedReportCount();
   }
-  
+
   function clearInspectorBoxes() {
     state.inspector.boxes.forEach((box) => box.remove());
     state.inspector.boxes = [];
   }
-  
+
   function collectInspectorCandidates() {
     const records = [];
     const seen = new Set();
     const nodes = Array.from(document.querySelectorAll(DEBUG_SCAN_SELECTOR));
-  
+
     for (const node of nodes) {
       const element = getCandidateElement(node);
       if (!element || seen.has(element) || isExtensionElement(element)) {
         continue;
       }
-  
+
       const info = inspectElement(element);
       if (info.score < 3) {
         continue;
       }
-  
+
       records.push(info);
       seen.add(element);
     }
-  
+
     return dedupeInspectorRecords(records).slice(0, INSPECTOR_MAX_HIGHLIGHTS);
   }
-  
+
   function dedupeInspectorRecords(records) {
     const selected = [];
     const sorted = records.sort((a, b) => {
@@ -617,7 +1126,7 @@
       }
       return a.rect.area - b.rect.area;
     });
-  
+
     for (const record of sorted) {
       const overlapsExisting = selected.some((item) => {
         return (
@@ -625,12 +1134,12 @@
           record.element.contains(item.element)
         );
       });
-  
+
       if (!overlapsExisting) {
         selected.push(record);
       }
     }
-  
+
     return selected.sort((a, b) => {
       if (Math.abs(a.rect.top - b.rect.top) > 20) {
         return a.rect.top - b.rect.top;
@@ -638,7 +1147,7 @@
       return a.rect.left - b.rect.left;
     });
   }
-  
+
   function renderInspectorBoxes() {
     state.inspector.candidates.forEach((info, index) => {
       const box = buildInspectorBox(info, `#${index + 1}`);
@@ -650,7 +1159,7 @@
       state.inspector.boxes.push(box);
     });
   }
-  
+
   function renderSelectedBox(info) {
     const box = buildInspectorBox(info, "selected");
     box.classList.add("attention-redirector-inspector-box--selected");
@@ -661,7 +1170,7 @@
     document.documentElement.appendChild(box);
     state.inspector.boxes.push(box);
   }
-  
+
   function buildInspectorBox(info, labelText) {
     const box = document.createElement("div");
     box.className = "attention-redirector-inspector-box";
@@ -669,19 +1178,19 @@
     box.style.left = `${Math.max(0, Math.round(info.rect.left))}px`;
     box.style.width = `${Math.max(1, Math.round(info.rect.width))}px`;
     box.style.height = `${Math.max(1, Math.round(info.rect.height))}px`;
-  
+
     const label = document.createElement("span");
     label.className = "attention-redirector-inspector-box__label";
     label.textContent = `${labelText} ${info.reasons.slice(0, 2).join(", ")}`;
     box.append(label);
     return box;
   }
-  
+
   function handleInspectorClick(event) {
     if (!state.inspector.active) {
       return;
     }
-  
+
     const inspectorBox =
       event.target instanceof Element
         ? event.target.closest(".attention-redirector-inspector-box")
@@ -700,41 +1209,50 @@
         const index = Number.parseInt(label.dataset.attentionRedirectorIndex, 10);
         if (Number.isFinite(index) && state.inspector.candidates[index]) {
           selectInspectorCandidate(state.inspector.candidates[index]);
+          if (state.inspector.reportMode) {
+            saveAndCopyInspectorReport({ auto: true });
+          }
         } else if (
           label.dataset.attentionRedirectorSelected === "true" &&
           state.inspector.selectedInfo
         ) {
           selectInspectorCandidate(state.inspector.selectedInfo);
+          if (state.inspector.reportMode) {
+            saveAndCopyInspectorReport({ auto: true });
+          }
         }
       }
       return;
     }
-  
+
     if (
       event.target instanceof Element &&
       event.target.closest(".attention-redirector-inspector")
     ) {
       return;
     }
-  
+
     event.preventDefault();
     event.stopPropagation();
     if (typeof event.stopImmediatePropagation === "function") {
       event.stopImmediatePropagation();
     }
-  
+
     const element = state.inspector.manualPick
       ? getInspectableElementAtPoint(event.clientX, event.clientY)
       : getInspectableElement(event.target);
     if (!element) {
       return;
     }
-  
+
     selectInspectorCandidate(
       inspectElement(element, [
         state.inspector.manualPick ? "manual pick" : "manual click"
       ])
     );
+    if (state.inspector.reportMode) {
+      saveAndCopyInspectorReport({ auto: true });
+    }
     if (state.inspector.manualPick) {
       state.inspector.manualPick = false;
       clearManualCaptureLayer();
@@ -742,7 +1260,7 @@
       updateInspectorOverlay();
     }
   }
-  
+
   function selectInspectorCandidate(info) {
     const manualReasons = info.reasons.filter((reason) => {
       return reason.startsWith("manual ");
@@ -753,40 +1271,40 @@
     );
     refreshInspector();
   }
-  
+
   function getInspectableElement(target) {
     return pickBestInspectableElement([target]);
   }
-  
+
   function getInspectableElementAtPoint(x, y) {
     const capture = state.inspector.manualCapture;
     const previousPointerEvents = capture ? capture.style.pointerEvents : "";
-  
+
     if (capture) {
       capture.style.pointerEvents = "none";
     }
-  
+
     const elements = document.elementsFromPoint(x, y);
-  
+
     if (capture) {
       capture.style.pointerEvents = previousPointerEvents;
     }
-  
+
     return pickBestInspectableElement(elements);
   }
-  
+
   function pickBestInspectableElement(targets) {
     const records = [];
     const seen = new Set();
-  
+
     targets.forEach((target, stackIndex) => {
       if (!(target instanceof HTMLElement) || isExtensionElement(target)) {
         return;
       }
-  
+
       let current = target;
       let depth = 0;
-  
+
       while (current && current !== document.body && depth < 9) {
         if (current instanceof HTMLElement && !isExtensionElement(current)) {
           addInspectableRecord(records, seen, current, stackIndex, depth);
@@ -795,69 +1313,69 @@
             addInspectableRecord(records, seen, wrapper, stackIndex, depth - 0.5);
           }
         }
-  
+
         current = current.parentElement;
         depth += 1;
       }
     });
-  
+
     records.sort((a, b) => b.score - a.score);
     return records.length ? records[0].element : null;
   }
-  
+
   function addInspectableRecord(records, seen, element, stackIndex, depth) {
     if (seen.has(element)) {
       return;
     }
-  
+
     const rect = element.getBoundingClientRect();
     if (!isVisibleRect(rect) || isTooLargeForInspector(rect, element)) {
       return;
     }
-  
+
     seen.add(element);
     records.push({
       element,
       score: getInspectableElementScore(element, stackIndex, depth)
     });
   }
-  
+
   function getInspectableElementScore(element, stackIndex, depth) {
     const info = inspectElement(element);
     const rect = element.getBoundingClientRect();
     let score = info.score;
     const strongAdSignal = hasStrongAdSignal(element);
-  
+
     if (isAdWrapperCandidate(element)) {
       score += 8;
     }
-  
+
     if (strongAdSignal) {
       score += 5;
     }
-  
+
     if (getMatchReason(element)) {
       score += 4;
     }
-  
+
     if (rect.width >= 120 && rect.height >= 60) {
       score += 1;
     }
-  
+
     const isBroadGenericAncestor =
       element.matches("main,article,aside,section") &&
       rect.width * rect.height > 180000 &&
       !isAdWrapperCandidate(element);
-  
+
     if (isBroadGenericAncestor) {
       score -= 14;
     } else if (!strongAdSignal && rect.width * rect.height > 180000) {
       score -= 8;
     }
-  
+
     return score - stackIndex * 0.35 - depth * 1.15;
   }
-  
+
   function updateInspectorOverlay() {
     const summary = state.inspector.overlay.querySelector(
       "[data-attention-redirector-inspector-summary]"
@@ -868,14 +1386,23 @@
     const manualPickButton = state.inspector.overlay.querySelector(
       "[data-attention-redirector-manual-pick]"
     );
-  
-    summary.textContent = state.inspector.manualPick
-      ? "Manual pick is on. Hover a missed area, then click to select it."
-      : `${state.inspector.candidates.length} suspects highlighted. Normal replacement is still conservative.`;
-    details.textContent = state.inspector.selectedInfo
-      ? formatElementReport(state.inspector.selectedInfo, "Selected element")
-      : "Click a dark inspector label, or use Manual pick for anything not highlighted.";
-  
+
+    if (state.inspector.reportMode) {
+      summary.textContent = state.inspector.manualPick
+        ? "Click directly on the missed ad. Nothing is sent automatically."
+        : "Report selected. Use Copy report again if your clipboard missed it.";
+      details.textContent = state.inspector.selectedInfo
+        ? "Report copied locally. Paste it into feedback or an issue when you send it."
+        : "Click the missed ad on the page. The report includes page URL, element size, source, and safety reason.";
+    } else {
+      summary.textContent = state.inspector.manualPick
+        ? "Manual pick is on. Hover a missed area, then click to select it."
+        : `${state.inspector.candidates.length} suspects highlighted. Normal replacement is still conservative.`;
+      details.textContent = state.inspector.selectedInfo
+        ? formatElementReport(state.inspector.selectedInfo, "Selected element")
+        : "Click a dark inspector label, or use Manual pick for anything not highlighted.";
+    }
+
     if (manualPickButton) {
       manualPickButton.textContent = state.inspector.manualPick
         ? "Stop manual"
@@ -886,42 +1413,42 @@
       );
     }
   }
-  
+
   function toggleManualPick() {
     state.inspector.manualPick = !state.inspector.manualPick;
-  
+
     if (state.inspector.manualPick) {
       ensureManualCaptureLayer();
     } else {
       clearManualCaptureLayer();
       clearManualHoverBox();
     }
-  
+
     updateInspectorOverlay();
   }
-  
+
   function handleInspectorPointerMove(event) {
     if (!state.inspector.active || !state.inspector.manualPick) {
       return;
     }
-  
+
     if (
       event.target instanceof Element &&
       event.target.closest(".attention-redirector-inspector")
     ) {
       return;
     }
-  
+
     const element = getInspectableElementAtPoint(event.clientX, event.clientY);
     if (!element) {
       clearManualHoverBox();
       return;
     }
-  
+
     state.inspector.hoverInfo = inspectElement(element, ["manual hover"]);
     renderManualHoverBox(state.inspector.hoverInfo);
   }
-  
+
   function renderManualHoverBox(info) {
     if (!state.inspector.hoverBox) {
       state.inspector.hoverBox = document.createElement("div");
@@ -930,7 +1457,7 @@
       state.inspector.hoverBox.append(label);
       document.documentElement.appendChild(state.inspector.hoverBox);
     }
-  
+
     state.inspector.hoverBox.style.top = `${Math.max(
       0,
       Math.round(info.rect.top)
@@ -950,12 +1477,12 @@
     state.inspector.hoverBox.querySelector("span").textContent =
       `manual ${info.signature}`;
   }
-  
+
   function ensureManualCaptureLayer() {
     if (state.inspector.manualCapture) {
       return;
     }
-  
+
     const capture = document.createElement("div");
     capture.className = "attention-redirector-manual-capture";
     if (state.inspector.overlay && state.inspector.overlay.parentElement) {
@@ -968,42 +1495,42 @@
     }
     state.inspector.manualCapture = capture;
   }
-  
+
   function clearManualCaptureLayer() {
     if (state.inspector.manualCapture) {
       state.inspector.manualCapture.remove();
     }
-  
+
     state.inspector.manualCapture = null;
   }
-  
+
   function clearManualHoverBox() {
     if (state.inspector.hoverBox) {
       state.inspector.hoverBox.remove();
     }
-  
+
     state.inspector.hoverBox = null;
     state.inspector.hoverInfo = null;
   }
-  
+
   function selectInspectorParent() {
     if (!state.inspector.selectedInfo) {
       setInspectorStatus("Select something first.");
       return;
     }
-  
+
     const parent = findInspectableParent(state.inspector.selectedInfo.element);
     if (!parent) {
       setInspectorStatus("No useful parent found.");
       return;
     }
-  
+
     selectInspectorCandidate(inspectElement(parent, ["manual parent"]));
   }
-  
+
   function findInspectableParent(element) {
     let current = element.parentElement;
-  
+
     while (current && current !== document.body) {
       if (
         current instanceof HTMLElement &&
@@ -1013,77 +1540,79 @@
       ) {
         return current;
       }
-  
+
       current = current.parentElement;
     }
-  
+
     return null;
   }
-  
+
   function setInspectorStatus(message) {
     const status = state.inspector.overlay.querySelector(
       "[data-attention-redirector-inspector-copy-status]"
     );
-  
+
     if (!status) {
       return;
     }
-  
+
     status.textContent = message;
     window.setTimeout(() => {
       status.textContent = "";
     }, 1600);
   }
-  
-  async function saveAndCopyInspectorReport() {
+
+  async function saveAndCopyInspectorReport(options = {}) {
     const status = state.inspector.overlay.querySelector(
       "[data-attention-redirector-inspector-copy-status]"
     );
-  
+
     if (!state.inspector.selectedInfo) {
       status.textContent = "Click a missed item first.";
       return;
     }
-  
+
     const record = createInspectorReportRecord(state.inspector.selectedInfo);
-  
+
     try {
       const savedCount = await saveInspectorReport(record);
       await copyText(record.text);
-      status.textContent = `Saved + copied (${savedCount}).`;
+      status.textContent = options.auto
+        ? `Report copied (${savedCount}).`
+        : `Saved + copied (${savedCount}).`;
       updateSavedReportCount(savedCount);
     } catch (_error) {
       status.textContent = "Save/copy failed.";
     }
-  
+
     window.setTimeout(() => {
       status.textContent = "";
     }, 1600);
   }
-  
+
   async function copySavedInspectorReports() {
     const status = state.inspector.overlay.querySelector(
       "[data-attention-redirector-inspector-copy-status]"
     );
     const reports = await loadInspectorReports();
-  
+
     if (!reports.length) {
       status.textContent = "No saved reports.";
       return;
     }
-  
+
     try {
       await copyText(formatSavedInspectorReports(reports));
       status.textContent = `Copied ${reports.length} saved.`;
     } catch (_error) {
       status.textContent = "Export failed.";
     }
-  
+
     window.setTimeout(() => {
       status.textContent = "";
     }, 1600);
   }
-  
+
   async function clearSavedInspectorReports() {
     const status = state.inspector.overlay.querySelector(
       "[data-attention-redirector-inspector-copy-status]"
@@ -1091,12 +1620,12 @@
     await saveInspectorReports([]);
     status.textContent = "Cleared saved.";
     updateSavedReportCount(0);
-  
+
     window.setTimeout(() => {
       status.textContent = "";
     }, 1600);
   }
-  
+
   function createInspectorReportRecord(info) {
     const createdAt = new Date().toISOString();
     const inferredType = inferClutterType(info);
@@ -1113,38 +1642,38 @@
         inferredType
       })
     };
-  
+
     return record;
   }
-  
+
   function inferClutterType(info) {
     const reasonText = info.reasons.join(" ").toLowerCase();
     const signature = info.signature.toLowerCase();
     const rect = info.rect;
-  
+
     if (reasonText.includes("popup") || info.css.position === "fixed") {
       return "sticky popup / fixed overlay";
     }
-  
+
     if (reasonText.includes("animated")) {
       return "animated rectangle";
     }
-  
+
     if (reasonText.includes("sidebar") || rect.width <= 360) {
       return "sidebar rectangle";
     }
-  
+
     if (signature.includes("sponsor") || reasonText.includes("sponsor")) {
       return "sponsored/native block";
     }
-  
+
     if (rect.width >= 600 && rect.height <= 140) {
       return "top/banner slot";
     }
-  
+
     return "missed clutter";
   }
-  
+
   function formatSelectedInspectorReport(info, context) {
     return [
       "Attention Redirector Missed Clutter Report",
@@ -1157,14 +1686,14 @@
       formatElementReport(info, "Clicked element")
     ].join("\n");
   }
-  
+
   function formatSavedInspectorReports(reports) {
     const lines = [
       "Attention Redirector Saved Inspector Reports",
       `Exported: ${new Date().toISOString()}`,
       `Count: ${reports.length}`
     ];
-  
+
     reports.forEach((record, index) => {
       lines.push(
         "",
@@ -1172,10 +1701,10 @@
         record.text
       );
     });
-  
+
     return lines.join("\n");
   }
-  
+
   async function saveInspectorReport(record) {
     const reports = await loadInspectorReports();
     const withoutDuplicate = reports.filter((item) => {
@@ -1189,11 +1718,11 @@
       0,
       INSPECTOR_MAX_SAVED_REPORTS
     );
-  
+
     await saveInspectorReports(nextReports);
     return nextReports.length;
   }
-  
+
   function loadInspectorReports() {
     return new Promise((resolve) => {
       chrome.storage.local.get(INSPECTOR_REPORTS_KEY, (items) => {
@@ -1204,7 +1733,7 @@
       });
     });
   }
-  
+
   function saveInspectorReports(reports) {
     return new Promise((resolve) => {
       chrome.storage.local.set(
@@ -1215,34 +1744,34 @@
       );
     });
   }
-  
+
   async function updateSavedReportCount(knownCount) {
     if (!state.inspector.active || !state.inspector.overlay) {
       return;
     }
-  
+
     const countNode = state.inspector.overlay.querySelector(
       "[data-attention-redirector-saved-count]"
     );
-  
+
     if (!countNode) {
       return;
     }
-  
+
     const count =
       typeof knownCount === "number"
         ? knownCount
         : (await loadInspectorReports()).length;
-  
+
     countNode.textContent = `Saved: ${count}`;
   }
-  
+
   async function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(text);
       return;
     }
-  
+
     const textarea = document.createElement("textarea");
     textarea.value = text;
     textarea.style.position = "fixed";
@@ -1252,7 +1781,7 @@
     document.execCommand("copy");
     textarea.remove();
   }
-  
+
   function formatInspectorReport() {
     const lines = [
       "Attention Redirector Inspector Report",
@@ -1269,16 +1798,16 @@
         INSPECTOR_MAX_REPORT_CANDIDATES
       )}`
     ];
-  
+
     state.inspector.candidates
       .slice(0, INSPECTOR_MAX_REPORT_CANDIDATES)
       .forEach((info, index) => {
         lines.push("", formatElementReport(info, `Suspect #${index + 1}`));
       });
-  
+
     return lines.join("\n");
   }
-  
+
   function formatElementReport(info, heading) {
     return [
       `${heading}: ${info.signature}`,
@@ -1296,32 +1825,33 @@
       `Ancestry: ${info.ancestry.join(" > ")}`
     ].join("\n");
   }
-  
-  
-  async function runScan({ force }) {
+
+  async function runScan({ force, contextNodes = [document] }) {
     if (!state.settingsReady) {
       return 0;
     }
-  
+
     if (!state.settings) {
       state.settings = await loadSettings();
     }
-  
+
     if (!isPageAllowed(state.settings) || state.isScanning) {
       return 0;
     }
-  
+
     state.isScanning = true;
     let inserted = 0;
-  
+
     try {
-      const candidates = collectCandidates();
-  
+      const candidates = collectCandidates(
+        expandScanContexts(force ? [document] : contextNodes)
+      );
+
       for (const candidate of candidates) {
         if (!force && inserted >= 6) {
           break;
         }
-  
+
         if (replaceCandidate(candidate)) {
           inserted += 1;
           state.inserted += 1;
@@ -1329,51 +1859,66 @@
       }
     } finally {
       state.isScanning = false;
+      if (state.pendingScanNodes && state.pendingScanNodes.size > 0) {
+        scheduleScan(80);
+      }
     }
-  
+
     return inserted;
   }
-  
-  function collectCandidates() {
+
+  function collectCandidates(contextNodes = [document]) {
     state.cosmeticMatches = new WeakMap();
+    const rawNodes = [];
+
+    for (const context of contextNodes) {
+      if (!context) continue;
+      if (context instanceof HTMLElement && context.matches(SCAN_SELECTOR)) {
+        rawNodes.push(context);
+      }
+      if (context.querySelectorAll) {
+        rawNodes.push(...Array.from(context.querySelectorAll(SCAN_SELECTOR)));
+      }
+    }
+
     const nodes = [
-      ...Array.from(document.querySelectorAll(SCAN_SELECTOR)),
-      ...collectCosmeticCandidateNodes()
+      ...rawNodes,
+      ...collectCosmeticCandidateNodes(contextNodes)
     ];
     const candidates = [];
     const seen = new Set();
-  
+
     for (const node of nodes) {
       const cosmeticMatch = state.cosmeticMatches.get(node);
       const candidate = getCandidateElement(node);
       if (!candidate || seen.has(candidate)) {
         continue;
       }
-  
+
       if (cosmeticMatch) {
         state.cosmeticMatches.set(candidate, cosmeticMatch);
       }
-  
+
       const reason = getMatchReason(candidate);
       if (!reason) {
         continue;
       }
-  
+
       candidate.dataset.attentionRedirectorReason = reason;
       candidates.push(candidate);
       seen.add(candidate);
     }
-  
+
     return candidates
       .filter((candidate) => !hasCandidateDescendant(candidate, candidates))
       .sort((a, b) => getArea(a) - getArea(b));
   }
-  
-  function collectCosmeticCandidateNodes() {
+
+  function collectCosmeticCandidateNodes(contextNodes = [document]) {
     const nodes = [];
     const seen = new Set();
     const maxMatches = 260;
-  
+
     if (!state.cosmeticRuleChunks) {
       state.cosmeticRuleChunks = [];
       let currentChunk = [];
@@ -1396,71 +1941,90 @@
         }
       }
     }
-  
+
     for (const chunk of state.cosmeticRuleChunks) {
       let matches = [];
-  
+
       if (chunk.selectorString) {
-        try {
-          matches = Array.from(document.querySelectorAll(chunk.selectorString));
-        } catch (_error) {}
+        for (const context of contextNodes) {
+          if (!context) continue;
+          try {
+            if (context instanceof HTMLElement && context.matches(chunk.selectorString)) {
+              if (!matches.includes(context)) matches.push(context);
+            }
+            if (context.querySelectorAll) {
+              const found = Array.from(context.querySelectorAll(chunk.selectorString));
+              for (const el of found) {
+                if (!matches.includes(el)) matches.push(el);
+              }
+            }
+          } catch (_error) {}
+        }
       } else {
         for (const rule of chunk) {
-          try {
-            const ruleMatches = Array.from(document.querySelectorAll(rule.selector));
-            for (const el of ruleMatches) {
-              if (!matches.includes(el)) matches.push(el);
-            }
-          } catch (e) {}
+          for (const context of contextNodes) {
+            if (!context) continue;
+            try {
+              if (context instanceof HTMLElement && context.matches(rule.selector)) {
+                if (!matches.includes(context)) matches.push(context);
+              }
+              if (context.querySelectorAll) {
+                const ruleMatches = Array.from(context.querySelectorAll(rule.selector));
+                for (const el of ruleMatches) {
+                  if (!matches.includes(el)) matches.push(el);
+                }
+              }
+            } catch (e) {}
+          }
         }
       }
-  
+
       for (const element of matches.slice(0, 60)) {
         if (!(element instanceof HTMLElement) || seen.has(element)) {
           continue;
         }
-  
+
         const matchingRule = chunk.find(r => {
           try { return element.matches(r.selector); } catch(e) { return false; }
         });
-  
+
         if (matchingRule) {
           state.cosmeticMatches.set(element, matchingRule);
           nodes.push(element);
           seen.add(element);
-  
+
           if (nodes.length >= maxMatches) {
             return nodes;
           }
         }
       }
     }
-  
+
     return nodes;
   }
-  
+
   function getCandidateElement(node) {
     if (!(node instanceof HTMLElement)) {
       return null;
     }
-  
+
     const brandingTakeover = findBrandingTakeoverContainer(node);
     if (brandingTakeover) {
       return brandingTakeover;
     }
-  
+
     let candidate = node;
-  
+
     if (node.matches("iframe,img,embed,amp-ad")) {
       const parent = node.parentElement;
       if (parent && safeToReplace(parent) && hasSimilarRect(node, parent)) {
         candidate = parent;
       }
     }
-  
+
     return promoteToAdWrapper(candidate);
   }
-  
+
   function hasCandidateDescendant(candidate, candidates) {
     return candidates.some((other) => {
       return (
@@ -1470,16 +2034,16 @@
       );
     });
   }
-  
+
   function promoteToAdWrapper(element) {
     if (VIDEO_AD_IDENTIFIER_RE.test(getIdentifierText(element))) {
       return element;
     }
-  
+
     let current = element;
     let best = element;
     let depth = 0;
-  
+
     while (current && current !== document.body && depth < 7) {
       if (
         current instanceof HTMLElement &&
@@ -1488,27 +2052,27 @@
       ) {
         best = current;
       }
-  
+
       current = current.parentElement;
       depth += 1;
     }
-  
+
     return best;
   }
-  
+
   function isAdWrapperCandidate(element, origin = element) {
     if (!(element instanceof HTMLElement) || isExtensionElement(element)) {
       return false;
     }
-  
+
     if (element.matches("html,body,main,article,nav,header,footer,form")) {
       return false;
     }
-  
+
     if (hasHardUnsafeAncestor(element) || hasHardUnsafeIdentifier(element)) {
       return false;
     }
-  
+
     const rect = element.getBoundingClientRect();
     const brandingTakeover = isBrandingTakeover(element);
     if (
@@ -1517,22 +2081,22 @@
     ) {
       return false;
     }
-  
+
     if (origin && origin !== element) {
       const originRect = origin.getBoundingClientRect();
       if (!rectContainsMost(rect, originRect)) {
         return false;
       }
     }
-  
+
     if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
       return false;
     }
-  
+
     const identifiers = getIdentifierText(element);
     const textLabel = getShortLabelText(element);
     const sources = getSourceValues(element).join(" ");
-  
+
     return Boolean(
       brandingTakeover ||
         AD_IDENTIFIER_RE.test(identifiers) ||
@@ -1541,7 +2105,7 @@
         AD_SOURCE_RE.test(sources)
     );
   }
-  
+
   function rectContainsMost(containerRect, childRect) {
     const overlapLeft = Math.max(containerRect.left, childRect.left);
     const overlapTop = Math.max(containerRect.top, childRect.top);
@@ -1550,28 +2114,28 @@
     const overlapWidth = Math.max(0, overlapRight - overlapLeft);
     const overlapHeight = Math.max(0, overlapBottom - overlapTop);
     const childArea = childRect.width * childRect.height;
-  
+
     if (childArea <= 0) {
       return false;
     }
-  
+
     return (overlapWidth * overlapHeight) / childArea >= 0.85;
   }
-  
+
   function getMatchReason(element) {
     if (!safeToReplace(element)) {
       return "";
     }
-  
+
     if (isBrandingTakeover(element)) {
       return "full-page branding takeover";
     }
-  
+
     const cosmeticMatch = getCosmeticMatch(element);
     if (cosmeticMatch) {
       return `cosmetic filter: ${cosmeticMatch.selector}`;
     }
-  
+
     const identifiers = getIdentifierText(element);
     const textLabel = getShortLabelText(element);
     const rect = element.getBoundingClientRect();
@@ -1581,58 +2145,62 @@
     const hasAdSource = hasAdLikeSource(element);
     const hasScriptIframe = hasScriptAdIframe(element);
     const hasCommonSize = isCommonAdSize(rect);
-  
+
     if (hasAdIdentifier) {
       return "ad-like identifier";
     }
-  
+
     if (hasAdText && (isSmallContainer(rect) || isSidebarElement(element))) {
       return "sponsored label";
     }
-  
+
     if (hasBannerIdentifier && hasCommonSize && !isLikelyHeroBanner(element)) {
       return "banner-sized slot";
     }
-  
+
     if (hasCommonSize && (hasAdSource || hasAdText || isSidebarElement(element))) {
       return "common ad-sized slot";
     }
-  
+
     if (hasAdSource && (hasAdText || isFixedOrSticky(element) || isSmallContainer(rect))) {
       return "ad-like source";
     }
-  
+
     if (hasScriptIframe && isSmallContainer(rect)) {
       return "script iframe slot";
     }
-  
+
     return "";
   }
-  
+
   function safeToReplace(element) {
     if (!element || element.dataset.attentionRedirectorReplaced === "true") {
       return false;
     }
-  
+
     if (element === document.body || element === document.documentElement) {
       return false;
     }
-  
+
     if (element.matches("main,article,header,footer")) {
       return false;
     }
-  
+
+    if (element.shadowRoot) {
+      return false;
+    }
+
     if (containsExplicitVideoAdLayer(element) && !hasOwnAdIdentifier(element)) {
       return false;
     }
-  
+
     if (hasHardUnsafeAncestor(element)) {
       return false;
     }
-  
+
     const strongAdSignal = hasStrongAdSignal(element);
     const explicitAdSlot = isExplicitAdSlot(element);
-  
+
     if (
       (hasHardUnsafeIdentifier(element) ||
         hasHardUnsafeIdentifierInAncestors(element)) &&
@@ -1640,7 +2208,7 @@
     ) {
       return false;
     }
-  
+
     if (
       (hasSoftUnsafeAncestor(element) ||
         hasSoftUnsafeIdentifier(element) ||
@@ -1649,20 +2217,24 @@
     ) {
       return false;
     }
-  
+
     if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
       return false;
     }
-  
-    if (element.closest("a[href]") && !hasAdLikeSource(element)) {
+
+    if (closestAcrossRoots(element, "a[href]") && !hasAdLikeSource(element)) {
       return false;
     }
-  
+
     const rect = element.getBoundingClientRect();
     if (!isVisibleRect(rect)) {
       return false;
     }
-  
+
+    if (isNarrowContentRail(element, rect)) {
+      return false;
+    }
+
     if (
       isTooLargeForMvp(rect) &&
       !isBrandingTakeover(element) &&
@@ -1670,15 +2242,15 @@
     ) {
       return false;
     }
-  
+
     return true;
   }
-  
+
   function hasStrongAdSignal(element) {
     const identifiers = getIdentifierText(element);
     const textLabel = getShortLabelText(element);
     const rect = element.getBoundingClientRect();
-  
+
     return Boolean(
       isBrandingTakeover(element) ||
         hasCosmeticMatch(element) ||
@@ -1692,29 +2264,29 @@
             AD_IDENTIFIER_RE.test(identifiers)))
     );
   }
-  
+
   function isExplicitAdSlot(element) {
     const identifiers = getIdentifierText(element);
     const textLabel = getShortLabelText(element);
     const sourceText = getSourceValues(element).join(" ");
     const rect = element.getBoundingClientRect();
-  
+
     if (isBrandingTakeover(element)) {
       return true;
     }
-  
+
     if (AD_SOURCE_RE.test(sourceText)) {
       return true;
     }
-  
+
     if (hasScriptAdIframe(element)) {
       return true;
     }
-  
+
     if (AD_TEXT_RE.test(textLabel) && element.matches("iframe,ins,amp-ad")) {
       return true;
     }
-  
+
     if (
       /(google_ads_iframe|div-gpt-ad|adsbygoogle|adthrive|safeframe|doubleclick|googlesyndication|ima-ad-container)/i.test(
         `${identifiers} ${sourceText}`
@@ -1722,7 +2294,7 @@
     ) {
       return true;
     }
-  
+
     return Boolean(
       AD_IDENTIFIER_RE.test(identifiers) &&
         (AD_TEXT_RE.test(textLabel) ||
@@ -1730,27 +2302,27 @@
           element.matches("iframe,ins,amp-ad"))
     );
   }
-  
+
   function isFixedOrSticky(element) {
     const style = window.getComputedStyle(element);
     return style.position === "fixed" || style.position === "sticky";
   }
-  
+
   function hasScriptAdIframe(element) {
     const frames = element.matches("iframe")
       ? [element]
       : Array.from(element.querySelectorAll("iframe")).slice(0, 6);
-  
+
     return frames.some((frame) => {
       if (!(frame instanceof HTMLElement)) {
         return false;
       }
-  
+
       const sourceText = getSourceValues(frame).join(" ");
       if (!SCRIPT_IFRAME_SOURCE_RE.test(sourceText)) {
         return false;
       }
-  
+
       const rect = frame.getBoundingClientRect();
       return (
         rect.width >= 250 &&
@@ -1760,39 +2332,39 @@
       );
     });
   }
-  
+
   function findBrandingTakeoverContainer(element) {
     let current = element;
     let depth = 0;
-  
+
     while (current && current !== document.body && depth < 4) {
       if (current instanceof HTMLElement && isBrandingTakeover(current)) {
         return current;
       }
-  
+
       current = current.parentElement;
       depth += 1;
     }
-  
+
     return null;
   }
-  
+
   function isBrandingTakeover(element) {
     if (!(element instanceof HTMLElement)) {
       return false;
     }
-  
+
     const rect = element.getBoundingClientRect();
     const coversViewport =
       rect.width >= window.innerWidth * 0.85 &&
       rect.height >= window.innerHeight * 0.8 &&
       rect.left <= window.innerWidth * 0.1 &&
       rect.top <= window.innerHeight * 0.1;
-  
+
     if (!coversViewport) {
       return false;
     }
-  
+
     const identifiers = getIdentifierText(element);
     const sources = getSourceValues(element).join(" ");
     if (
@@ -1801,10 +2373,10 @@
     ) {
       return false;
     }
-  
+
     let current = element;
     let depth = 0;
-  
+
     while (current && current !== document.body && depth < 4) {
       if (
         current instanceof HTMLElement &&
@@ -1812,40 +2384,40 @@
       ) {
         return true;
       }
-  
+
       current = current.parentElement;
       depth += 1;
     }
-  
+
     return false;
   }
-  
+
   function loadCosmeticRulesForPage() {
     const api = globalThis.AttentionRedirectorCosmeticFilters;
     if (!api || typeof api.getRulesForHost !== "function") {
       return [];
     }
-  
+
     try {
       return api.getRulesForHost(location.hostname);
     } catch (_error) {
       return [];
     }
   }
-  
+
   function getCosmeticMatch(element) {
     return state.cosmeticMatches.get(element) || null;
   }
-  
+
   function hasCosmeticMatch(element) {
     return Boolean(getCosmeticMatch(element));
   }
-  
+
   function hasOwnAdIdentifier(element) {
     const identifiers = getIdentifierText(element);
     return AD_IDENTIFIER_RE.test(identifiers) || VIDEO_AD_IDENTIFIER_RE.test(identifiers);
   }
-  
+
   function containsExplicitVideoAdLayer(element) {
     return Array.from(element.querySelectorAll("[id],[class],[aria-label]")).some(
       (child) => {
@@ -1857,7 +2429,7 @@
       }
     );
   }
-  
+
   function inspectElement(element, extraReasons = []) {
     const rect = element.getBoundingClientRect();
     const style = window.getComputedStyle(element);
@@ -1870,69 +2442,69 @@
     const fixedOrSticky =
       style.position === "fixed" || style.position === "sticky";
     let score = extraReasons.length ? 2 : 0;
-  
+
     if (AD_IDENTIFIER_RE.test(identifiers)) {
       score += 4;
       reasons.push("ad-like identifier");
     }
-  
+
     if (BANNER_IDENTIFIER_RE.test(identifiers)) {
       score += 2;
       reasons.push("banner-like identifier");
     }
-  
+
     if (AD_TEXT_RE.test(textSnippet)) {
       score += 3;
       reasons.push("ad/sponsor text");
     }
-  
+
     if (AD_SOURCE_RE.test(sources.join(" "))) {
       score += 4;
       reasons.push("ad-like source URL");
     }
-  
+
     const cosmeticMatch = getCosmeticMatch(element);
     if (cosmeticMatch) {
       score += 4;
       reasons.push(`cosmetic filter: ${cosmeticMatch.selector}`);
     }
-  
+
     if (isCommonAdSize(rect)) {
       score += 2;
       reasons.push("common ad size");
     }
-  
+
     if (isSidebarElement(element)) {
       score += 1;
       reasons.push("sidebar/rail placement");
     }
-  
+
     if (fixedOrSticky && isVisibleRect(rect)) {
       score += 1;
       reasons.push(`${style.position} positioning`);
     }
-  
+
     if (highZIndex) {
       score += 1;
       reasons.push("high z-index");
     }
-  
+
     if (isPopupLike(element, style, rect, highZIndex)) {
       score += 3;
       reasons.push("popup-like overlay");
     }
-  
+
     if (isAnimatedElement(element, style)) {
       score += 1;
       reasons.push("animated element");
     }
-  
+
     if (hasUnsafeIdentifier(element)) {
       reasons.push("unsafe identifier present");
     }
-  
+
     const uniqueReasons = Array.from(new Set(reasons));
-  
+
     return {
       element,
       signature: getElementSignature(element),
@@ -1960,42 +2532,46 @@
       ancestry: getAncestry(element)
     };
   }
-  
+
   function getSafetyBlocks(element) {
     const blocks = [];
-  
+
     if (!element || element.dataset.attentionRedirectorReplaced === "true") {
       blocks.push("already replaced or invalid");
       return blocks;
     }
-  
+
     if (element === document.body || element === document.documentElement) {
       blocks.push("page root");
     }
-  
+
     if (element.matches("main,article,header,footer")) {
       blocks.push("structural page section");
     }
-  
+
+    if (element.shadowRoot) {
+      blocks.push("open shadow host");
+    }
+
     if (containsExplicitVideoAdLayer(element) && !hasOwnAdIdentifier(element)) {
       blocks.push("contains explicit video ad child");
     }
-  
+
     if (isExtensionElement(element)) {
       blocks.push("extension UI");
     }
-  
+
     const strongAdSignal = hasStrongAdSignal(element);
     const explicitAdSlot = isExplicitAdSlot(element);
-  
+
     if (hasHardUnsafeAncestor(element)) {
       blocks.push("unsafe ancestor");
     }
-  
+
     if (hasSoftUnsafeAncestor(element) && !strongAdSignal) {
       blocks.push("unsafe ancestor");
     }
-  
+
     if (
       (hasHardUnsafeIdentifier(element) ||
         hasHardUnsafeIdentifierInAncestors(element)) &&
@@ -2003,7 +2579,7 @@
     ) {
       blocks.push("unsafe identifier");
     }
-  
+
     if (
       (hasSoftUnsafeIdentifier(element) ||
         hasSoftUnsafeIdentifierInAncestors(element)) &&
@@ -2011,40 +2587,45 @@
     ) {
       blocks.push("unsafe identifier");
     }
-  
+
     if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
       blocks.push("contains form/editor controls");
     }
-  
-    if (element.closest("a[href]") && !hasAdLikeSource(element)) {
+
+    if (closestAcrossRoots(element, "a[href]") && !hasAdLikeSource(element)) {
       blocks.push("inside normal link");
     }
-  
+
     const rect = element.getBoundingClientRect();
     if (!isVisibleRect(rect)) {
       blocks.push("not visibly sized");
     }
-  
+
+    if (isNarrowContentRail(element, rect)) {
+      blocks.push("mixed narrow content rail");
+    }
+
     if (isTooLargeForMvp(rect) && !canReplaceExplicitLargeAd(element, rect)) {
       blocks.push("too large for normal replacement");
     }
-  
+
     return Array.from(new Set(blocks));
   }
-  
+
   function isExtensionElement(element) {
     return Boolean(
-      element.closest(
-        ".attention-redirector-slot,.attention-redirector-card,.attention-redirector-inspector,.attention-redirector-inspector-box,.attention-redirector-manual-hover,.attention-redirector-manual-capture"
+      closestAcrossRoots(
+        element,
+        ".attention-redirector-slot,.attention-redirector-card,.attention-redirector-inspector,.attention-redirector-inspector-box,.attention-redirector-manual-hover,.attention-redirector-manual-capture,.attention-redirector-style"
       )
     );
   }
-  
+
   function isPopupLike(element, style, rect, highZIndex) {
     if (style.position !== "fixed") {
       return false;
     }
-  
+
     const viewportArea = window.innerWidth * window.innerHeight;
     const area = rect.width * rect.height;
     const largeEnough = rect.width >= 220 && rect.height >= 110;
@@ -2053,19 +2634,19 @@
       rect.top > 20 &&
       rect.right < window.innerWidth - 20 &&
       rect.bottom < window.innerHeight - 20;
-  
+
     return (
       largeEnough &&
       area >= viewportArea * 0.06 &&
       (highZIndex || centered || hasCloseControl(element))
     );
   }
-  
+
   function hasCloseControl(element) {
     const controls = Array.from(
       element.querySelectorAll("button,a,[role='button'],[aria-label],[title]")
     ).slice(0, 20);
-  
+
     return controls.some((control) => {
       const label = [
         control.textContent,
@@ -2076,28 +2657,28 @@
         .join(" ")
         .trim()
         .toLowerCase();
-  
+
       return /(^|\b)(close|dismiss|hide|no thanks|not now|skip)(\b|$)|^x$/.test(
         label
       );
     });
   }
-  
+
   function isAnimatedElement(element, style) {
     const hasAnimation =
       style.animationName &&
       style.animationName !== "none" &&
       parseCssTime(style.animationDuration) > 0;
     const hasTransition = parseCssTime(style.transitionDuration) > 0;
-  
+
     if (hasAnimation || hasTransition) {
       return true;
     }
-  
+
     if (typeof element.getAnimations !== "function") {
       return false;
     }
-  
+
     try {
       return element.getAnimations({ subtree: true }).some((animation) => {
         const target = animation.effect && animation.effect.target;
@@ -2107,14 +2688,14 @@
             : target && target.element instanceof Element
               ? target.element
               : null;
-  
+
         return !targetElement || !isExtensionElement(targetElement);
       });
     } catch (_error) {
       return false;
     }
   }
-  
+
   function parseCssTime(value) {
     return String(value || "")
       .split(",")
@@ -2123,31 +2704,31 @@
         if (part.endsWith("ms")) {
           return Math.max(max, Number.parseFloat(part) || 0);
         }
-  
+
         if (part.endsWith("s")) {
           return Math.max(max, (Number.parseFloat(part) || 0) * 1000);
         }
-  
+
         return max;
       }, 0);
   }
-  
+
   function isPageAllowed(settings) {
     if (!settings || !settings.enabled) {
       return false;
     }
-  
+
     if (isSensitivePage()) {
       return false;
     }
-  
+
     return !isDomainDisabled(location.hostname, settings.disabledDomains);
   }
-  
+
   function isSensitivePage() {
     const host = location.hostname.toLowerCase();
     const normalizedHost = stripWww(host);
-  
+
     if (
       SENSITIVE_DOMAINS.some((domain) => {
         return normalizedHost === domain || normalizedHost.endsWith(`.${domain}`);
@@ -2155,33 +2736,33 @@
     ) {
       return true;
     }
-  
+
     if (SENSITIVE_HOST_WORDS.some((word) => normalizedHost.includes(word))) {
       return true;
     }
-  
+
     if (SENSITIVE_PATH_RE.test(location.pathname)) {
       return true;
     }
-  
+
     if (document.body && document.body.isContentEditable) {
       return true;
     }
-  
+
     return hasVisiblePasswordInput();
   }
-  
+
   function hasVisiblePasswordInput() {
     return Array.from(document.querySelectorAll("input[type='password']")).some(
       (input) => {
         if (!(input instanceof HTMLElement)) {
           return false;
         }
-  
+
         if (input.disabled || input.type === "hidden") {
           return false;
         }
-  
+
         const rect = input.getBoundingClientRect();
         const style = window.getComputedStyle(input);
         return (
@@ -2194,48 +2775,48 @@
       }
     );
   }
-  
+
   function isDomainDisabled(hostname, disabledDomains) {
     const host = stripWww(hostname.toLowerCase());
-  
+
     return disabledDomains.some((domain) => {
       const normalized = normalizeDomain(domain);
       return normalized && (host === normalized || host.endsWith(`.${normalized}`));
     });
   }
-  
+
   function normalizeDomain(value) {
     const raw = String(value || "")
       .trim()
       .toLowerCase();
-  
+
     if (!raw) {
       return "";
     }
-  
+
     try {
       return stripWww(new URL(raw.includes("://") ? raw : `https://${raw}`).hostname);
     } catch (_error) {
       return stripWww(raw.split("/")[0]);
     }
   }
-  
+
   function stripWww(hostname) {
     return hostname.replace(/^www\./, "");
   }
-  
-  
+
   function replaceCandidate(element) {
     if (!safeToReplace(element)) {
       return false;
     }
-  
+
     const rect = element.getBoundingClientRect();
     const minHeight = Math.max(48, Math.round(rect.height));
     const slot = createReplacementSlot(element, rect);
     const surfaceKey = createSurfaceKey(element, rect);
     const preservesSiteChildren = slot === element;
-  
+
+    ensureReplacementRootStyles(slot);
     slot.dataset.attentionRedirectorReplaced = "true";
     slot.dataset.attentionRedirectorSurfaceKey = surfaceKey;
     slot.dataset.attentionRedirectorWidth = String(Math.round(rect.width));
@@ -2247,27 +2828,27 @@
     );
     slot.setAttribute("aria-label", "Attention Redirector replacement");
     slot.style.minHeight = `${minHeight}px`;
-  
+
     if (rect.width > 0 && rect.width < 420) {
       slot.classList.add("attention-redirector-slot--narrow");
     }
-  
+
     if (rect.height < 90) {
       slot.classList.add("attention-redirector-slot--short");
     }
-  
+
     renderReplacementSlot(slot);
     return true;
   }
-  
+
   function applySettingsToReplacedSlots() {
-    document.querySelectorAll(".attention-redirector-slot").forEach((slot) => {
+    queryAllScanRoots(".attention-redirector-slot").forEach((slot) => {
       if (slot instanceof HTMLElement) {
         renderReplacementSlot(slot);
       }
     });
   }
-  
+
   function renderReplacementSlot(slot) {
     const width = Number.parseFloat(slot.dataset.attentionRedirectorWidth || "0");
     const height = Number.parseFloat(slot.dataset.attentionRedirectorHeight || "0");
@@ -2282,7 +2863,7 @@
     const preservesSiteChildren = slot.classList.contains(
       "attention-redirector-slot--preserve-children"
     );
-  
+
     if (!isPageAllowed(state.settings) || !shouldVisualizeSurface(surfaceKey)) {
       if (existingGuard) {
         existingGuard.disconnect();
@@ -2290,11 +2871,13 @@
       }
       slot.dataset.attentionRedirectorPresentation = "clean";
       removeReplacementCards(slot);
-      slot.style.display = "none";
+      hideReplacementSlot(slot);
       return;
     }
-  
+
     slot.style.removeProperty("display");
+    slot.style.removeProperty("visibility");
+    slot.style.removeProperty("pointer-events");
     slot.dataset.attentionRedirectorPresentation = "ambient";
     const card = buildCard(createCardModel(surfaceKey), rect);
     removeReplacementCards(slot);
@@ -2306,7 +2889,20 @@
     observeCardMotion(card);
     installReplacementGuard(slot, card);
   }
-  
+
+  function hideReplacementSlot(slot) {
+    slot.style.removeProperty("display");
+    slot.style.setProperty("visibility", "hidden", "important");
+    slot.style.setProperty("pointer-events", "none", "important");
+  }
+
+  function ensureReplacementRootStyles(slot) {
+    const root = getContainingOpenShadowRoot(slot);
+    if (root) {
+      ensureShadowRootStyles(root);
+    }
+  }
+
   function removeReplacementCards(slot) {
     slot
       .querySelectorAll(":scope > .attention-redirector-card")
@@ -2317,7 +2913,7 @@
         card.remove();
       });
   }
-  
+
   function observeCardMotion(card) {
     if (
       state.settings.reducedMotion === "still" ||
@@ -2325,7 +2921,7 @@
     ) {
       return;
     }
-  
+
     if (!state.motionObserver) {
       state.motionObserver = new IntersectionObserver(
         (entries) => {
@@ -2342,11 +2938,11 @@
         }
       );
     }
-  
+
     card.classList.add("attention-redirector-card--motion-paused");
     state.motionObserver.observe(card);
   }
-  
+
   function shouldVisualizeSurface(surfaceKey) {
     const presence = state.settings.visualPresence;
     if (presence <= 0) {
@@ -2357,7 +2953,7 @@
     }
     return hashString(surfaceKey) % 10 < presence;
   }
-  
+
   function createSurfaceKey(element, rect) {
     return [
       location.hostname,
@@ -2369,13 +2965,13 @@
       Math.round(rect.height || 0)
     ].join(":");
   }
-  
+
   function installReplacementGuard(slot, card) {
     const existingGuard = state.replacementGuards.get(slot);
     if (existingGuard) {
       existingGuard.disconnect();
     }
-  
+
     const preservesSiteChildren = slot.classList.contains(
       "attention-redirector-slot--preserve-children"
     );
@@ -2384,7 +2980,7 @@
       if (restoring || !slot.isConnected || slot.style.display === "none") {
         return;
       }
-  
+
       const cardIsPresent = card.parentElement === slot;
       const cardIsOnlyChild =
         cardIsPresent &&
@@ -2402,7 +2998,7 @@
       ) {
         return;
       }
-  
+
       restoring = true;
       slot.dataset.attentionRedirectorReplaced = "true";
       slot.classList.add("attention-redirector-slot");
@@ -2420,7 +3016,7 @@
       }
       restoring = false;
     };
-  
+
     const observer = new MutationObserver(restoreCard);
     observer.observe(slot, {
       attributes: true,
@@ -2430,12 +3026,12 @@
     });
     state.replacementGuards.set(slot, observer);
   }
-  
+
   function createReplacementSlot(element, rect) {
     if (!element.matches("iframe,img,embed,amp-ad")) {
       return element;
     }
-  
+
     const wrapper = document.createElement("div");
     wrapper.style.width = `${Math.max(120, Math.round(rect.width))}px`;
     wrapper.style.maxWidth = "100%";
@@ -2443,7 +3039,7 @@
     element.replaceWith(wrapper);
     return wrapper;
   }
-  
+
   function buildCard(cardModel, rect) {
     const card = document.createElement("div");
     card.className = "attention-redirector-card";
@@ -2461,11 +3057,11 @@
         ? `Attention anchor: ${cardModel.body}`
         : "Quiet attention replacement"
     );
-  
+
     if (rect.width < 260 || rect.height < 110) {
       card.classList.add("attention-redirector-card--compact");
     }
-  
+
     const hideButton = document.createElement("button");
     hideButton.type = "button";
     hideButton.className = "attention-redirector-card__hide";
@@ -2477,44 +3073,52 @@
         slot.style.display = "none";
       }
     });
-  
+
     card.append(hideButton);
-  
+
     if (cardModel.mode === "anchor") {
       const body = document.createElement("div");
       body.className = "attention-redirector-card__body";
       body.textContent = cardModel.body;
       card.append(body);
     }
-  
+
     return card;
   }
-  
+
   function createCardModel(surfaceKey) {
     const sequence = state.cardSequence;
     state.cardSequence += 1;
-  
+
     return {
       mode: state.settings.mode,
-      body: state.settings.anchorNote,
+      body: selectAnchorNote(surfaceKey),
       motionDelay: -(((hashString(surfaceKey) + sequence) % 6) * 5)
     };
   }
-  
+
+  function selectAnchorNote(surfaceKey) {
+    const notes = normalizeAnchorNotes(
+      state.settings.anchorNotes,
+      state.settings.anchorNote
+    );
+    return notes[hashString(surfaceKey) % notes.length];
+  }
+
   function hashString(value) {
     let hash = 2166136261;
     for (let index = 0; index < value.length; index += 1) {
       hash ^= value.charCodeAt(index);
       hash = Math.imul(hash, 16777619);
     }
-  
+
     hash ^= hash >>> 16;
     hash = Math.imul(hash, 0x85ebca6b);
     hash ^= hash >>> 13;
     hash = Math.imul(hash, 0xc2b2ae35);
     return (hash ^ (hash >>> 16)) >>> 0;
   }
-  
+
   function getIdentifierText(element) {
     const parts = [
       element.id,
@@ -2525,10 +3129,10 @@
       element.getAttribute("data-ad-client"),
       element.localName
     ];
-  
+
     return parts.filter(Boolean).join(" ").toLowerCase();
   }
-  
+
   function getElementSignature(element) {
     const tag = element.localName || "element";
     const id = element.id ? `#${element.id}` : "";
@@ -2537,15 +3141,15 @@
       .slice(0, 6)
       .map((className) => `.${className}`)
       .join("");
-  
+
     return `${tag}${id}${classes}`;
   }
-  
+
   function getAncestry(element) {
     const ancestry = [];
     let current = element;
     let depth = 0;
-  
+
     while (current && current !== document.body && depth < 6) {
       if (current instanceof HTMLElement) {
         ancestry.unshift(getElementSignature(current));
@@ -2553,16 +3157,16 @@
       current = current.parentElement;
       depth += 1;
     }
-  
+
     return ancestry;
   }
-  
+
   function getShortLabelText(element) {
     const ownText = Array.from(element.childNodes)
       .filter((node) => node.nodeType === Node.TEXT_NODE)
       .map((node) => node.textContent)
       .join(" ");
-  
+
     const labelText = [
       ownText,
       element.getAttribute("aria-label"),
@@ -2570,14 +3174,14 @@
     ]
       .filter(Boolean)
       .join(" ");
-  
+
     if (labelText.trim().length > 0) {
       return labelText.slice(0, 240);
     }
-  
+
     return element.textContent ? element.textContent.trim().slice(0, 240) : "";
   }
-  
+
   function hasAdLikeSource(element) {
     const srcValues = Array.from(
       element.querySelectorAll("iframe,img,embed,source")
@@ -2592,7 +3196,7 @@
           .join(" ");
       })
       .join(" ");
-  
+
     const ownSrc = [
       element.getAttribute("src"),
       element.getAttribute("data-src"),
@@ -2600,14 +3204,37 @@
     ]
       .filter(Boolean)
       .join(" ");
-  
+
     return AD_SOURCE_RE.test(`${ownSrc} ${srcValues}`);
   }
-  
+
+  function hasAdScriptEvidence(element) {
+    return AD_SCRIPT_TEXT_RE.test(getAdScriptText(element));
+  }
+
+  function hasBoundedAdScriptEvidence(element) {
+    if (!hasAdScriptEvidence(element)) {
+      return false;
+    }
+
+    return isBoundedAdContainerRect(element.getBoundingClientRect());
+  }
+
+  function getAdScriptText(element) {
+    const scripts = element.matches("script")
+      ? [element]
+      : Array.from(element.querySelectorAll("script")).slice(0, 4);
+
+    return scripts
+      .map((script) => script.textContent || "")
+      .join(" ")
+      .slice(0, 2200);
+  }
+
   function getSourceValues(element) {
     const nodes = [element, ...Array.from(element.querySelectorAll("iframe,img,embed,source"))];
     const values = [];
-  
+
     nodes.slice(0, 12).forEach((node) => {
       ["src", "data-src", "srcdoc"].forEach((attribute) => {
         const value = node.getAttribute(attribute);
@@ -2616,143 +3243,169 @@
         }
       });
     });
-  
+
     return Array.from(new Set(values)).slice(0, 8);
   }
-  
+
   function truncateMiddle(value, maxLength) {
     if (value.length <= maxLength) {
       return value;
     }
-  
+
     const half = Math.floor((maxLength - 3) / 2);
     return `${value.slice(0, half)}...${value.slice(-half)}`;
   }
-  
+
   function hasUnsafeIdentifier(element) {
     return UNSAFE_IDENTIFIER_RE.test(getIdentifierText(element));
   }
-  
+
   function hasHardUnsafeIdentifier(element) {
     return HARD_UNSAFE_IDENTIFIER_RE.test(getIdentifierText(element));
   }
-  
+
   function hasSoftUnsafeIdentifier(element) {
     return SOFT_UNSAFE_IDENTIFIER_RE.test(getIdentifierText(element));
   }
-  
+
   function hasUnsafeIdentifierInAncestors(element) {
     let current = element.parentElement;
-  
+
     while (current && current !== document.body) {
       if (UNSAFE_IDENTIFIER_RE.test(getIdentifierText(current))) {
         return true;
       }
-  
+
       current = current.parentElement;
     }
-  
+
     return false;
   }
-  
+
   function hasHardUnsafeIdentifierInAncestors(element) {
     let current = element.parentElement;
-  
+
     while (current && current !== document.body) {
       if (HARD_UNSAFE_IDENTIFIER_RE.test(getIdentifierText(current))) {
         return true;
       }
-  
+
       current = current.parentElement;
     }
-  
+
     return false;
   }
-  
+
   function hasSoftUnsafeIdentifierInAncestors(element) {
     let current = element.parentElement;
-  
+
     while (current && current !== document.body) {
       if (SOFT_UNSAFE_IDENTIFIER_RE.test(getIdentifierText(current))) {
         return true;
       }
-  
+
       current = current.parentElement;
     }
-  
+
     return false;
   }
-  
+
   function hasHardUnsafeAncestor(element) {
-    return Boolean(element.closest(HARD_UNSAFE_ANCESTOR_SELECTOR));
+    return Boolean(closestAcrossRoots(element, HARD_UNSAFE_ANCESTOR_SELECTOR));
   }
-  
+
   function hasSoftUnsafeAncestor(element) {
-    return Boolean(element.closest(SOFT_UNSAFE_ANCESTOR_SELECTOR));
+    return Boolean(closestAcrossRoots(element, SOFT_UNSAFE_ANCESTOR_SELECTOR));
   }
-  
+
   function isVisibleRect(rect) {
     return rect.width >= 120 && rect.height >= 40;
   }
-  
+
   function isSmallContainer(rect) {
     return rect.width <= 420 || rect.height <= 320;
   }
-  
+
+  function isBoundedAdContainerRect(rect) {
+    return (
+      isVisibleRect(rect) &&
+      rect.width <= 1100 &&
+      rect.height <= 340 &&
+      rect.width * rect.height <= 260000
+    );
+  }
+
+  function isNarrowContentRail(element, rect) {
+    if (rect.width > 360 || rect.height <= 760) {
+      return false;
+    }
+
+    const text = String(element.innerText || element.textContent || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return (
+      text.length > 180 &&
+      element.children.length > 3 &&
+      !hasOwnAdIdentifier(element) &&
+      !isBrandingTakeover(element)
+    );
+  }
+
   function isTooLargeForMvp(rect) {
     const viewportArea = window.innerWidth * window.innerHeight;
     const area = rect.width * rect.height;
-  
+
     if (area > viewportArea * 0.35) {
       return true;
     }
-  
+
     if (rect.width > window.innerWidth * 0.94 && rect.height > 260) {
       return true;
     }
-  
+
     return false;
   }
-  
+
   function canReplaceExplicitLargeAd(element, rect) {
     return hasStrongAdSignal(element) && !isTooLargeForExplicitAd(rect);
   }
-  
+
   function isTooLargeForExplicitAd(rect) {
     const viewportArea = window.innerWidth * window.innerHeight;
     const area = rect.width * rect.height;
-  
+
     if (area > viewportArea * 0.9) {
       return true;
     }
-  
+
     if (rect.width > window.innerWidth * 0.98 && rect.height > window.innerHeight * 0.85) {
       return true;
     }
-  
+
     if (rect.height > Math.max(760, window.innerHeight * 1.2)) {
       return true;
     }
-  
+
     return false;
   }
-  
+
   function isTooLargeForInspector(rect, element) {
     const viewportArea = window.innerWidth * window.innerHeight;
     const area = rect.width * rect.height;
-  
+
     if (area <= viewportArea * 0.85) {
       return false;
     }
-  
+
     if (!element) {
       return true;
     }
-  
+
     const style = window.getComputedStyle(element);
     return style.position !== "fixed" && style.position !== "sticky";
   }
-  
+
   function isCommonAdSize(rect) {
     return COMMON_AD_SIZES.some(([width, height]) => {
       const widthDelta = Math.abs(rect.width - width);
@@ -2760,20 +3413,20 @@
       return widthDelta <= 32 && heightDelta <= 28;
     });
   }
-  
+
   function isSidebarElement(element) {
     return Boolean(
-      element.closest("aside,[role='complementary']") ||
+      closestAcrossRoots(element, "aside,[role='complementary']") ||
         /(^|[\s_.:-])(sidebar|rail|right-column|rightcol)([\s_.:-]|$)/i.test(
           getIdentifierText(element.parentElement || element)
         )
     );
   }
-  
+
   function isLikelyHeroBanner(element) {
     const identifiers = getIdentifierText(element);
     const rect = element.getBoundingClientRect();
-  
+
     return (
       /(^|[\s_.:-])(hero|masthead|site-banner|brand-banner)([\s_.:-]|$)/i.test(
         identifiers
@@ -2781,26 +3434,92 @@
       (rect.width > window.innerWidth * 0.75 && rect.height > 180)
     );
   }
-  
+
+  function findLinkedMediaAdContainer(element) {
+    if (!isLinkedCommonMediaAd(element)) {
+      return null;
+    }
+
+    const link = closestAcrossRoots(element, "a[href]");
+    if (!link) {
+      return null;
+    }
+
+    let current = link.parentElement;
+    let depth = 0;
+
+    while (current && current !== document.body && depth < 3) {
+      if (
+        current instanceof HTMLElement &&
+        !current.matches("main,article,nav,header,footer,form") &&
+        containsOnlyLinkedMediaAd(current, link, element) &&
+        hasSimilarRect(element, current) &&
+        safeToReplace(current)
+      ) {
+        return current;
+      }
+
+      current = current.parentElement;
+      depth += 1;
+    }
+
+    return null;
+  }
+
+  function isLinkedCommonMediaAd(element) {
+    if (!(element instanceof HTMLElement) || !element.matches("img,embed")) {
+      return false;
+    }
+
+    if (!closestAcrossRoots(element, "a[href]") || !isSidebarElement(element)) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    return isVisibleRect(rect) && isCommonAdSize(rect) && !isLikelyHeroBanner(element);
+  }
+
+  function containsOnlyLinkedMediaAd(container, link, media) {
+    if (container.querySelector("form,input,textarea,select,[contenteditable='true']")) {
+      return false;
+    }
+
+    const children = Array.from(container.children).filter((child) => {
+      return !child.matches("script,style,noscript");
+    });
+    if (children.length !== 1 || children[0] !== link) {
+      return false;
+    }
+
+    if (!link.contains(media) || link.textContent.trim()) {
+      return false;
+    }
+
+    const linkedMedia = Array.from(
+      link.querySelectorAll("img,embed,iframe,picture")
+    );
+    return linkedMedia.length >= 1 && linkedMedia.length <= 2;
+  }
+
   function hasSimilarRect(child, parent) {
     const childRect = child.getBoundingClientRect();
     const parentRect = parent.getBoundingClientRect();
-  
+
     if (!isVisibleRect(childRect) || !isVisibleRect(parentRect)) {
       return false;
     }
-  
+
     return (
       Math.abs(childRect.width - parentRect.width) <= 48 &&
       Math.abs(childRect.height - parentRect.height) <= 48
     );
   }
-  
+
   function getArea(element) {
     const rect = element.getBoundingClientRect();
     return rect.width * rect.height;
   }
-  
+
   init();
-  
+
 })();

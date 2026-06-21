@@ -8,6 +8,9 @@ const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, '..');
 
 const EASYLIST_URL = 'https://easylist.to/easylist/easylist.txt';
+const MAX_STATIC_RULES_PER_RULESET = 30000;
+const GENERATED_DNR_RULE_LIMIT = 5000;
+const GENERATED_COSMETIC_RULE_LIMIT = 5000;
 const writeChanges = process.argv.includes('--write');
 
 function fetchUrl(url) {
@@ -49,10 +52,22 @@ function parseRules(text) {
         }
       });
     }
-    if (dnrRules.length >= 5000) break;
+    if (dnrRules.length >= GENERATED_DNR_RULE_LIMIT) break;
   }
-  
-  return { dnrRules, cosmeticRules: cosmeticRules.slice(0, 5000) };
+
+  assertDnrRulesetWithinCap(dnrRules, 'generated EasyList DNR');
+  return {
+    dnrRules,
+    cosmeticRules: cosmeticRules.slice(0, GENERATED_COSMETIC_RULE_LIMIT)
+  };
+}
+
+function assertDnrRulesetWithinCap(rules, label) {
+  if (rules.length > MAX_STATIC_RULES_PER_RULESET) {
+    throw new Error(
+      `${label} has ${rules.length} rules; Chrome MV3 static rulesets must stay at or below ${MAX_STATIC_RULES_PER_RULESET}.`
+    );
+  }
 }
 
 async function main() {

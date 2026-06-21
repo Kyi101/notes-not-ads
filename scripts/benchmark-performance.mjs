@@ -20,6 +20,7 @@ const scenarios = [
       enabled: false,
       mode: "quiet",
       anchorNote: "Finish what deserves your attention.",
+      anchorNotes: ["Finish what deserves your attention."],
       visualPresence: 10,
       reducedMotion: "system",
       disabledDomains: []
@@ -31,6 +32,7 @@ const scenarios = [
       enabled: true,
       mode: "quiet",
       anchorNote: "Finish what deserves your attention.",
+      anchorNotes: ["Finish what deserves your attention."],
       visualPresence: 10,
       reducedMotion: "still",
       disabledDomains: []
@@ -42,6 +44,7 @@ const scenarios = [
       enabled: true,
       mode: "quiet",
       anchorNote: "Finish what deserves your attention.",
+      anchorNotes: ["Finish what deserves your attention."],
       visualPresence: 10,
       reducedMotion: "system",
       disabledDomains: []

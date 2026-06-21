@@ -259,6 +259,12 @@
   white-space: pre-wrap !important;
 }
 
+.attention-redirector-inspector[data-attention-redirector-report-mode="true"] .attention-redirector-inspector__details {
+  min-height: 54px !important;
+  max-height: 92px !important;
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif !important;
+}
+
 .attention-redirector-inspector__actions {
   display: flex !important;
   align-items: center !important;

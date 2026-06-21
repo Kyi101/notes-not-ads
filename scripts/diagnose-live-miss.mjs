@@ -113,6 +113,12 @@ try {
       url: location.href,
       title: document.title,
       cards: document.querySelectorAll(".attention-redirector-card").length,
+      attentionSlots: Array.from(
+        document.querySelectorAll(".attention-redirector-slot")
+      ).map((element) => ({
+        ...describeElement(element),
+        ancestry: getAncestry(element)
+      })),
       frames: Array.from(document.querySelectorAll("iframe")).map(describeElement),
       fixedOrSticky: Array.from(document.querySelectorAll("body *"))
         .filter((element) => {
@@ -146,7 +152,12 @@ try {
           );
         })
         .slice(0, 120)
-        .map(describeElement)
+        .map((element) => ({
+          ...describeElement(element),
+          ancestry: getAncestry(element),
+          beforeContent: getComputedStyle(element, "::before").content,
+          afterContent: getComputedStyle(element, "::after").content
+        }))
     };
 
     function describeElement(element) {
@@ -165,6 +176,8 @@ try {
         display: style.display,
         visibility: style.visibility,
         opacity: style.opacity,
+        attentionRedirectorReason:
+          element.dataset.attentionRedirectorReason || "",
         src: element.getAttribute("src") || "",
         dataSrc: element.getAttribute("data-src") || "",
         srcdoc: String(element.getAttribute("srcdoc") || "").slice(0, 300),
@@ -185,6 +198,21 @@ try {
         .join("");
       return `${tag}${id}${classes}`;
     }
+
+    function getAncestry(element) {
+      const ancestry = [];
+      let current = element;
+      let depth = 0;
+
+      while (current && current !== document.body && depth < 7) {
+        ancestry.unshift(getSignature(current));
+        current = current.parentElement;
+        depth += 1;
+      }
+
+      return ancestry;
+    }
+
   });
 
   const report = {

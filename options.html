@@ -54,22 +54,28 @@
                 <input type="radio" name="mode" value="anchor">
                 <span>
                   <strong>Anchor</strong>
-                  <small>Place one intention over the Tide field.</small>
+                  <small>Rotate local intentions over the Tide field.</small>
                 </span>
               </label>
             </div>
           </fieldset>
 
-          <label id="anchorField" class="field-label" for="anchorNote">
-            Anchor note
-            <input
-              id="anchorNote"
-              type="text"
-              maxlength="160"
-              placeholder="Finish what deserves your attention."
-            >
-            <small>Used only in Anchor mode.</small>
-          </label>
+          <div id="anchorField" class="field-label anchor-messages" data-active="false">
+            <div class="field-header">
+              <span>Anchor messages</span>
+              <small id="anchorCount">1/5 local</small>
+            </div>
+            <div id="anchorMessages" class="anchor-message-list"></div>
+            <button
+              id="addAnchorMessage"
+              class="secondary-button inline-button"
+              type="button"
+            >+ Add message</button>
+            <small>
+              Used only in Anchor mode. Messages stay local and rotate across
+              detected surfaces.
+            </small>
+          </div>
         </section>
 
         <section class="settings-section">

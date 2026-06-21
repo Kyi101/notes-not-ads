@@ -504,3 +504,48 @@ banner assets.
 - No external APIs or analytic scripts (e.g., Google Analytics, Sentry, Mixpanel) will be bundled in the extension payload.
 - We rely strictly on Chrome Web Store console crash reports and user feedback (reviews/emails) for initial bug discovery.
 - Any future telemetry addition requires a major Privacy Policy update, explicit UI disclosure, and must never track passive browsing history.
+
+## 2026-06-20 - Scope DOM Scans To Mutated Subtrees
+
+**Decision**: The `MutationObserver` now collects specific mutated and added `HTMLElement` targets into a pending set (`state.pendingScanNodes`), and the debounced `runScan` restricts `document.querySelectorAll()` to only search those subtrees instead of the entire document.
+
+**Why**: YouTube and other dynamic SPAs (Single Page Applications) were experiencing severe lag. The previous implementation ran a full-document `querySelectorAll` for all 5,000+ cosmetic selectors every 80ms if *any* attribute on the page changed (e.g., a video player's progress bar). Scoping the queries prevents O(N) traversal over massive DOM trees.
+
+**Consequences**:
+- CPU overhead on YouTube and similar sites is drastically reduced.
+- The initial load and manual resets (`force: true`) still perform a global `[document]` scan to ensure full coverage.
+- The `collectCandidates` pipeline now iterates over context nodes, executing `context.matches()` for the context root and `context.querySelectorAll()` for its descendants.
+
+## 2026-06-20 - Mitigate Engine Gotchas Without Adding Scriptlets
+
+**Decision**: Address the v0.1 engine risks with bounded content-script and
+release-contract changes: scan open shadow roots as explicit contexts, preserve
+Clean-mode geometry with `visibility: hidden`, retry content-to-background DNR
+allow messages, and fail generated/release DNR rulesets above 30,000 rules.
+Keep anti-adblock scriptlets/main-world API monkey patches out of this release
+cycle.
+
+**Why**: These risks map to real failure modes already seen or likely to appear
+in dogfooding: Shadow DOM misses, SPA layout correction loops, MV3 service
+worker wakeup latency, and Chrome static ruleset limits. Scriptlets are a much
+larger product and compatibility bet than these guardrails and would need a
+separate architecture/eval pass.
+
+**Consequences**:
+- Open `ShadowRoot` trees are discovered with bounded tree walking, observed for
+  later mutations, and receive local card CSS. Closed shadow roots remain
+  impossible to inspect from a content script.
+- Custom-element hosts with open shadow roots are not replacement targets; the
+  actual ad slot inside the root is preferred so light-DOM cards are not hidden
+  by shadow encapsulation.
+- Clean/disabled replacement slots keep measurable boxes while visually hidden,
+  reducing React/virtual-DOM layout thrash risk at the cost of leaving blank
+  reserved space until refresh.
+- `chrome.runtime.sendMessage` for page-level DNR allow sync is callback-checked
+  and retried, but content UI must still not rely on synchronous service-worker
+  behavior.
+- `scripts/update-lists.mjs` and `scripts/test-release-contract.mjs` enforce
+  the static ruleset cap, keeping list expansion curated instead of blind.
+- The browser smoke now covers static and late-injected shadow ads,
+  non-collapsing Clean layout, report-flow messaging, mixed rail safety, and
+  multi-message Anchor merge behavior.

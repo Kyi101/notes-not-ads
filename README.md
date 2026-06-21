@@ -16,17 +16,17 @@ This product overlaps with ad blockers, but its unique value is still the attent
 - Handles common DOM ad patterns such as safeframe/footer ads and Google IMA-style video ad overlays.
 - Starts at `document_end` and reacts to newly inserted slots on a short
   leading-edge schedule to reduce visible ad flash.
-- Replaces matched slots with the Tide Ambient Field or collapses them.
+- Replaces matched slots with the Tide Ambient Field or visually hides them.
 - Preserves site-owned children inside container slots and renders Tide above
   them, so React/Next-style reconciliation can continue safely.
 - Preserves the original slot height where possible to reduce layout jumps.
 - Lets each inserted card be hidden.
 - Supports Quiet mode without text and Anchor mode with one user-written intention.
 - Supports global enable/disable, current-site control, disabled domains, and reduced motion.
-- Current-site disable and sensitive-page skips also install high-priority DNR `allow` rules for requests initiated by those domains.
+- Current-site disable and sensitive-page skips install high-priority DNR `allow` rules for requests initiated by those domains.
 - Provides Visual presence from `0 · Clean` to `10 · Full Ambient`:
-  - `0` collapses all detected surfaces.
-  - `1–9` deterministically renders Tide on that share and collapses the rest.
+  - `0` hides all detected surfaces while preserving their measured slot geometry.
+  - `1–9` deterministically renders Tide on that share and hides the rest.
   - `10` renders Tide on every detected surface.
 
 ## What It Avoids
@@ -53,7 +53,7 @@ The selector strategy is deliberately conservative. Missing some ads is preferab
 
 ## Permissions
 
-- `storage`: saves the mode, Anchor note, visual presence, motion preference, and disabled domains locally.
+- `storage`: saves the mode, Anchor messages, visual presence, motion preference, and disabled domains locally.
 - `activeTab`: lets the popup talk to the current page after the user opens it.
 - `scripting`: lets the popup inject the existing content script into the active tab if the page was already open before the extension loaded or updated.
 - `declarativeNetRequest`: blocks packaged ad-network request rules and installs per-site allow overrides.
@@ -83,7 +83,7 @@ npm run test:extension
 
 `npm run check` also runs a small parser test for cosmetic rules.
 
-`test:extension` launches Chromium with the unpacked extension, serves `tests/fixtures/ad-clutter.html` from a local server, and verifies DNR blocking, site/global DNR allow behavior, replacement patterns, latency, Tide-only rendering, framework-owned DOM reconciliation, Quiet/Anchor, Clean, mixed Visual presence, reduced motion, popup/options persistence, settings migration, and inspector behavior.
+`test:extension` launches Chromium with the unpacked extension, serves `tests/fixtures/ad-clutter.html` from a local server, and verifies DNR blocking, site/global DNR allow behavior, replacement patterns, latency, Tide-only rendering, framework-owned DOM reconciliation, Quiet/Anchor with multiple local messages, Clean, mixed Visual presence, reduced motion, popup/options persistence, settings migration, user-facing missed-ad reporting, and inspector behavior.
 
 The test starts a local `127.0.0.1` server and opens Chromium, so it may need permission in sandboxed agent sessions.
 
@@ -174,6 +174,7 @@ Use the live-site eval to automate broad coverage across real ad-heavy sites and
 npm run eval:live:dry
 npm run eval:live -- --limit 5
 npm run eval:live -- --group controlled
+npm run eval:live -- --group risk-canary
 npm run eval:live -- --case tomsguide
 npm run eval:live -- --url https://example.com/page --id one-off
 ```
@@ -186,6 +187,7 @@ The runner records:
 - Attention Redirector card/slot counts
 - remaining visible ad-like suspects
 - compact suspect signatures and rects
+- site-risk tier/protocol classification and authored policy mismatches
 - final URL and page title
 - HTTP status and rendered page health
 
@@ -206,9 +208,15 @@ Use the popup status and visual inspection. For the first proof, success means i
 - Reddit page: should avoid comments and normal posts; promoted slots may be replaced.
 - Generic content site: should replace obvious ad-sized or sponsored containers.
 
-## Clutter Inspector
+## Missed Ad Reports
 
-Use the popup's **Inspect missed clutter** button when a banner, popup, animated rectangle, or sponsored block is missed.
+Use the popup's **Report missed ad** button when a banner, popup, animated rectangle, or sponsored block is missed. It opens a simple page overlay: click the missed ad, and Attention Redirector saves a compact local report and copies it for sending.
+
+The report flow does not upload anything. Reports stay in `chrome.storage.local` and are capped at 75 recent reports.
+
+## Diagnostic Inspector
+
+Use the popup's Advanced **Diagnostic inspector** button for internal tuning when the simple missed-ad report is not enough.
 
 Inspector mode:
 
@@ -223,7 +231,7 @@ Inspector mode:
 - Shows `Saved: X` in the inspector so you can confirm whether previous selections are still stored.
 - Makes no remote requests and does not upload reports.
 
-Saved reports stay in `chrome.storage.local` and are capped at 75 recent reports. Good selector-tuning reports usually include repeated patterns, not one-off weird pages. If a copied report says `Would replace now: no`, check `Safety blocks` first. That is often the reason the release candidate skipped it.
+Good selector-tuning reports usually include repeated patterns, not one-off weird pages. If a copied report says `Would replace now: no`, check `Safety blocks` first. That is often the reason the release candidate skipped it.
 
 If a report targets a very large rail or column that already contains Attention Redirector cards, it is usually too broad. Use Manual pick or Use parent/child selection to capture the smallest repeated ad slot instead of the whole rail.
 
@@ -233,13 +241,13 @@ The options page lets you:
 
 - Enable or disable the extension globally.
 - Choose Quiet or Anchor as the default mode.
-- Set the Anchor intention.
+- Set up to five local Anchor messages.
 - Set Visual presence from Clean to Full Ambient.
 - Follow the system reduced-motion preference or keep Tide always still.
 - Add disabled domains.
 - Reset to defaults.
 
-The popup is the everyday control surface for global state, the current site, mode, intention, Visual presence, rescan, and the Advanced inspector.
+The popup is the everyday control surface for global state, the current site, mode, primary intention, Visual presence, missed-ad reporting, Options, and Advanced tools.
 
 ## Current Limitations
 
@@ -252,6 +260,7 @@ The popup is the everyday control surface for global state, the current site, mo
   - supports simple `#@#` selector exceptions
   - skips procedural filters, scriptlets, style rules, HTML filters, and network rules
 - The generated EasyList-derived DNR snapshot is broad but mechanical; it should not be treated as mature uBlock-equivalent coverage.
+- Open Shadow DOM roots can be scanned and replaced; closed shadow roots remain inaccessible and may be missed.
 - No AI-generated content.
 - No sync, accounts, or cloud storage.
 - Container replacements preserve their original site-owned children, but
@@ -265,6 +274,7 @@ The popup is the everyday control surface for global state, the current site, mo
 
 - Improve the list-update pipeline:
   - rank or curate common ad-network hosts instead of taking the first simple EasyList rules
+  - keep each static DNR ruleset below the MV3 30,000-rule cap
   - keep generated rules auditable and disableable
   - continue running every cosmetic match through Attention Redirector safety checks
 - Expand the local fixture page as new missed ad/popup patterns are found.

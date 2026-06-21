@@ -6,37 +6,71 @@
       "id": "forbes",
       "group": "real",
       "url": "https://www.forbes.com/",
-      "notes": "Ad-heavy publisher homepage."
+      "notes": "Ad-heavy publisher homepage.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
     },
     {
       "id": "dailymail-uk",
       "group": "real",
       "url": "https://www.dailymail.co.uk/home/index.html",
-      "notes": "Ad-heavy tabloid homepage with rails and video ads."
+      "notes": "Ad-heavy tabloid homepage with rails and video ads.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
     },
     {
       "id": "nypost",
       "group": "real",
       "url": "https://nypost.com/",
-      "notes": "Ad-heavy news homepage."
+      "notes": "Ad-heavy news homepage.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
     },
     {
       "id": "thesun-uk",
       "group": "real",
       "url": "https://www.thesun.co.uk/",
-      "notes": "Ad-heavy tabloid homepage."
+      "notes": "Ad-heavy tabloid homepage.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
     },
     {
       "id": "mirror-uk",
       "group": "real",
       "url": "https://www.mirror.co.uk/",
-      "notes": "Ad-heavy tabloid homepage."
+      "notes": "Ad-heavy tabloid homepage.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
+    },
+    {
+      "id": "ukr-net",
+      "group": "risk-canary",
+      "url": "https://www.ukr.net/",
+      "notes": "Release-blocker canary: ad-heavy Ukrainian portal that must render normally and must not be patched ad hoc.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
     },
     {
       "id": "canary-portal-ua",
       "group": "real",
       "url": "https://canary-portal.example/ua/",
-      "notes": "Full-page cross-origin branding takeover with click-triggered popup behavior."
+      "notes": "Full-page cross-origin branding takeover with click-triggered popup behavior.",
+      "policy": {
+        "expectedTier": "hostile",
+        "expectedProtocol": "hostile"
+      }
     },
     {
       "id": "tmz",
@@ -138,25 +172,41 @@
       "id": "adblock-tester",
       "group": "controlled",
       "url": "https://adblock-tester.com/",
-      "notes": "Controlled adblock score page; total score includes network/script checks."
+      "notes": "Controlled adblock score page; total score includes network/script checks.",
+      "policy": {
+        "expectedTier": "standard",
+        "expectedProtocol": "standard"
+      }
     },
     {
       "id": "canyoublockit",
       "group": "controlled",
       "url": "https://canyoublockit.com/",
-      "notes": "Controlled adblock test page."
+      "notes": "Controlled adblock test page.",
+      "policy": {
+        "expectedTier": "standard",
+        "expectedProtocol": "standard"
+      }
     },
     {
       "id": "getblockify",
       "group": "controlled",
       "url": "https://getblockify.com/adblock-test",
-      "notes": "Controlled adblock test page."
+      "notes": "Controlled adblock test page.",
+      "policy": {
+        "expectedTier": "standard",
+        "expectedProtocol": "standard"
+      }
     },
     {
       "id": "turtlecute",
       "group": "controlled",
       "url": "https://adblock.turtlecute.org/",
-      "notes": "Controlled adblock test page."
+      "notes": "Controlled adblock test page.",
+      "policy": {
+        "expectedTier": "standard",
+        "expectedProtocol": "standard"
+      }
     }
   ]
 }

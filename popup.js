@@ -1,11 +1,14 @@
 const STORAGE_KEY = "attentionRedirectorSettings";
 const CONTENT_SCRIPT_FILES = ["src/cosmetic-filters.js", "src/content.js"];
 const CONTENT_STYLE_FILES = ["src/content.css"];
+const DEFAULT_ANCHOR_NOTE = "Finish what deserves your attention.";
+const MAX_ANCHOR_NOTES = 5;
 
 const DEFAULT_SETTINGS = {
   enabled: true,
   mode: "quiet",
-  anchorNote: "Finish what deserves your attention.",
+  anchorNote: DEFAULT_ANCHOR_NOTE,
+  anchorNotes: [DEFAULT_ANCHOR_NOTE],
   visualPresence: 10,
   reducedMotion: "system",
   disabledDomains: []
@@ -16,8 +19,11 @@ const siteToggle = document.getElementById("siteToggle");
 const siteLabel = document.getElementById("siteLabel");
 const anchorField = document.getElementById("anchorField");
 const anchorNoteInput = document.getElementById("anchorNote");
+const addAnchorMessageButton = document.getElementById("addAnchorMessage");
+const anchorCount = document.getElementById("anchorCount");
 const visualPresenceInput = document.getElementById("visualPresence");
 const presenceValue = document.getElementById("presenceValue");
+const reportMissedAdButton = document.getElementById("reportMissedAd");
 const replaceNowButton = document.getElementById("replaceNow");
 const inspectClutterButton = document.getElementById("inspectClutter");
 const openOptionsButton = document.getElementById("openOptions");
@@ -27,6 +33,7 @@ let activeTab = null;
 let activeDomain = "";
 let settings = { ...DEFAULT_SETTINGS };
 let inspectorActive = false;
+let inspectorReportMode = false;
 let saveTimer = 0;
 
 document.addEventListener("DOMContentLoaded", init);
@@ -73,15 +80,41 @@ function bindEvents() {
   });
 
   anchorNoteInput.addEventListener("input", () => {
-    settings.anchorNote =
-      anchorNoteInput.value.trim() || DEFAULT_SETTINGS.anchorNote;
+    const anchorNotes = normalizeAnchorNotes(
+      settings.anchorNotes,
+      settings.anchorNote
+    );
+    anchorNotes[0] = anchorNoteInput.value.trim() || DEFAULT_ANCHOR_NOTE;
+    settings.anchorNotes = normalizeAnchorNotes(anchorNotes);
+    settings.anchorNote = settings.anchorNotes[0];
     scheduleSave();
+  });
+
+  addAnchorMessageButton.addEventListener("click", () => {
+    chrome.runtime.openOptionsPage();
   });
 
   visualPresenceInput.addEventListener("input", () => {
     settings.visualPresence = Number(visualPresenceInput.value);
     renderPresence();
     scheduleSave();
+  });
+
+  reportMissedAdButton.addEventListener("click", async () => {
+    if (!activeTab || !activeTab.id) {
+      setStatus("No active webpage found.");
+      return;
+    }
+    setStatus("Click the missed ad on the page. The report stays local.");
+    try {
+      renderStatusResponse(
+        await sendMessageToTab(activeTab.id, {
+          type: "AR_START_MISSED_AD_REPORT"
+        })
+      );
+    } catch (error) {
+      setStatus(`Report flow failed: ${formatChromeError(error)}`);
+    }
   });
 
   replaceNowButton.addEventListener("click", async () => {
@@ -135,17 +168,28 @@ function renderControls() {
     );
   });
 
-  anchorNoteInput.value = settings.anchorNote;
+  const anchorNotes = normalizeAnchorNotes(
+    settings.anchorNotes,
+    settings.anchorNote
+  );
+  anchorNoteInput.value = anchorNotes[0];
   anchorNoteInput.disabled = settings.mode !== "anchor";
+  addAnchorMessageButton.disabled = settings.mode !== "anchor";
+  anchorCount.textContent =
+    `${anchorNotes.length}/${MAX_ANCHOR_NOTES} local messages`;
   anchorField.dataset.active = String(settings.mode === "anchor");
   visualPresenceInput.value = String(settings.visualPresence);
   renderPresence();
 
   replaceNowButton.disabled = !activeDomain;
+  reportMissedAdButton.disabled = !activeDomain;
+  reportMissedAdButton.textContent = inspectorReportMode
+    ? "Close report flow"
+    : "Report missed ad";
   inspectClutterButton.disabled = !activeDomain;
   inspectClutterButton.textContent = inspectorActive
     ? "Stop inspector"
-    : "Inspect missed clutter";
+    : "Diagnostic inspector";
 }
 
 function renderPresence() {
@@ -201,6 +245,7 @@ async function refreshStatus() {
 
 function renderStatusResponse(response) {
   inspectorActive = Boolean(response && response.inspectorActive);
+  inspectorReportMode = Boolean(response && response.inspectorReportMode);
   renderControls();
   if (response && response.inspectorError) {
     setStatus(response.inspectorError);
@@ -220,7 +265,9 @@ function renderStatusResponse(response) {
         ? "Full Ambient"
         : `${settings.visualPresence}/10 presence`;
   const inspectorText = inspectorActive
-    ? ` Inspector: ${Number(response.inspectorCandidateCount || 0)} suspects.`
+    ? inspectorReportMode
+      ? " Report flow is open."
+      : ` Inspector: ${Number(response.inspectorCandidateCount || 0)} suspects.`
     : "";
   setStatus(
     `${count} detected surface${count === 1 ? "" : "s"} · ${modeLabel} · ${presenceLabel}.${inspectorText}`
@@ -253,19 +300,26 @@ function mergeSettings(value) {
   const legacyNotes = Array.isArray(stored.customNotes)
     ? stored.customNotes.map((note) => String(note || "").trim()).filter(Boolean)
     : [];
+  const anchorNotes = normalizeAnchorNotes(
+    stored.anchorNotes,
+    stored.anchorNote,
+    legacyNotes
+  );
+  const hasAnchorNotes =
+    hasAnchorNoteInput(stored.anchorNotes) ||
+    hasAnchorNoteInput(stored.anchorNote) ||
+    legacyNotes.length > 0;
   const legacyPresence =
     stored.frequency === "max1" ? 3 : stored.frequency === "max3" ? 6 : 10;
   return {
     enabled: stored.enabled !== false,
     mode: ["quiet", "anchor"].includes(stored.mode)
       ? stored.mode
-      : legacyNotes.length
+      : hasAnchorNotes
         ? "anchor"
         : DEFAULT_SETTINGS.mode,
-    anchorNote:
-      typeof stored.anchorNote === "string" && stored.anchorNote.trim()
-        ? stored.anchorNote.trim()
-        : legacyNotes[0] || DEFAULT_SETTINGS.anchorNote,
+    anchorNote: anchorNotes[0],
+    anchorNotes,
     visualPresence: Number.isFinite(Number(stored.visualPresence))
       ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
       : legacyPresence,
@@ -274,6 +328,29 @@ function mergeSettings(value) {
       ? Array.from(new Set(stored.disabledDomains.map(normalizeDomain))).filter(Boolean)
       : []
   };
+}
+
+function normalizeAnchorNotes(...sources) {
+  const notes = [];
+
+  sources.forEach((source) => {
+    const values = Array.isArray(source) ? source : [source];
+    values.forEach((value) => {
+      const note = String(value || "").trim();
+      if (note && !notes.includes(note)) {
+        notes.push(note);
+      }
+    });
+  });
+
+  return notes.length ? notes.slice(0, MAX_ANCHOR_NOTES) : [DEFAULT_ANCHOR_NOTE];
+}
+
+function hasAnchorNoteInput(value) {
+  if (Array.isArray(value)) {
+    return value.some(hasAnchorNoteInput);
+  }
+  return typeof value === "string" && Boolean(value.trim());
 }
 
 function getActiveTab() {

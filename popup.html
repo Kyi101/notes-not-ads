@@ -36,15 +36,25 @@
           <button type="button" data-mode="anchor" aria-pressed="false">Anchor</button>
         </div>
 
-        <label id="anchorField" class="anchor-field" for="anchorNote">
-          <span>Current intention</span>
+        <div id="anchorField" class="anchor-field" data-active="false">
+          <div class="anchor-field__header">
+            <label for="anchorNote">Primary intention</label>
+            <button
+              id="addAnchorMessage"
+              class="anchor-field__add"
+              type="button"
+              aria-label="Add Anchor messages in Options"
+              title="Add Anchor messages in Options"
+            >+</button>
+          </div>
           <input
             id="anchorNote"
             type="text"
             maxlength="180"
             placeholder="Finish what deserves your attention."
           >
-        </label>
+          <small id="anchorCount">1/5 local messages</small>
+        </div>
       </section>
 
       <section class="control-section presence-section">
@@ -60,13 +70,16 @@
       </section>
 
       <div class="primary-actions">
-        <button id="replaceNow" type="button" class="primary-button">Rescan page</button>
+        <button id="reportMissedAd" type="button" class="primary-button">Report missed ad</button>
         <button id="openOptions" type="button" class="secondary-button">Options</button>
       </div>
 
       <details class="advanced">
         <summary>Advanced</summary>
-        <button id="inspectClutter" type="button" class="text-button">Inspect missed clutter</button>
+        <div class="advanced-actions">
+          <button id="replaceNow" type="button" class="text-button">Scan again</button>
+          <button id="inspectClutter" type="button" class="text-button">Diagnostic inspector</button>
+        </div>
       </details>
 
       <p id="statusText" class="status-text">Checking page status...</p>

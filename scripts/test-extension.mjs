@@ -14,6 +14,7 @@ const DEFAULT_EXTENSION_SETTINGS = {
   enabled: true,
   mode: "quiet",
   anchorNote: "Finish what deserves your attention.",
+  anchorNotes: ["Finish what deserves your attention."],
   visualPresence: 10,
   reducedMotion: "system",
   disabledDomains: []
@@ -58,6 +59,83 @@ try {
   await page
     .locator("#cosmetic-only-slot.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
+  try {
+    await page.waitForFunction(() => {
+      const root = document.querySelector("#shadow-ad-widget")?.shadowRoot;
+      return Boolean(
+        root?.querySelector(
+          "#shadow-ad-slot.attention-redirector-slot .attention-redirector-card"
+        )
+      );
+    });
+  } catch (error) {
+    const shadowDiagnosticTabId = await findFixtureTabId(serviceWorker, fixtureUrl);
+    await sendExtensionMessage(serviceWorker, shadowDiagnosticTabId, {
+      type: "AR_REPLACE_NOW"
+    });
+    await page.waitForTimeout(500);
+    const shadowState = await page.evaluate(() => {
+      const host = document.querySelector("#shadow-ad-widget");
+      const root = host?.shadowRoot;
+      const slot = root?.querySelector("#shadow-ad-slot");
+      const card = root?.querySelector(
+        "#shadow-ad-slot.attention-redirector-slot .attention-redirector-card"
+      );
+      const rect = slot?.getBoundingClientRect();
+      return {
+        hasHost: Boolean(host),
+        hasRoot: Boolean(root),
+        forceRescanReplaced: Boolean(card),
+        slotClass: slot?.className || "",
+        slotReason: slot?.dataset.attentionRedirectorReason || "",
+        slotBlocked: slot?.dataset.attentionRedirectorReplaceBlocked || "",
+        slotReplaced: slot?.dataset.attentionRedirectorReplaced || "",
+        slotRect: rect
+          ? {
+              width: rect.width,
+              height: rect.height,
+              top: rect.top,
+              left: rect.left
+            }
+          : null,
+        rootElementCount: root?.querySelectorAll("*").length || 0,
+        rootHtml: root?.innerHTML.slice(0, 500) || ""
+      };
+    });
+    throw new Error(
+      `Shadow DOM static ad was not replaced: ${JSON.stringify(shadowState)}`,
+      { cause: error }
+    );
+  }
+  const shadowCardDisplay = await page.evaluate(() => {
+    const root = document.querySelector("#shadow-ad-widget")?.shadowRoot;
+    const card = root?.querySelector(
+      "#shadow-ad-slot.attention-redirector-slot .attention-redirector-card"
+    );
+    return card ? getComputedStyle(card).display : "";
+  });
+  if (shadowCardDisplay !== "flex") {
+    throw new Error(`Shadow DOM replacement card was not styled: ${shadowCardDisplay}.`);
+  }
+  await page
+    .locator("#ukrnet-gpt-placeholder.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
+  const initialFixtureTabId = await findFixtureTabId(serviceWorker, fixtureUrl);
+  await sendExtensionMessage(serviceWorker, initialFixtureTabId, {
+    type: "AR_REPLACE_NOW"
+  });
+  if (await page.locator("#portal-rail.attention-redirector-slot").count()) {
+    throw new Error("Portal rail was replaced instead of its child ad slot.");
+  }
+  if (await page.locator("#ukrnet-fixed-block.attention-redirector-slot").count()) {
+    throw new Error("Mixed fixed ukr.net rail was replaced instead of its child ad.");
+  }
+  await page
+    .locator("#ukrnet-fixed-media-child.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
+  await page
+    .locator("[data-fixture='linked-media-ad'].attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
   await page
     .locator("#refreshing-top-ad.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
@@ -79,6 +157,14 @@ try {
   await page
     .locator("#late-injected-ad.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
+  await page.waitForFunction(() => {
+    const root = document.querySelector("#shadow-ad-widget")?.shadowRoot;
+    return Boolean(
+      root?.querySelector(
+        "#late-shadow-ad.attention-redirector-slot .attention-redirector-card"
+      )
+    );
+  });
   const lateReplacementLatency = await page.evaluate(() => {
     return window.__lateAdReplacedAt - window.__lateAdInsertedAt;
   });
@@ -88,6 +174,17 @@ try {
   ) {
     throw new Error(
       `Late ad replacement took ${lateReplacementLatency}ms; expected <= 350ms.`
+    );
+  }
+  const lateShadowReplacementLatency = await page.evaluate(() => {
+    return window.__lateShadowAdReplacedAt - window.__lateShadowAdInsertedAt;
+  });
+  if (
+    !Number.isFinite(lateShadowReplacementLatency) ||
+    lateShadowReplacementLatency > 350
+  ) {
+    throw new Error(
+      `Late shadow ad replacement took ${lateShadowReplacementLatency}ms; expected <= 350ms.`
     );
   }
   await assertVisuallySuppressed(
@@ -159,7 +256,12 @@ try {
 
   await saveExtensionSettings(serviceWorker, {
     ...DEFAULT_EXTENSION_SETTINGS,
-    mode: "anchor"
+    mode: "anchor",
+    anchorNotes: [
+      "Finish what deserves your attention.",
+      "Protect the next hour.",
+      "Return to the work that matters."
+    ]
   });
 
   const anchorPage = await context.newPage();
@@ -171,12 +273,24 @@ try {
     )
     .waitFor({ timeout: 5000 });
 
-  const anchorText = await anchorPage
+  const anchorTexts = await anchorPage
     .locator(".attention-redirector-card__body")
-    .first()
-    .innerText();
-  if (anchorText !== "Finish what deserves your attention.") {
-    throw new Error(`Unexpected Anchor text: ${anchorText}`);
+    .evaluateAll((nodes) => nodes.map((node) => node.textContent.trim()));
+  const expectedAnchorTexts = new Set([
+    "Finish what deserves your attention.",
+    "Protect the next hour.",
+    "Return to the work that matters."
+  ]);
+  if (
+    anchorTexts.length < 1 ||
+    anchorTexts.some((text) => !expectedAnchorTexts.has(text))
+  ) {
+    throw new Error(`Unexpected Anchor texts: ${JSON.stringify(anchorTexts)}`);
+  }
+  if (new Set(anchorTexts).size < 2) {
+    throw new Error(
+      `Anchor messages did not rotate across fixture surfaces: ${JSON.stringify(anchorTexts)}`
+    );
   }
   await anchorPage.close();
 
@@ -237,6 +351,61 @@ try {
       `Clean expected hidden slots and no cards; found ${cleanSlotCount} slots and ${cleanCardCount} cards.`
     );
   }
+  const collapsedCleanSlots = await cleanPage
+    .locator(
+      ".attention-redirector-slot[data-attention-redirector-presentation='clean']"
+    )
+    .evaluateAll((slots) => {
+      return slots.filter((slot) => {
+        const rect = slot.getBoundingClientRect();
+        const style = getComputedStyle(slot);
+        return (
+          style.display === "none" ||
+          style.visibility !== "hidden" ||
+          rect.width <= 0 ||
+          rect.height <= 0
+        );
+      }).length;
+    });
+  if (collapsedCleanSlots !== 0) {
+    throw new Error(
+      `Clean collapsed or exposed ${collapsedCleanSlots} detected slots.`
+    );
+  }
+  await cleanPage.waitForFunction(() => {
+    const root = document.querySelector("#shadow-ad-widget")?.shadowRoot;
+    return Boolean(
+      root?.querySelector(
+        "#shadow-ad-slot.attention-redirector-slot[data-attention-redirector-presentation='clean']"
+      )
+    );
+  });
+  const cleanShadowState = await cleanPage.evaluate(() => {
+    const root = document.querySelector("#shadow-ad-widget")?.shadowRoot;
+    const slot = root?.querySelector("#shadow-ad-slot.attention-redirector-slot");
+    if (!slot) {
+      return null;
+    }
+    const rect = slot.getBoundingClientRect();
+    const style = getComputedStyle(slot);
+    return {
+      display: style.display,
+      visibility: style.visibility,
+      width: rect.width,
+      height: rect.height
+    };
+  });
+  if (
+    !cleanShadowState ||
+    cleanShadowState.display === "none" ||
+    cleanShadowState.visibility !== "hidden" ||
+    cleanShadowState.width <= 0 ||
+    cleanShadowState.height <= 0
+  ) {
+    throw new Error(
+      `Clean shadow slot did not preserve hidden layout: ${JSON.stringify(cleanShadowState)}`
+    );
+  }
   const visibleCleanSlotCount = await cleanPage
     .locator(
       ".attention-redirector-slot[data-attention-redirector-presentation='clean']:visible"
@@ -293,7 +462,10 @@ try {
     );
     return (
       slots.length > 0 &&
-      slots.every((slot) => getComputedStyle(slot).display === "none")
+      slots.every((slot) => {
+        const style = getComputedStyle(slot);
+        return style.display !== "none" && style.visibility === "hidden";
+      })
     );
   });
   const disabledOpenPageCardCount = await page
@@ -361,6 +533,7 @@ try {
   if (
     popupSettings.mode !== "anchor" ||
     popupSettings.anchorNote !== "Protect the next hour." ||
+    popupSettings.anchorNotes?.[0] !== "Protect the next hour." ||
     popupSettings.visualPresence !== 4
   ) {
     throw new Error(
@@ -381,26 +554,37 @@ try {
   const renderedOptions = await optionsPage.evaluate(() => {
     return {
       mode: document.querySelector("input[name='mode']:checked")?.value,
-      anchorNote: document.querySelector("#anchorNote")?.value,
+      anchorNotes: Array.from(
+        document.querySelectorAll(".anchor-message-input")
+      ).map((input) => input.value),
       visualPresence: document.querySelector("#visualPresence")?.value
     };
   });
   if (
     renderedOptions.mode !== "anchor" ||
-    renderedOptions.anchorNote !== "Protect the next hour." ||
+    renderedOptions.anchorNotes[0] !== "Protect the next hour." ||
     renderedOptions.visualPresence !== "4"
   ) {
     throw new Error(
       `Options did not render saved controls: ${JSON.stringify(renderedOptions)}`
     );
   }
+  await optionsPage.locator("#addAnchorMessage").click();
+  await optionsPage
+    .locator(".anchor-message-input")
+    .nth(1)
+    .fill("Return to the work that matters.");
   await optionsPage.locator("#reducedMotion").selectOption("still");
   await optionsPage.getByRole("button", { name: "Save settings" }).click();
   await optionsPage.locator("#saveStatus").filter({ hasText: "Saved." }).waitFor();
   const optionsSettings = await loadExtensionSettings(serviceWorker);
-  if (optionsSettings.reducedMotion !== "still") {
+  if (
+    optionsSettings.reducedMotion !== "still" ||
+    optionsSettings.anchorNotes?.[0] !== "Protect the next hour." ||
+    optionsSettings.anchorNotes?.[1] !== "Return to the work that matters."
+  ) {
     throw new Error(
-      `Options did not persist motion setting: ${JSON.stringify(optionsSettings)}`
+      `Options did not persist controls: ${JSON.stringify(optionsSettings)}`
     );
   }
   await optionsPage.close();
@@ -537,15 +721,48 @@ try {
     );
   }
 
+  const reportPopupPage = await context.newPage();
+  await reportPopupPage.goto(`chrome-extension://${extensionId}/popup.html`);
+  await reportPopupPage.locator("#reportMissedAd").click();
+  await page
+    .locator(".attention-redirector-inspector")
+    .filter({ hasText: "Report missed ad" })
+    .waitFor({ timeout: 5000 });
+  await page.locator("#plain-missed-rectangle").scrollIntoViewIfNeeded();
+  const reportTargetBox = await page.locator("#plain-missed-rectangle").boundingBox();
+  if (!reportTargetBox) {
+    throw new Error("No report target fixture bounding box.");
+  }
+  await page.mouse.click(
+    reportTargetBox.x + reportTargetBox.width / 2,
+    reportTargetBox.y + reportTargetBox.height / 2
+  );
+  await page
+    .locator("[data-attention-redirector-inspector-copy-status]")
+    .filter({ hasText: "Report copied" })
+    .waitFor({ timeout: 5000 });
+  const userReports = await loadSavedReports(serviceWorker);
+  if (userReports.length < 2) {
+    throw new Error(
+      `Expected user report flow to save a second report, found ${userReports.length}.`
+    );
+  }
+  await reportPopupPage.close();
+
   console.log("extension id:", extensionId);
   console.log("fixture url:", fixtureUrl);
   console.log("fixture tab id:", fixtureTabId);
   console.log("quiet cards:", quietCardCount);
   console.log("compact cards:", compactCardCount);
   console.log("late replacement latency:", `${Math.round(lateReplacementLatency)}ms`);
+  console.log(
+    "late shadow replacement latency:",
+    `${Math.round(lateShadowReplacementLatency)}ms`
+  );
   console.log("DNR probe:", "blocked / site-allowed / globally-disabled");
+  console.log("shadow card display:", shadowCardDisplay);
   console.log("framework reconciliation:", frameworkReconcileStatus);
-  console.log("anchor text:", anchorText);
+  console.log("anchor texts:", anchorTexts);
   console.log("reduced motion:", reducedAnimations);
   console.log("clean slots:", cleanSlotCount);
   console.log(
@@ -557,7 +774,7 @@ try {
   console.log("popup settings:", popupSettings);
   console.log("options settings:", optionsSettings);
   console.log("highlighted candidates:", highlightedCount);
-  console.log("saved reports:", savedReports.length);
+  console.log("saved reports:", userReports.length);
   console.log("PASS inspector smoke");
 } finally {
   if (context) {

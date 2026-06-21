@@ -1,11 +1,14 @@
 import { chromium } from "@playwright/test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assessPageHealth } from "./live-eval-health.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const { classifySitePolicy } = require("../src/site-policy.js");
 const projectRoot = path.resolve(__dirname, "..");
 const extensionRoot = projectRoot;
 const casesPath = path.join(projectRoot, "evals/live-sites.json");
@@ -79,7 +82,7 @@ await writeFile(path.join(runDir, "summary.md"), formatMarkdownReport(report));
 
 printSummary(report, runDir);
 
-if (results.some((result) => result.status === "error")) {
+if (results.some((result) => result.status === "error" || result.status === "fail")) {
   process.exit(1);
 }
 
@@ -179,13 +182,20 @@ function printDryRun(cases, options) {
   console.log(`limit: ${options.limit || "none"}`);
   console.log("");
   cases.forEach((testCase) => {
-    console.log(`[DRY] ${testCase.group}/${testCase.id} ${testCase.url}`);
+    const sitePolicy = classifyEvalSitePolicy(testCase, { url: testCase.url });
+    const expectation = formatPolicyExpectation(testCase.policy);
+    console.log(
+      `[DRY] ${testCase.group}/${testCase.id} policy=${sitePolicy.protocol}${expectation} ${testCase.url}`
+    );
   });
 }
 
 async function runCase(context, worker, testCase, options) {
   const page = await context.newPage();
   const startedAt = new Date().toISOString();
+  const initialSitePolicy = classifyEvalSitePolicy(testCase, {
+    url: testCase.url
+  });
 
   try {
     const navigationResponse = await page.goto(testCase.url, {
@@ -209,14 +219,21 @@ async function runCase(context, worker, testCase, options) {
       title: pageMetrics.title,
       bodyTextLength: pageMetrics.bodyTextLength
     });
+    const sitePolicy = classifyEvalSitePolicy(testCase, {
+      url: pageMetrics.url,
+      pageMetrics
+    });
+    const policyCheck = assessPolicyExpectation(sitePolicy, testCase.policy);
     await page.close();
 
     const status =
       pageHealth
         ? "error"
+        : policyCheck
+          ? "fail"
         : options.failOnSuspects && pageMetrics.visibleAdSuspects.length > 0
-        ? "fail"
-        : "pass";
+          ? "fail"
+          : "pass";
 
     return {
       id: testCase.id,
@@ -229,8 +246,11 @@ async function runCase(context, worker, testCase, options) {
       httpStatus,
       startedAt,
       finishedAt: new Date().toISOString(),
-      error: pageHealth ? pageHealth.message : "",
+      error: pageHealth ? pageHealth.message : policyCheck ? policyCheck.message : "",
       pageHealth,
+      sitePolicy,
+      initialSitePolicy,
+      policyCheck,
       extensionStatus,
       metrics: pageMetrics
     };
@@ -244,7 +264,8 @@ async function runCase(context, worker, testCase, options) {
       status: "error",
       startedAt,
       finishedAt: new Date().toISOString(),
-      error: String((error && error.message) || error)
+      error: String((error && error.message) || error),
+      sitePolicy: initialSitePolicy
     };
   }
 }
@@ -341,13 +362,38 @@ async function collectPageMetrics(page) {
         .filter(Boolean)
         .join(" ");
       const combined = `${identifiers} ${ownSource} ${sourceText}`;
-      const adLike =
-        /google_ads_iframe|div-gpt-ad|adsbygoogle|adthrive|safeframe|doubleclick|googlesyndication|adservice|adserver|advertisement|advertising|sponsor|sponsored|promoted/i.test(
-          combined
-        ) ||
+      const text = String(node.innerText || node.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      const identifierAdLike =
         /(^|[\s_.:-])(ad|ads|advert|sponsor|sponsored|promoted|ad-container|ad-slot|ad-wrapper)([\s_.:-]|$)/i.test(
           identifiers
         );
+      const broadTextContainer =
+        style.position === "static" &&
+        rect.height > 760 &&
+        text.length > 300 &&
+        node.children.length > 4 &&
+        !identifierAdLike;
+
+      if (broadTextContainer) {
+        continue;
+      }
+
+      const scriptText = Array.from(node.querySelectorAll("script"))
+        .slice(0, 4)
+        .map((script) => script.textContent || "")
+        .join(" ")
+        .slice(0, 2200);
+      const boundedAdRect =
+        rect.width <= 1100 &&
+        rect.height <= 340 &&
+        rect.width * rect.height <= 260000;
+      const sourceOrScriptAdLike = /google_ads_iframe|div-gpt-ad|adsbygoogle|adthrive|safeframe|doubleclick|googlesyndication|adservice|adserver|bidmatic|adtelligent|mgid|rcvlink|advertisement|advertising|sponsor|sponsored|promoted|реклама/i.test(
+        `${combined} ${text} ${scriptText}`
+      );
+      const adLike =
+        identifierAdLike || (sourceOrScriptAdLike && boundedAdRect);
 
       if (!adLike) {
         continue;
@@ -361,10 +407,7 @@ async function collectPageMetrics(page) {
           top: Math.round(rect.top),
           left: Math.round(rect.left)
         },
-        text: String(node.innerText || node.textContent || "")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 140)
+        text: text.slice(0, 140)
       });
 
       if (visibleAdSuspects.length >= 20) {
@@ -378,7 +421,20 @@ async function collectPageMetrics(page) {
       attentionSlots: document.querySelectorAll(".attention-redirector-slot").length,
       attentionCards: document.querySelectorAll(".attention-redirector-card").length,
       visibleAdSuspects,
-      bodyTextLength: document.body ? document.body.innerText.length : 0
+      bodyTextLength: document.body ? document.body.innerText.length : 0,
+      domSignals: {
+        passwordFields: document.querySelectorAll("input[type='password']").length,
+        paymentForms: document.querySelectorAll(
+          [
+            "input[autocomplete='cc-number']",
+            "input[name*='card' i]",
+            "input[id*='card' i]",
+            "input[name*='payment' i]",
+            "input[id*='payment' i]"
+          ].join(",")
+        ).length,
+        contentEditors: document.querySelectorAll("[contenteditable='true']").length
+      }
     };
 
     function getSignature(element) {
@@ -401,8 +457,10 @@ function printCaseResult(result) {
     return;
   }
 
+  const policyText = result.sitePolicy ? ` policy=${result.sitePolicy.protocol}` : "";
+  const policyMismatch = result.policyCheck ? " policy-mismatch" : "";
   console.log(
-    `${marker} ${result.group}/${result.id} cards=${result.metrics.attentionCards} suspects=${result.metrics.visibleAdSuspects.length} ${result.finalUrl}`
+    `${marker} ${result.group}/${result.id}${policyText}${policyMismatch} cards=${result.metrics.attentionCards} suspects=${result.metrics.visibleAdSuspects.length} ${result.finalUrl}`
   );
 }
 
@@ -413,11 +471,21 @@ function summarizeResults(items) {
     fail: 0,
     error: 0,
     cards: 0,
-    visibleAdSuspects: 0
+    visibleAdSuspects: 0,
+    policyMismatches: 0,
+    policyTiers: {},
+    policyProtocols: {}
   };
 
   items.forEach((item) => {
     summary[item.status] += 1;
+    if (item.policyCheck) {
+      summary.policyMismatches += 1;
+    }
+    if (item.sitePolicy) {
+      incrementCount(summary.policyTiers, item.sitePolicy.tier);
+      incrementCount(summary.policyProtocols, item.sitePolicy.protocol);
+    }
     if (item.metrics && item.status !== "error") {
       summary.cards += item.metrics.attentionCards;
       summary.visibleAdSuspects += item.metrics.visibleAdSuspects.length;
@@ -431,7 +499,7 @@ function printSummary(report, runDir) {
   const summary = report.summary;
   console.log("");
   console.log(
-    `Summary: total=${summary.total} pass=${summary.pass} fail=${summary.fail} error=${summary.error} cards=${summary.cards} visibleSuspects=${summary.visibleAdSuspects}`
+    `Summary: total=${summary.total} pass=${summary.pass} fail=${summary.fail} error=${summary.error} cards=${summary.cards} visibleSuspects=${summary.visibleAdSuspects} policyMismatches=${summary.policyMismatches}`
   );
   console.log(`Report: ${runDir}`);
 }
@@ -453,6 +521,8 @@ function formatMarkdownReport(report) {
     `- Error: ${report.summary.error}`,
     `- Cards: ${report.summary.cards}`,
     `- Visible ad suspects: ${report.summary.visibleAdSuspects}`,
+    `- Policy mismatches: ${report.summary.policyMismatches}`,
+    `- Policy protocols: ${formatCountMap(report.summary.policyProtocols)}`,
     "",
     "## Cases"
   ];
@@ -466,6 +536,12 @@ function formatMarkdownReport(report) {
     }
     if (Number.isFinite(result.httpStatus)) {
       lines.push(`- HTTP status: ${result.httpStatus}`);
+    }
+    if (result.sitePolicy) {
+      lines.push(`- Site policy: ${result.sitePolicy.tier} / ${result.sitePolicy.protocol}`);
+      if (result.policyCheck) {
+        lines.push(`- Policy check: ${result.policyCheck.message}`);
+      }
     }
     if (result.metrics) {
       lines.push(`- Cards: ${result.metrics.attentionCards}`);
@@ -483,6 +559,73 @@ function formatMarkdownReport(report) {
   });
 
   return `${lines.join("\n")}\n`;
+}
+
+function classifyEvalSitePolicy(testCase, { url, pageMetrics } = {}) {
+  const policy = testCase.policy || {};
+  return classifySitePolicy({
+    url: url || testCase.url,
+    domSignals: {
+      ...(policy.domSignals || {}),
+      ...(pageMetrics ? pageMetrics.domSignals || {} : {})
+    },
+    pageSignals: {
+      ...(policy.pageSignals || {})
+    },
+    knownBreakage: policy.knownBreakage === true,
+    knownBreakageDomains: policy.knownBreakageDomains || []
+  });
+}
+
+function assessPolicyExpectation(sitePolicy, policy = {}) {
+  if (!policy.expectedTier && !policy.expectedProtocol) {
+    return null;
+  }
+
+  const failures = [];
+  if (policy.expectedTier && sitePolicy.tier !== policy.expectedTier) {
+    failures.push(`tier expected ${policy.expectedTier}, got ${sitePolicy.tier}`);
+  }
+  if (policy.expectedProtocol && sitePolicy.protocol !== policy.expectedProtocol) {
+    failures.push(
+      `protocol expected ${policy.expectedProtocol}, got ${sitePolicy.protocol}`
+    );
+  }
+
+  if (!failures.length) {
+    return null;
+  }
+
+  return {
+    code: "site-policy-mismatch",
+    message: failures.join("; ")
+  };
+}
+
+function formatPolicyExpectation(policy = {}) {
+  const parts = [];
+  if (policy.expectedTier) {
+    parts.push(`tier=${policy.expectedTier}`);
+  }
+  if (policy.expectedProtocol) {
+    parts.push(`protocol=${policy.expectedProtocol}`);
+  }
+  return parts.length ? ` expected(${parts.join(" ")})` : "";
+}
+
+function incrementCount(target, key) {
+  const normalized = key || "unknown";
+  target[normalized] = (target[normalized] || 0) + 1;
+}
+
+function formatCountMap(value = {}) {
+  const entries = Object.entries(value);
+  if (!entries.length) {
+    return "none";
+  }
+  return entries
+    .map(([key, count]) => `${key}=${count}`)
+    .join(", ");
 }
 
 async function findExtensionContext(context) {

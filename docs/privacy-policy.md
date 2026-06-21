@@ -15,7 +15,7 @@ The extension stores settings locally in Chrome's extension storage, including:
 
 - whether the extension is enabled
 - your selected mode
-- your optional Anchor note
+- your optional Anchor messages
 - your Visual presence setting
 - reduced-motion preference
 - disabled site domains
@@ -33,13 +33,13 @@ requests with packaged static rules.
 The extension does not send browsing history to the developer. It does not use a
 remote rule service and does not upload page contents.
 
-## Inspector Reports
+## Missed-Ad And Inspector Reports
 
-The missed-clutter inspector can save a compact local report about an element on
-the page, including selector-like details, size, position, source URLs, and
-safety checks. Reports are stored locally in Chrome extension storage and are not
-uploaded. If you choose to copy or share a report manually, you control where it
-goes.
+The missed-ad report flow and diagnostic inspector can save a compact local
+report about an element on the page, including selector-like details, size,
+position, source URLs, and safety checks. Reports are stored locally in Chrome
+extension storage and are not uploaded. If you choose to copy or share a report
+manually, you control where it goes.
 
 ## Network Requests
 

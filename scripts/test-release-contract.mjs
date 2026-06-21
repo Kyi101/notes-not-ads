@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
+const MAX_STATIC_RULES_PER_RULESET = 30000;
 
 const manifest = JSON.parse(
   await readFile(path.join(projectRoot, "manifest.json"), "utf8")
@@ -12,6 +13,11 @@ const backgroundSource = await readFile(
   path.join(projectRoot, "src/background.js"),
   "utf8"
 );
+const mainContentSource = await readFile(
+  path.join(projectRoot, "src/main.js"),
+  "utf8"
+);
+const popupSource = await readFile(path.join(projectRoot, "popup.js"), "utf8");
 const cosmeticSource = await readFile(
   path.join(projectRoot, "src/cosmetic-filters.js"),
   "utf8"
@@ -42,6 +48,12 @@ for (const resource of ruleResources) {
     throw new Error(`Ruleset ${resource.id} is empty or invalid.`);
   }
 
+  if (rules.length > MAX_STATIC_RULES_PER_RULESET) {
+    throw new Error(
+      `Ruleset ${resource.id} has ${rules.length} rules; keep each MV3 static ruleset at or below ${MAX_STATIC_RULES_PER_RULESET}.`
+    );
+  }
+
   if (resource.id === "ruleset_1") {
     assertRulesInclude(
       rules,
@@ -59,6 +71,9 @@ for (const resource of ruleResources) {
         "||applovin.com^",
         "||mixpanel.com^",
         "||crwdcntrl.net^",
+        "||bidmatic.io^",
+        "||rcvlink.com^",
+        "||onetag-sys.com^",
         "||sdkconfig.ad.xiaomi.com^"
       ],
       "hand-curated DNR seed"
@@ -88,6 +103,15 @@ if (!backgroundSource.includes("updateSessionRules")) {
 if (!backgroundSource.includes("AR_SYNC_PAGE_DNR_ALLOW")) {
   throw new Error(
     "Release contract violation: content-sensitive pages must be able to request tab-level DNR allow rules."
+  );
+}
+
+if (
+  popupSource.includes("AR_START_MISSED_AD_REPORT") &&
+  !mainContentSource.includes("AR_START_MISSED_AD_REPORT")
+) {
+  throw new Error(
+    "Release contract violation: popup report flow must have a content-script listener."
   );
 }
 

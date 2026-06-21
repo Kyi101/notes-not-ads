@@ -34,6 +34,7 @@ calm Tide field and an optional user-written intention.
 
 - `manifest.json` - extension manifest, DNR rulesets, popup, options, and content script registration.
 - `src/background.js` - MV3 service worker for DNR ruleset toggling and per-site/sensitive-page allow rules.
+- `src/site-policy.js` - pure risk-tier classifier for future protected/standard/ad-heavy/hostile protocol routing; currently covered by deterministic tests before runtime wiring.
 - `src/cosmetic-filters.js` - conservative EasyList/uBlock-style cosmetic `##` selector parser plus local cosmetic rules.
 - `src/shared.js` - shared content-script constants, settings defaults, regexes, and mutable runtime state.
 - `src/main.js` - content-script initialization, settings loading, message listeners, and mutation scheduling.
@@ -47,6 +48,7 @@ calm Tide field and an optional user-written intention.
 - `options.html`, `options.css`, `options.js` - settings UI.
 - `scripts/test-extension.mjs` - Playwright extension smoke test.
 - `scripts/test-cosmetic-filters.mjs` - Node smoke for cosmetic filter parsing and domain/exclusion behavior.
+- `scripts/test-site-policy.mjs` - deterministic risk-tier classifier precedence tests.
 - `scripts/test-release-contract.mjs` - guardrail that keeps packaged DNR and per-site allow behavior in the release runtime.
 - `scripts/live-eval-health.mjs` - pure page-health classification for live eval validity.
 - `scripts/test-live-eval-health.mjs` - deterministic page-health regression checks.
@@ -63,9 +65,10 @@ calm Tide field and an optional user-written intention.
 - `rules/easylist_dnr.json` - generated static DNR rules packaged with the extension.
 - `docs/privacy-policy.md` - draft public privacy policy for Chrome Web Store submission.
 - `docs/chrome-web-store.md` - draft store listing, permission explanations, reviewer instructions, and asset checklist.
+- `docs/site-risk-policy.md` - risk-tiered blocking protocol contract for protected, standard, ad-heavy, and hostile pages.
 - `prototypes/attention-modes.html` - throwaway Ambient motion comparison with Breath, Tide, and Lumen plus Ambient/Editorial Anchor typography.
 - `prototypes/attention-modes-compare.html` - side-by-side Breath/Tide/Lumen review surface with shared mode and palette controls.
-- `evals/live-sites.json` - real-world and controlled URL cases for the live eval runner.
+- `evals/live-sites.json` - real-world, controlled, and risk-canary URL cases for the live eval runner, including authored site-policy expectations where useful.
 - `tests/fixtures/ad-clutter.html` - deterministic clutter/ad fixture page.
 - `tests/fixtures/performance-scroll.html` - long deterministic page for sustained multi-card performance measurement.
 - `package.json`, `package-lock.json` - Node scripts and Playwright dev dependency.

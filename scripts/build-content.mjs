@@ -19,7 +19,7 @@ let content = '(() => {\n';
 
 for (const file of files) {
   const code = fs.readFileSync(path.join(root, file), 'utf8');
-  content += code.split('\n').map(line => '  ' + line).join('\n') + '\n';
+  content += code.split('\n').map(line => line ? `  ${line}` : '').join('\n') + '\n';
 }
 
 content += '})();\n';

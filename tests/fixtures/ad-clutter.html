@@ -71,6 +71,16 @@
         background: #fff2d9;
       }
 
+      .generic-placeholder {
+        width: 300px;
+        height: 250px;
+        margin-top: 18px;
+        display: grid;
+        place-items: center;
+        background: #f0f2f4;
+        color: #9ba5aa;
+      }
+
       .sidebar-ad {
         width: 300px;
         height: 250px;
@@ -232,6 +242,103 @@
         color: #2c4657;
         font-family: Arial, sans-serif;
         font-weight: 700;
+      }
+
+      shadow-ad-widget {
+        display: block;
+        width: 300px;
+        min-height: 250px;
+        margin-top: 18px;
+      }
+
+      .portal-rail {
+        width: 200px;
+        min-height: 820px;
+        margin-top: 18px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .portal-rail a {
+        display: block;
+        margin: 0 0 8px;
+      }
+
+      .portal-rail-ad {
+        width: 200px;
+        height: 200px;
+        margin-top: 16px;
+      }
+
+      .portal-rail-ad iframe {
+        width: 200px;
+        height: 200px;
+        border: 0;
+      }
+
+      .ukrnet-fixed-block {
+        position: fixed;
+        top: -701px;
+        left: 298px;
+        width: 200px;
+        height: 1475px;
+        padding: 0;
+        overflow: hidden;
+        background: #fff;
+        color: #2d3748;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+      }
+
+      .ukrnet-fixed-block a,
+      .ukrnet-fixed-block strong,
+      .ukrnet-fixed-block span {
+        display: block;
+        margin: 0 0 8px;
+      }
+
+      .ukrnet-mail-widget {
+        height: 120px;
+        padding: 12px;
+        background: #eef6ff;
+      }
+
+      .ukrnet-fixed-media-child {
+        width: 200px;
+        height: 300px;
+        margin-top: 16px;
+        overflow: hidden;
+      }
+
+      .ukrnet-fixed-media-child iframe {
+        display: block;
+        width: 200px;
+        height: 250px;
+        border: 0;
+      }
+
+      .ukrnet-fixed-media-child img {
+        display: block;
+        width: 200px;
+        height: 50px;
+        object-fit: cover;
+      }
+
+      [data-fixture="linked-media-ad"] {
+        width: 300px;
+        height: 250px;
+        margin-top: 18px;
+      }
+
+      [data-fixture="linked-media-ad"] a,
+      [data-fixture="linked-media-ad"] img {
+        display: block;
+        width: 300px;
+        height: 250px;
+      }
+
+      [data-fixture="linked-media-ad"] img {
+        object-fit: cover;
       }
 
       .article-video-shell {
@@ -437,6 +544,63 @@
         <div id="cosmetic-only-slot" class="commercial-unit">
           Cosmetic-rule-only unit
         </div>
+        <shadow-ad-widget id="shadow-ad-widget"></shadow-ad-widget>
+        <div id="portal-rail" class="portal-rail">
+          <strong>Useful links</strong>
+          <a href="#news">News and weather</a>
+          <a href="#mail">Mail widget</a>
+          <a href="#travel">Travel links</a>
+          <a href="#jobs">Jobs and education</a>
+          <a href="#shopping">Shopping links</a>
+          <p>
+            This rail contains normal portal links and should not be replaced as
+            one large ad, even when a smaller ad source appears inside it.
+          </p>
+          <div id="portal-rail-ad" class="portal-rail-ad">
+            <iframe src="https://go.rcvlink.com/ifr/test-portal-rail"></iframe>
+          </div>
+        </div>
+        <div id="ukrnet-fixed-block" class="ukrnet-fixed-block fixed-block">
+          <div class="ukrnet-mail-widget">
+            <strong>Mail widget</strong>
+            <a href="#mail">Inbox</a>
+            <span>Weather and account links</span>
+          </div>
+          <a href="#news">Latest news</a>
+          <a href="#finance">Finance</a>
+          <a href="#sport">Sport</a>
+          <p>
+            $.ajax({type:'GET',url:'https://accounts.ukr.net/public/access/test?_='+
+            Date.now(),dataType:'text',success:function(data){if(data!=='ok'){}});
+          </p>
+          <div id="ukrnet-fixed-media-child" class="ukrnet-fixed-media-child">
+            <iframe src="https://go.rcvlink.com/ifr/5ysrIfrF92"></iframe>
+            <img
+              src="https://upst.fwdcdn.com/temp/blocks/3/5068/81/5c/ad1f1a72158030a529cfca8af52f.jpg"
+              alt=""
+            >
+          </div>
+          <a href="#shopping">Shopping links</a>
+          <a href="#jobs">Jobs and education</a>
+        </div>
+        <div id="ukrnet-gpt-placeholder" class="generic-placeholder">
+          Реклама
+          <script>
+            googletag.cmd.push(function(){
+              googletag.display('div-gpt-ad-1428656525414-0');
+              googletag.pubads().addEventListener('slotRenderEnded', function(event){});
+            });
+          </script>
+        </div>
+        <div data-fixture="linked-media-ad">
+          <a href="https://ads.example.test">
+            <img
+              id="censor-linked-media"
+              src="https://storage3.censor.net/90/6fc6290addc508ba1443661ae68994dd.jpg"
+              alt=""
+            >
+          </a>
+        </div>
         <div id="search-results-ad-shell" class="search-shell">
           <iframe
             id="google_ads_iframe_/fixture/search_right_top_0"
@@ -503,6 +667,65 @@
       <input type="password" value="hidden-modal-password">
     </div>
     <script>
+      customElements.define("shadow-ad-widget", class extends HTMLElement {
+        connectedCallback() {
+          if (this.shadowRoot) {
+            return;
+          }
+
+          const root = this.attachShadow({ mode: "open" });
+          const style = document.createElement("style");
+          style.textContent = `
+            .shadow-ad-frame {
+              width: 300px;
+              height: 250px;
+              display: grid;
+              place-items: center;
+              border: 1px dashed #7757a4;
+              background: #f0eaff;
+              color: #30224f;
+              font-family: Arial, sans-serif;
+            }
+          `;
+
+          const slot = document.createElement("div");
+          slot.id = "shadow-ad-slot";
+          slot.className = "shadow-ad-frame ad-wrapper";
+          slot.dataset.adSlot = "shadow-rectangle";
+          slot.innerHTML = `
+            <span>Shadow DOM advertisement</span>
+            <iframe
+              title="Shadow advertisement"
+              srcdoc="<p>Shadow advertisement creative</p>"
+            ></iframe>
+          `;
+
+          root.append(style, slot);
+
+          window.setTimeout(() => {
+            const lateSlot = document.createElement("div");
+            lateSlot.id = "late-shadow-ad";
+            lateSlot.className = "shadow-ad-frame late-shadow-ad";
+            lateSlot.dataset.adSlot = "late-shadow-rectangle";
+            lateSlot.textContent = "Late shadow advertisement";
+
+            const observer = new MutationObserver(() => {
+              if (lateSlot.classList.contains("attention-redirector-slot")) {
+                window.__lateShadowAdReplacedAt = performance.now();
+                observer.disconnect();
+              }
+            });
+            observer.observe(lateSlot, {
+              attributes: true,
+              attributeFilter: ["class"]
+            });
+
+            window.__lateShadowAdInsertedAt = performance.now();
+            root.append(lateSlot);
+          }, 650);
+        }
+      });
+
       window.setTimeout(() => {
         const slot = document.getElementById("refreshing-top-ad");
         if (slot) {

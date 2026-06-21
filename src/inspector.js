@@ -15,16 +15,50 @@ function toggleInspector() {
   startInspector();
   return {
     inspectorActive: true,
+    inspectorReportMode: false,
     inspectorCandidateCount: state.inspector.candidates.length
   };
 }
 
-function startInspector() {
+function startMissedAdReport() {
+  if (state.inspector.active && state.inspector.reportMode) {
+    stopInspector();
+    return {
+      inspectorActive: false,
+      inspectorReportMode: false,
+      inspectorCandidateCount: 0
+    };
+  }
+
+  if (state.inspector.active) {
+    stopInspector();
+  }
+
+  if (isSensitivePage()) {
+    return {
+      inspectorActive: false,
+      inspectorReportMode: false,
+      inspectorCandidateCount: 0,
+      inspectorError: "Report flow is skipped on sensitive pages."
+    };
+  }
+
+  startInspector({ reportMode: true, manualPick: true });
+  return {
+    inspectorActive: true,
+    inspectorReportMode: true,
+    inspectorCandidateCount: state.inspector.candidates.length
+  };
+}
+
+function startInspector(options = {}) {
   if (state.inspector.active || !document.documentElement) {
     return;
   }
 
   state.inspector.active = true;
+  state.inspector.reportMode = Boolean(options.reportMode);
+  state.inspector.manualPick = Boolean(options.manualPick);
   state.inspector.overlay = buildInspectorOverlay();
   document.documentElement.appendChild(state.inspector.overlay);
 
@@ -38,6 +72,10 @@ function startInspector() {
   window.addEventListener("resize", state.inspector.refreshHandler);
 
   refreshInspector();
+  if (state.inspector.manualPick) {
+    ensureManualCaptureLayer();
+    updateInspectorOverlay();
+  }
 }
 
 function stopInspector() {
@@ -62,6 +100,7 @@ function stopInspector() {
   state.inspector.candidates = [];
   state.inspector.selectedInfo = null;
   state.inspector.manualPick = false;
+  state.inspector.reportMode = false;
   clearManualCaptureLayer();
   state.inspector.hoverBox = null;
   state.inspector.hoverInfo = null;
@@ -73,15 +112,22 @@ function stopInspector() {
 function buildInspectorOverlay() {
   const overlay = document.createElement("div");
   overlay.className = "attention-redirector-inspector";
+  overlay.dataset.attentionRedirectorReportMode = String(
+    state.inspector.reportMode
+  );
 
   const header = document.createElement("div");
   header.className = "attention-redirector-inspector__header";
 
   const titleBlock = document.createElement("div");
   const title = document.createElement("strong");
-  title.textContent = "Clutter inspector";
+  title.textContent = state.inspector.reportMode
+    ? "Report missed ad"
+    : "Diagnostic inspector";
   const subtitle = document.createElement("span");
-  subtitle.textContent = "Click a missed banner, popup, or animated slot.";
+  subtitle.textContent = state.inspector.reportMode
+    ? "Click the missed ad. A local report will be copied."
+    : "Click a missed banner, popup, or animated slot.";
   titleBlock.append(title, subtitle);
 
   const closeButton = document.createElement("button");
@@ -141,16 +187,21 @@ function buildInspectorOverlay() {
   savedCount.dataset.attentionRedirectorSavedCount = "true";
   savedCount.textContent = "Saved: checking";
 
-  actions.append(
-    refreshButton,
-    manualPickButton,
-    parentButton,
-    saveCopyButton,
-    exportButton,
-    clearButton,
-    copyStatus,
-    savedCount
-  );
+  if (state.inspector.reportMode) {
+    saveCopyButton.textContent = "Copy report";
+    actions.append(saveCopyButton, copyStatus, savedCount);
+  } else {
+    actions.append(
+      refreshButton,
+      manualPickButton,
+      parentButton,
+      saveCopyButton,
+      exportButton,
+      clearButton,
+      copyStatus,
+      savedCount
+    );
+  }
   overlay.append(header, summary, details, actions);
   return overlay;
 }
@@ -304,11 +355,17 @@ function handleInspectorClick(event) {
       const index = Number.parseInt(label.dataset.attentionRedirectorIndex, 10);
       if (Number.isFinite(index) && state.inspector.candidates[index]) {
         selectInspectorCandidate(state.inspector.candidates[index]);
+        if (state.inspector.reportMode) {
+          saveAndCopyInspectorReport({ auto: true });
+        }
       } else if (
         label.dataset.attentionRedirectorSelected === "true" &&
         state.inspector.selectedInfo
       ) {
         selectInspectorCandidate(state.inspector.selectedInfo);
+        if (state.inspector.reportMode) {
+          saveAndCopyInspectorReport({ auto: true });
+        }
       }
     }
     return;
@@ -339,6 +396,9 @@ function handleInspectorClick(event) {
       state.inspector.manualPick ? "manual pick" : "manual click"
     ])
   );
+  if (state.inspector.reportMode) {
+    saveAndCopyInspectorReport({ auto: true });
+  }
   if (state.inspector.manualPick) {
     state.inspector.manualPick = false;
     clearManualCaptureLayer();
@@ -473,12 +533,21 @@ function updateInspectorOverlay() {
     "[data-attention-redirector-manual-pick]"
   );
 
-  summary.textContent = state.inspector.manualPick
-    ? "Manual pick is on. Hover a missed area, then click to select it."
-    : `${state.inspector.candidates.length} suspects highlighted. Normal replacement is still conservative.`;
-  details.textContent = state.inspector.selectedInfo
-    ? formatElementReport(state.inspector.selectedInfo, "Selected element")
-    : "Click a dark inspector label, or use Manual pick for anything not highlighted.";
+  if (state.inspector.reportMode) {
+    summary.textContent = state.inspector.manualPick
+      ? "Click directly on the missed ad. Nothing is sent automatically."
+      : "Report selected. Use Copy report again if your clipboard missed it.";
+    details.textContent = state.inspector.selectedInfo
+      ? "Report copied locally. Paste it into feedback or an issue when you send it."
+      : "Click the missed ad on the page. The report includes page URL, element size, source, and safety reason.";
+  } else {
+    summary.textContent = state.inspector.manualPick
+      ? "Manual pick is on. Hover a missed area, then click to select it."
+      : `${state.inspector.candidates.length} suspects highlighted. Normal replacement is still conservative.`;
+    details.textContent = state.inspector.selectedInfo
+      ? formatElementReport(state.inspector.selectedInfo, "Selected element")
+      : "Click a dark inspector label, or use Manual pick for anything not highlighted.";
+  }
 
   if (manualPickButton) {
     manualPickButton.textContent = state.inspector.manualPick
@@ -639,7 +708,7 @@ function setInspectorStatus(message) {
   }, 1600);
 }
 
-async function saveAndCopyInspectorReport() {
+async function saveAndCopyInspectorReport(options = {}) {
   const status = state.inspector.overlay.querySelector(
     "[data-attention-redirector-inspector-copy-status]"
   );
@@ -654,7 +723,9 @@ async function saveAndCopyInspectorReport() {
   try {
     const savedCount = await saveInspectorReport(record);
     await copyText(record.text);
-    status.textContent = `Saved + copied (${savedCount}).`;
+    status.textContent = options.auto
+      ? `Report copied (${savedCount}).`
+      : `Saved + copied (${savedCount}).`;
     updateSavedReportCount(savedCount);
   } catch (_error) {
     status.textContent = "Save/copy failed.";
@@ -900,4 +971,3 @@ function formatElementReport(info, heading) {
     `Ancestry: ${info.ancestry.join(" > ")}`
   ].join("\n");
 }
-

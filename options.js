@@ -1,9 +1,12 @@
 const STORAGE_KEY = "attentionRedirectorSettings";
+const DEFAULT_ANCHOR_NOTE = "Finish what deserves your attention.";
+const MAX_ANCHOR_NOTES = 5;
 
 const DEFAULT_SETTINGS = {
   enabled: true,
   mode: "quiet",
-  anchorNote: "Finish what deserves your attention.",
+  anchorNote: DEFAULT_ANCHOR_NOTE,
+  anchorNotes: [DEFAULT_ANCHOR_NOTE],
   visualPresence: 10,
   reducedMotion: "system",
   disabledDomains: []
@@ -12,7 +15,9 @@ const DEFAULT_SETTINGS = {
 const form = document.getElementById("optionsForm");
 const enabledInput = document.getElementById("enabled");
 const anchorField = document.getElementById("anchorField");
-const anchorNoteInput = document.getElementById("anchorNote");
+const anchorMessagesContainer = document.getElementById("anchorMessages");
+const addAnchorMessageButton = document.getElementById("addAnchorMessage");
+const anchorCount = document.getElementById("anchorCount");
 const visualPresenceInput = document.getElementById("visualPresence");
 const presenceValue = document.getElementById("presenceValue");
 const presenceNumber = document.getElementById("presenceNumber");
@@ -32,11 +37,22 @@ async function init() {
 function bindEvents() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await saveSettings(readSettingsFromForm());
+    const nextSettings = readSettingsFromForm();
+    await saveSettings(nextSettings);
+    renderSettings(nextSettings);
     showStatus("Saved.");
   });
 
   form.addEventListener("change", () => {
+    renderConditionalControls();
+  });
+
+  addAnchorMessageButton.addEventListener("click", () => {
+    const messages = readAnchorMessageInputs({ includeEmpty: true });
+    if (messages.length >= MAX_ANCHOR_NOTES) {
+      return;
+    }
+    renderAnchorMessages([...messages, ""], { focusIndex: messages.length });
     renderConditionalControls();
   });
 
@@ -58,7 +74,7 @@ function renderSettings(value) {
   if (modeInput) {
     modeInput.checked = true;
   }
-  anchorNoteInput.value = settings.anchorNote;
+  renderAnchorMessages(settings.anchorNotes);
   visualPresenceInput.value = String(settings.visualPresence);
   reducedMotionInput.value = settings.reducedMotion;
   disabledDomainsInput.value = settings.disabledDomains.join("\n");
@@ -69,8 +85,87 @@ function renderSettings(value) {
 function renderConditionalControls() {
   const mode = form.querySelector("input[name='mode']:checked")?.value;
   const anchorActive = mode === "anchor";
-  anchorNoteInput.disabled = !anchorActive;
+  anchorMessagesContainer
+    .querySelectorAll(".anchor-message-input")
+    .forEach((input) => {
+      input.disabled = !anchorActive;
+    });
+  updateAnchorMessageControls(anchorActive);
   anchorField.dataset.active = String(anchorActive);
+}
+
+function renderAnchorMessages(notes, options = {}) {
+  const values = prepareAnchorMessageRows(notes);
+  anchorMessagesContainer.replaceChildren(
+    ...values.map((note, index) => createAnchorMessageRow(note, index))
+  );
+  updateAnchorMessageControls(
+    form.querySelector("input[name='mode']:checked")?.value === "anchor"
+  );
+
+  if (Number.isInteger(options.focusIndex)) {
+    const target = anchorMessagesContainer.querySelector(
+      `.anchor-message-input[data-index="${options.focusIndex}"]`
+    );
+    if (target) {
+      target.focus();
+    }
+  }
+}
+
+function prepareAnchorMessageRows(notes) {
+  const values = Array.isArray(notes)
+    ? notes.map((note) => String(note || "").trim()).slice(0, MAX_ANCHOR_NOTES)
+    : normalizeAnchorNotes(notes);
+
+  return values.length ? values : [DEFAULT_ANCHOR_NOTE];
+}
+
+function createAnchorMessageRow(note, index) {
+  const row = document.createElement("div");
+  row.className = "anchor-message-row";
+
+  const input = document.createElement("input");
+  input.className = "anchor-message-input";
+  input.type = "text";
+  input.maxLength = 160;
+  input.dataset.index = String(index);
+  input.value = note;
+  input.placeholder =
+    index === 0 ? DEFAULT_ANCHOR_NOTE : "Add another redirecting thought.";
+  input.addEventListener("input", () => {
+    updateAnchorMessageControls(
+      form.querySelector("input[name='mode']:checked")?.value === "anchor"
+    );
+  });
+
+  const removeButton = document.createElement("button");
+  removeButton.className = "secondary-button anchor-remove-button";
+  removeButton.type = "button";
+  removeButton.textContent = "Remove";
+  removeButton.addEventListener("click", () => {
+    const nextValues = readAnchorMessageInputs({ includeEmpty: true });
+    nextValues.splice(index, 1);
+    renderAnchorMessages(nextValues.length ? nextValues : [DEFAULT_ANCHOR_NOTE], {
+      focusIndex: Math.max(0, index - 1)
+    });
+    renderConditionalControls();
+  });
+
+  row.append(input, removeButton);
+  return row;
+}
+
+function updateAnchorMessageControls(anchorActive) {
+  const rows = anchorMessagesContainer.querySelectorAll(".anchor-message-row");
+  const count = rows.length || 1;
+  anchorCount.textContent = `${count}/${MAX_ANCHOR_NOTES} local`;
+  addAnchorMessageButton.disabled = !anchorActive || count >= MAX_ANCHOR_NOTES;
+  anchorMessagesContainer
+    .querySelectorAll(".anchor-remove-button")
+    .forEach((button) => {
+      button.disabled = !anchorActive || count <= 1;
+    });
 }
 
 function renderPresence() {
@@ -101,16 +196,32 @@ function renderPresence() {
 }
 
 function readSettingsFromForm() {
+  const anchorNotes = normalizeAnchorNotes(readAnchorMessageInputs());
   return mergeSettings({
     enabled: enabledInput.checked,
     mode:
       form.querySelector("input[name='mode']:checked")?.value ||
       DEFAULT_SETTINGS.mode,
-    anchorNote: anchorNoteInput.value,
+    anchorNote: anchorNotes[0],
+    anchorNotes,
     visualPresence: Number(visualPresenceInput.value),
     reducedMotion: reducedMotionInput.value,
     disabledDomains: splitLines(disabledDomainsInput.value).map(normalizeDomain)
   });
+}
+
+function readAnchorMessageInputs(options = {}) {
+  const values = Array.from(
+    anchorMessagesContainer.querySelectorAll(".anchor-message-input")
+  )
+    .map((input) => input.value.trim())
+    .slice(0, MAX_ANCHOR_NOTES);
+
+  if (options.includeEmpty) {
+    return values.length ? values : [""];
+  }
+
+  return values.filter(Boolean);
 }
 
 function splitLines(value) {
@@ -172,6 +283,15 @@ function mergeSettings(value) {
   const legacyNotes = Array.isArray(stored.customNotes)
     ? stored.customNotes.map((note) => String(note || "").trim()).filter(Boolean)
     : [];
+  const anchorNotes = normalizeAnchorNotes(
+    stored.anchorNotes,
+    stored.anchorNote,
+    legacyNotes
+  );
+  const hasAnchorNotes =
+    hasAnchorNoteInput(stored.anchorNotes) ||
+    hasAnchorNoteInput(stored.anchorNote) ||
+    legacyNotes.length > 0;
   const legacyPresence =
     stored.frequency === "max1" ? 3 : stored.frequency === "max3" ? 6 : 10;
 
@@ -179,13 +299,11 @@ function mergeSettings(value) {
     enabled: stored.enabled !== false,
     mode: ["quiet", "anchor"].includes(stored.mode)
       ? stored.mode
-      : legacyNotes.length
+      : hasAnchorNotes
         ? "anchor"
         : DEFAULT_SETTINGS.mode,
-    anchorNote:
-      typeof stored.anchorNote === "string" && stored.anchorNote.trim()
-        ? stored.anchorNote.trim()
-        : legacyNotes[0] || DEFAULT_SETTINGS.anchorNote,
+    anchorNote: anchorNotes[0],
+    anchorNotes,
     visualPresence: Number.isFinite(Number(stored.visualPresence))
       ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
       : legacyPresence,
@@ -194,4 +312,27 @@ function mergeSettings(value) {
       ? Array.from(new Set(stored.disabledDomains.map(normalizeDomain))).filter(Boolean)
       : []
   };
+}
+
+function normalizeAnchorNotes(...sources) {
+  const notes = [];
+
+  sources.forEach((source) => {
+    const values = Array.isArray(source) ? source : [source];
+    values.forEach((value) => {
+      const note = String(value || "").trim();
+      if (note && !notes.includes(note)) {
+        notes.push(note);
+      }
+    });
+  });
+
+  return notes.length ? notes.slice(0, MAX_ANCHOR_NOTES) : [DEFAULT_ANCHOR_NOTE];
+}
+
+function hasAnchorNoteInput(value) {
+  if (Array.isArray(value)) {
+    return value.some(hasAnchorNoteInput);
+  }
+  return typeof value === "string" && Boolean(value.trim());
 }
