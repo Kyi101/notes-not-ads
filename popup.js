@@ -361,15 +361,24 @@ function getActiveTab() {
         resolve(activeNormalTab);
         return;
       }
-      chrome.tabs.query({}, (allTabs) => {
-        resolve(
-          allTabs
-            .filter(isNormalWebTab)
-            .sort(
-              (a, b) =>
-                Number(b.lastAccessed || 0) - Number(a.lastAccessed || 0)
-            )[0] || null
-        );
+      // Only when popup.html itself is open as a tab (dev/tests) does
+      // tabs.getCurrent return a tab; the real toolbar popup gets undefined
+      // and must never retarget a tab the user cannot see.
+      chrome.tabs.getCurrent((ownTab) => {
+        if (!ownTab) {
+          resolve(null);
+          return;
+        }
+        chrome.tabs.query({ currentWindow: true }, (windowTabs) => {
+          resolve(
+            windowTabs
+              .filter(isNormalWebTab)
+              .sort(
+                (a, b) =>
+                  Number(b.lastAccessed || 0) - Number(a.lastAccessed || 0)
+              )[0] || null
+          );
+        });
       });
     });
   });

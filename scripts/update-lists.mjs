@@ -33,10 +33,7 @@ function parseRules(text) {
 
   for (const line of lines) {
     if (line.includes('##') || line.includes('#@#')) {
-      // Filter out weird rules with backticks to not break JS template strings
-      if (!line.includes('`')) {
-        cosmeticRules.push(line);
-      }
+      cosmeticRules.push(line);
       continue;
     }
     
@@ -86,40 +83,72 @@ async function main() {
   fs.writeFileSync(dnrPath, JSON.stringify(dnrRules, null, 2));
   
   const cosmeticJsPath = path.join(root, 'src', 'cosmetic-filters.js');
-  let jsContent = fs.readFileSync(cosmeticJsPath, 'utf8');
-  
-  const regex = /const DEFAULT_COSMETIC_FILTER_TEXT = `[\s\S]*?`;/;
-  const newText = `const DEFAULT_COSMETIC_FILTER_TEXT = \`
-! Attention Redirector seed rules plus a local cosmetic snapshot.
-! DNR network rules live in rules/*.json; every cosmetic match still passes safety checks.
-##.adsbygoogle
-##ins.adsbygoogle
-##.adthrive-ad
-##.ad-container
-##.ad-wrapper
-##.ad-slot
-##.ad-banner
-##.advertisement
-##.advertising
-##.sponsored-ad
-##[data-ad-slot]
-##[aria-label="Advertisement"]
-##[id^="google_ads_iframe_"]
-##[id*="google_ads_iframe"]
-##[id^="div-gpt-ad"]
-##[id*="div-gpt-ad"]
-merriam-webster.com##.adthrive-ad
-pravda.com.ua##.ima-ad-container
-adblock.turtlecute.org##.adbox.banner_ads.adsbox
-adblock.turtlecute.org##.textads
-127.0.0.1##.commercial-unit
-127.0.0.1###cosmetic-only-slot
-! --- EASYLIST ---
-${cosmeticRules.join('\n')}
-\`;`;
+  const jsContent = fs.readFileSync(cosmeticJsPath, 'utf8');
 
-  jsContent = jsContent.replace(regex, newText);
-  fs.writeFileSync(cosmeticJsPath, jsContent);
+  if (!COSMETIC_DECLARATION_REGEX.test(jsContent)) {
+    throw new Error(
+      'DEFAULT_COSMETIC_FILTER_TEXT declaration not found in src/cosmetic-filters.js; refusing to write.'
+    );
+  }
+
+  const declaration = serializeCosmeticFilterDeclaration([
+    ...SEED_COSMETIC_LINES,
+    '! --- EASYLIST ---',
+    ...cosmeticRules
+  ]);
+
+  fs.writeFileSync(
+    cosmeticJsPath,
+    jsContent.replace(COSMETIC_DECLARATION_REGEX, () => declaration)
+  );
 }
 
-main().catch(console.error);
+const SEED_COSMETIC_LINES = [
+  '',
+  '! Attention Redirector seed rules plus a local cosmetic snapshot.',
+  '! DNR network rules live in rules/*.json; every cosmetic match still passes safety checks.',
+  '##.adsbygoogle',
+  '##ins.adsbygoogle',
+  '##.adthrive-ad',
+  '##.ad-container',
+  '##.ad-wrapper',
+  '##.ad-slot',
+  '##.ad-banner',
+  '##.advertisement',
+  '##.advertising',
+  '##.sponsored-ad',
+  '##[data-ad-slot]',
+  '##[aria-label="Advertisement"]',
+  '##[id^="google_ads_iframe_"]',
+  '##[id*="google_ads_iframe"]',
+  '##[id^="div-gpt-ad"]',
+  '##[id*="div-gpt-ad"]',
+  'merriam-webster.com##.adthrive-ad',
+  'pravda.com.ua##.ima-ad-container',
+  'adblock.turtlecute.org##.adbox.banner_ads.adsbox',
+  'adblock.turtlecute.org##.textads',
+  '127.0.0.1##.commercial-unit',
+  '127.0.0.1###cosmetic-only-slot'
+];
+
+// Matches the legacy template-literal form and the current .join("\n") array form.
+export const COSMETIC_DECLARATION_REGEX =
+  /const DEFAULT_COSMETIC_FILTER_TEXT = (?:`[\s\S]*?`|\[[\s\S]*?\n\s*\]\.join\("\\n"\));/;
+
+// Filter lines are stored as JSON-escaped strings, never a template literal:
+// upstream EasyList text must not be able to interpolate or execute in the
+// content script.
+export function serializeCosmeticFilterDeclaration(lines) {
+  return (
+    'const DEFAULT_COSMETIC_FILTER_TEXT = [\n' +
+    lines.map((line) => `    ${JSON.stringify(String(line))}`).join(',\n') +
+    '\n  ].join("\\n");'
+  );
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

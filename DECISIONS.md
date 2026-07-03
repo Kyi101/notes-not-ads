@@ -549,3 +549,26 @@ separate architecture/eval pass.
 - The browser smoke now covers static and late-injected shadow ads,
   non-collapsing Clean layout, report-flow messaging, mixed rail safety, and
   multi-message Anchor merge behavior.
+
+## 2026-07-02 - Store The Cosmetic Snapshot As JSON-Escaped Strings
+
+**Decision**: `src/cosmetic-filters.js` no longer embeds the EasyList-derived
+cosmetic snapshot in a JS template literal. The generator serializes every
+filter line with `JSON.stringify` into an array joined at runtime, refuses to
+write when the declaration regex does not match, and uses a function replacer
+so `$`-patterns in rules cannot mutate output. The backtick pre-filter was
+removed because escaping now happens structurally.
+
+**Why**: The template-literal form let upstream EasyList text reach the content
+script as live JS: a rule containing `${...}` would interpolate (best case a
+top-level throw disabling all cosmetic filtering, worst case list-controlled
+code execution on every page). Filtering only backticks was a band-aid around
+an unsafe storage format.
+
+**Consequences**:
+- The shipped snapshot was converted with a byte-identical runtime round trip;
+  no behavior change.
+- `scripts/test-cosmetic-filters.mjs` now asserts hostile lines (interpolation,
+  quotes, trailing backslashes, replacement patterns) survive serialization
+  verbatim without executing, and fails if the template form ever returns.
+- Rules containing backticks are no longer dropped from the snapshot.

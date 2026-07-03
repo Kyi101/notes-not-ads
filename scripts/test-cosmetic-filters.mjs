@@ -51,6 +51,43 @@ assertSelectors(newsRules, [".generic-ad"], "excluded subdomain rules");
 const otherRules = api.getRulesForHost("other.test", sample);
 assertSelectors(otherRules, [".generic-ad"], "generic rules");
 
+const { serializeCosmeticFilterDeclaration, COSMETIC_DECLARATION_REGEX } =
+  await import("./update-lists.mjs");
+
+if (/const DEFAULT_COSMETIC_FILTER_TEXT = `/.test(source)) {
+  throw new Error(
+    "src/cosmetic-filters.js stores filter text in a template literal; regenerate with scripts/update-lists.mjs."
+  );
+}
+if (!COSMETIC_DECLARATION_REGEX.test(source)) {
+  throw new Error("update-lists.mjs regex no longer matches the shipped declaration.");
+}
+
+const hostileLines = [
+  "##[data-x='${globalThis.pwned = true}']",
+  "##.plain-ad",
+  'example.com##[title="quote\\"and`backtick`"]',
+  "##.trailing-backslash\\",
+  "##.dollar-patterns $& $' $` $1"
+];
+const hostileDeclaration = serializeCosmeticFilterDeclaration(hostileLines);
+const hostileSandbox = {};
+vm.createContext(hostileSandbox);
+const hostileValue = vm.runInContext(
+  `(() => { ${hostileDeclaration} return DEFAULT_COSMETIC_FILTER_TEXT; })()`,
+  hostileSandbox
+);
+assertEqual(
+  hostileValue,
+  hostileLines.join("\n"),
+  "hostile filter lines survive serialization verbatim"
+);
+assertEqual(
+  hostileSandbox.pwned,
+  undefined,
+  "hostile filter lines must not execute"
+);
+
 console.log("PASS cosmetic filter parser");
 
 function assertSelectors(rules, expected, label) {
