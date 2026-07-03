@@ -572,3 +572,31 @@ an unsafe storage format.
   quotes, trailing backslashes, replacement patterns) survive serialization
   verbatim without executing, and fails if the template form ever returns.
 - Rules containing backticks are no longer dropped from the snapshot.
+
+## 2026-07-03 - Kill The Public Product; Archive The Project
+
+**Decision**: Stop all engine and release work. Do not submit to the Chrome
+Web Store. Archive the repository under `Hlib/archive/`. No further DNR rules,
+DOM heuristics, UI fixes, or eval expansion.
+
+**Why**: First real dogfooding session (2026-07-02/03) produced false
+positives — non-ad content replaced — on ad-heavy sites, alongside continued
+misses, despite a green automated harness (97/100 adblock-tester, 4/4
+controlled evals). False positives were the failure mode the architecture was
+explicitly built to avoid, and they are structural, not tunable: judging "what
+counts as an ad" is exactly the human-triage moat that mature blockers built
+over a decade of crowd-sourced reports. A solo maintainer cannot win that
+whack-a-mole, and the maintainer no longer wants to use the tool — terminal
+for a product whose adoption ask is "replace uBlock."
+
+**Consequences**:
+- The 2026-07-02 audit's kill condition fired early: the decisive test failed
+  one layer below the notes thesis, so the Anchor hypothesis remains untested
+  and may be revisited later on an ad-tech-free surface (e.g., new tab), as a
+  fresh project after a grill, not a pivot of this codebase.
+- Reusable assets to salvage: the Playwright unpacked-extension test rig, the
+  hybrid live-eval harness pattern, the dependency-free release packager/zip
+  writer, the SVG-to-PNG icon build via Playwright, and the JSON-escaped
+  generated-artifact pattern from the injection fix.
+- The engine work is treated as paid tuition: it bought a definitive answer
+  about why ad blocking is a duopoly, plus post-mortem content material.
