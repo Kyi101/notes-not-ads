@@ -600,3 +600,33 @@ for a product whose adoption ask is "replace uBlock."
   generated-artifact pattern from the injection fix.
 - The engine work is treated as paid tuition: it bought a definitive answer
   about why ad blocking is a duopoly, plus post-mortem content material.
+
+## 2026-07-03 - Correction: The Kill Narrative Overstated The Failure
+
+**Decision**: Amend the same-day kill record. The "first real dogfooding
+session" framing was false. Hlib manually tested on real sites continuously
+from early June (ukr.net, uafix, canary-portal, Forbes reports; the 06-13 dogfooding
+week), and those reports drove tuning throughout. His corrected assessment:
+blocking was roughly 90% right on most sites, remaining misses were largely
+shared with uBlock, and false positives appeared when detection was pushed
+past the last safe checkpoint — not as first-contact structural collapse.
+"Killed entirely" is retracted. The project is **parked as a public store
+product**; repositioning under consideration: freeze-and-use privately,
+open-source experiment, portfolio piece, kyii-studio graveyard entry.
+
+**Why**: The close-out narrative drifted from the recorded evidence. The error
+surfaced when content drafted from the kill brief misread the story and Hlib
+flagged it. What still stands from the original decision: maintainer fatigue
+with the store-launch fight, the crowd-sourced false-positive-triage moat
+argument against beating mature blockers, and the maintenance treadmill of a
+public store product. What does not stand: the claim that the product failed
+on first contact with reality, and any implication that the engine is bad.
+
+**Consequences**:
+- The Anchor/notes thesis remains untested and testable: freezing detection at
+  the safe checkpoint and using the extension privately is a viable path.
+- eval-system's reference entry and the harvested content seeds were corrected.
+- Real eval lesson kept: manual-testing findings lived in chat and STATUS
+  prose instead of recorded eval results, which made the testing history easy
+  to misremember at decision time. Human-pass sessions should be logged as
+  first-class eval artifacts.
