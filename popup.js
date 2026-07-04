@@ -18,7 +18,7 @@ const globalToggle = document.getElementById("globalToggle");
 const siteToggle = document.getElementById("siteToggle");
 const siteLabel = document.getElementById("siteLabel");
 const anchorField = document.getElementById("anchorField");
-const anchorNoteInput = document.getElementById("anchorNote");
+const anchorNotesContainer = document.getElementById("anchorNotes");
 const addAnchorMessageButton = document.getElementById("addAnchorMessage");
 const anchorCount = document.getElementById("anchorCount");
 const visualPresenceInput = document.getElementById("visualPresence");
@@ -32,6 +32,7 @@ const statusText = document.getElementById("statusText");
 let activeTab = null;
 let activeDomain = "";
 let settings = { ...DEFAULT_SETTINGS };
+let noteDrafts = [DEFAULT_ANCHOR_NOTE];
 let inspectorActive = false;
 let inspectorReportMode = false;
 let saveTimer = 0;
@@ -42,6 +43,8 @@ async function init() {
   settings = await loadSettings();
   activeTab = await getActiveTab();
   activeDomain = getDomainFromTab(activeTab);
+  noteDrafts = normalizeAnchorNotes(settings.anchorNotes, settings.anchorNote);
+  renderAnchorNotes();
   renderControls();
   bindEvents();
   refreshStatus();
@@ -79,19 +82,13 @@ function bindEvents() {
     });
   });
 
-  anchorNoteInput.addEventListener("input", () => {
-    const anchorNotes = normalizeAnchorNotes(
-      settings.anchorNotes,
-      settings.anchorNote
-    );
-    anchorNotes[0] = anchorNoteInput.value.trim() || DEFAULT_ANCHOR_NOTE;
-    settings.anchorNotes = normalizeAnchorNotes(anchorNotes);
-    settings.anchorNote = settings.anchorNotes[0];
-    scheduleSave();
-  });
-
   addAnchorMessageButton.addEventListener("click", () => {
-    chrome.runtime.openOptionsPage();
+    if (noteDrafts.length >= MAX_ANCHOR_NOTES) {
+      return;
+    }
+    noteDrafts.push("");
+    renderAnchorNotes(noteDrafts.length - 1);
+    renderControls();
   });
 
   visualPresenceInput.addEventListener("input", () => {
@@ -168,16 +165,15 @@ function renderControls() {
     );
   });
 
-  const anchorNotes = normalizeAnchorNotes(
-    settings.anchorNotes,
-    settings.anchorNote
-  );
-  anchorNoteInput.value = anchorNotes[0];
-  anchorNoteInput.disabled = settings.mode !== "anchor";
-  addAnchorMessageButton.disabled = settings.mode !== "anchor";
+  const anchorActive = settings.mode === "anchor";
+  anchorNotesContainer.querySelectorAll("input").forEach((input) => {
+    input.disabled = !anchorActive;
+  });
+  addAnchorMessageButton.disabled =
+    !anchorActive || noteDrafts.length >= MAX_ANCHOR_NOTES;
   anchorCount.textContent =
-    `${anchorNotes.length}/${MAX_ANCHOR_NOTES} local messages`;
-  anchorField.dataset.active = String(settings.mode === "anchor");
+    `${noteDrafts.length}/${MAX_ANCHOR_NOTES} local messages`;
+  anchorField.dataset.active = String(anchorActive);
   visualPresenceInput.value = String(settings.visualPresence);
   renderPresence();
 
@@ -190,6 +186,44 @@ function renderControls() {
   inspectClutterButton.textContent = inspectorActive
     ? "Stop inspector"
     : "Diagnostic inspector";
+}
+
+// Note inputs are rendered once and never rewritten while the user types;
+// renderControls() only touches disabled state, so debounced saves cannot
+// steal the caret or strip trailing spaces mid-word.
+function renderAnchorNotes(focusIndex) {
+  anchorNotesContainer.replaceChildren(
+    ...noteDrafts.map((note, index) => createNoteInput(note, index))
+  );
+  if (Number.isInteger(focusIndex)) {
+    const target = anchorNotesContainer.querySelector(
+      `input[data-index="${focusIndex}"]`
+    );
+    if (target) {
+      target.focus();
+    }
+  }
+}
+
+function createNoteInput(note, index) {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.maxLength = 180;
+  input.dataset.index = String(index);
+  input.value = note;
+  input.disabled = settings.mode !== "anchor";
+  input.placeholder =
+    index === 0 ? DEFAULT_ANCHOR_NOTE : "Add another redirecting thought.";
+  if (index === 0) {
+    input.id = "anchorNote";
+  }
+  input.addEventListener("input", () => {
+    noteDrafts[index] = input.value;
+    settings.anchorNotes = normalizeAnchorNotes(noteDrafts);
+    settings.anchorNote = settings.anchorNotes[0];
+    scheduleSave();
+  });
+  return input;
 }
 
 function renderPresence() {

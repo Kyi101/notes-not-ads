@@ -287,7 +287,7 @@
   const INSPECTOR_MAX_SAVED_REPORTS = 75;
 
   const AD_IDENTIFIER_RE =
-    /(^|[\s_.:-])(ad|ads|adslot|ad-slot|ad_unit|ad-unit|advert|advertisement|advertising|sponsor|sponsored|promoted|promo|dfp|gpt|doubleclick|adsbygoogle|native-ad|paid-placement)([\s_.:-]|$)/i;
+    /(^|[\s_.:-])(ad|ads|adslot|ad-slot|ad_unit|ad-unit|advert|advertisement|advertising|sponsor|sponsored|promoted|dfp|gpt|doubleclick|adsbygoogle|native-ad|paid-placement|taboola|outbrain|mgid)([\s_.:-]|$)/i;
 
   const VIDEO_AD_IDENTIFIER_RE =
     /(^|[\s_.:-])(ima-ad-container|ad-container|ad_container|ima|vast|vpaid|preroll|pre-roll|midroll|mid-roll)([\s_.:-]|$)/i;
@@ -296,16 +296,42 @@
     /(^|[\s_.:-])(banner|leaderboard)([\s_.:-]|$)/i;
 
   const UNSAFE_IDENTIFIER_RE =
-    /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|modal|dialog|toast|navigation|menu|navbar|breadcrumb|footer|header|search|subscribe|newsletter)/i;
+    /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|modal|dialog|toast|navigation|menu|navbar|breadcrumb|footer|header|search|subscribe|newsletter|cite_note|cite_ref|footnote)/i;
 
   const HARD_UNSAFE_IDENTIFIER_RE =
-    /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|navigation|menu|navbar|breadcrumb|search|subscribe|newsletter)/i;
+    /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|navigation|menu|navbar|breadcrumb|search|subscribe|newsletter|cite_note|cite_ref|footnote)/i;
 
   const SOFT_UNSAFE_IDENTIFIER_RE =
     /(modal|dialog|toast|footer|header)/i;
 
-  const AD_TEXT_RE =
-    /(advertisement|advertising|sponsored|promoted|paid placement|реклама|рекламний|рекламная)/i;
+  // Full-string label match (not substring): editorial text that merely mentions
+  // advertising must not condemn its container. See DECISIONS.md 2026-07-03.
+  const AD_LABEL_MAX_LENGTH = 64;
+
+  const AD_LABEL_RE = new RegExp(
+    "^(?:" +
+      [
+        "ads?",
+        "advert",
+        "advertisements?",
+        "advertisement[ \\u2013-]+continue reading below",
+        "sponsored",
+        "sponsored (?:content|post|story|stories|links?|results?)",
+        "sponsored by [\\w .,'\\u2019&-]{1,40}",
+        "ads? by [\\w .,'\\u2019&-]{1,40}",
+        "paid (?:content|post|placement|partnership)",
+        "promoted",
+        "promoted (?:content|post|story|stories|links?)",
+        "promoted by [\\w .,'\\u2019&-]{1,40}",
+        "реклама",
+        "на правах реклами",
+        "на правах рекламы",
+        "рекламний матеріал",
+        "рекламный материал"
+      ].join("|") +
+      ")[.:]?$",
+    "i"
+  );
 
   const AD_SOURCE_RE =
     /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;
@@ -2094,14 +2120,13 @@
     }
 
     const identifiers = getIdentifierText(element);
-    const textLabel = getShortLabelText(element);
     const sources = getSourceValues(element).join(" ");
 
     return Boolean(
       brandingTakeover ||
         AD_IDENTIFIER_RE.test(identifiers) ||
         VIDEO_AD_IDENTIFIER_RE.test(identifiers) ||
-        AD_TEXT_RE.test(textLabel) ||
+        hasAdLabel(element) ||
         AD_SOURCE_RE.test(sources)
     );
   }
@@ -2137,11 +2162,10 @@
     }
 
     const identifiers = getIdentifierText(element);
-    const textLabel = getShortLabelText(element);
     const rect = element.getBoundingClientRect();
     const hasAdIdentifier = AD_IDENTIFIER_RE.test(identifiers);
     const hasBannerIdentifier = BANNER_IDENTIFIER_RE.test(identifiers);
-    const hasAdText = AD_TEXT_RE.test(textLabel);
+    const hasLabel = hasAdLabel(element);
     const hasAdSource = hasAdLikeSource(element);
     const hasScriptIframe = hasScriptAdIframe(element);
     const hasCommonSize = isCommonAdSize(rect);
@@ -2150,7 +2174,7 @@
       return "ad-like identifier";
     }
 
-    if (hasAdText && (isSmallContainer(rect) || isSidebarElement(element))) {
+    if (hasLabel && (isSmallContainer(rect) || isSidebarElement(element))) {
       return "sponsored label";
     }
 
@@ -2158,11 +2182,20 @@
       return "banner-sized slot";
     }
 
-    if (hasCommonSize && (hasAdSource || hasAdText || isSidebarElement(element))) {
+    if (
+      hasCommonSize &&
+      (hasAdSource ||
+        hasLabel ||
+        (isBareLinkedMediaSlot(element) && isSidebarElement(element)))
+    ) {
       return "common ad-sized slot";
     }
 
-    if (hasAdSource && (hasAdText || isFixedOrSticky(element) || isSmallContainer(rect))) {
+    if (
+      hasAdSource &&
+      (hasLabel || isFixedOrSticky(element) || isSmallContainer(rect)) &&
+      !hasNonAdIframe(element)
+    ) {
       return "ad-like source";
     }
 
@@ -2248,7 +2281,6 @@
 
   function hasStrongAdSignal(element) {
     const identifiers = getIdentifierText(element);
-    const textLabel = getShortLabelText(element);
     const rect = element.getBoundingClientRect();
 
     return Boolean(
@@ -2256,7 +2288,7 @@
         hasCosmeticMatch(element) ||
         AD_IDENTIFIER_RE.test(identifiers) ||
         VIDEO_AD_IDENTIFIER_RE.test(identifiers) ||
-        AD_TEXT_RE.test(textLabel) ||
+        hasAdLabel(element) ||
         hasAdLikeSource(element) ||
         hasScriptAdIframe(element) ||
         (isCommonAdSize(rect) &&
@@ -2267,7 +2299,6 @@
 
   function isExplicitAdSlot(element) {
     const identifiers = getIdentifierText(element);
-    const textLabel = getShortLabelText(element);
     const sourceText = getSourceValues(element).join(" ");
     const rect = element.getBoundingClientRect();
 
@@ -2283,7 +2314,7 @@
       return true;
     }
 
-    if (AD_TEXT_RE.test(textLabel) && element.matches("iframe,ins,amp-ad")) {
+    if (hasAdLabel(element) && element.matches("iframe,ins,amp-ad")) {
       return true;
     }
 
@@ -2297,7 +2328,7 @@
 
     return Boolean(
       AD_IDENTIFIER_RE.test(identifiers) &&
-        (AD_TEXT_RE.test(textLabel) ||
+        (hasAdLabel(element) ||
           isCommonAdSize(rect) ||
           element.matches("iframe,ins,amp-ad"))
     );
@@ -2453,9 +2484,9 @@
       reasons.push("banner-like identifier");
     }
 
-    if (AD_TEXT_RE.test(textSnippet)) {
+    if (hasAdLabel(element)) {
       score += 3;
-      reasons.push("ad/sponsor text");
+      reasons.push("ad/sponsor label");
     }
 
     if (AD_SOURCE_RE.test(sources.join(" "))) {
@@ -3180,6 +3211,104 @@
     }
 
     return element.textContent ? element.textContent.trim().slice(0, 240) : "";
+  }
+
+  function getOwnText(element) {
+    return Array.from(element.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent)
+      .join(" ");
+  }
+
+  function isAdLabelString(value) {
+    if (!value) {
+      return false;
+    }
+
+    const text = String(value).replace(/\s+/g, " ").trim();
+    if (!text || text.length > AD_LABEL_MAX_LENGTH) {
+      return false;
+    }
+
+    return AD_LABEL_RE.test(text);
+  }
+
+  function hasAdLabel(element) {
+    if (
+      isAdLabelString(getOwnText(element)) ||
+      isAdLabelString(element.getAttribute("aria-label")) ||
+      isAdLabelString(element.getAttribute("title"))
+    ) {
+      return true;
+    }
+
+    // A label-only leaf counts only when the container has little other text.
+    // Long text blocks that happen to contain a standalone "Реклама"/"Sponsored"
+    // word (icon legends, encyclopedia definitions) are editorial content.
+    const totalText = String(element.textContent || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (totalText.length > 120) {
+      return false;
+    }
+
+    const descendants = element.querySelectorAll(
+      "span,div,p,small,b,strong,em,i,h4,h5,h6,figcaption,label"
+    );
+    let checked = 0;
+
+    for (const node of descendants) {
+      if (checked >= 40) {
+        break;
+      }
+      checked += 1;
+
+      // Anchor leaves are site chrome ("Advertising" nav links); paragraph
+      // leaves are prose (bolded definition words), not slot badges.
+      if (node.closest("a,p")) {
+        continue;
+      }
+
+      if (isAdLabelString(getOwnText(node))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function isBareLinkedMediaSlot(element) {
+    const children = Array.from(element.children).filter(
+      (child) => !child.matches("script,style,noscript")
+    );
+    if (children.length !== 1 || !children[0].matches("a[href]")) {
+      return false;
+    }
+
+    const link = children[0];
+    if (link.textContent.trim()) {
+      return false;
+    }
+
+    const media = link.querySelector("img,embed,picture,iframe");
+    if (!media) {
+      return false;
+    }
+
+    return hasSimilarRect(media, element);
+  }
+
+  function hasNonAdIframe(element) {
+    return Array.from(element.querySelectorAll("iframe"))
+      .slice(0, 8)
+      .some((frame) => {
+        const src =
+          frame.getAttribute("src") || frame.getAttribute("data-src") || "";
+        if (!src || /^(about:|javascript:)/i.test(src)) {
+          return false;
+        }
+        return !AD_SOURCE_RE.test(src);
+      });
   }
 
   function hasAdLikeSource(element) {

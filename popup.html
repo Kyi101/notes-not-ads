@@ -38,21 +38,16 @@
 
         <div id="anchorField" class="anchor-field" data-active="false">
           <div class="anchor-field__header">
-            <label for="anchorNote">Primary intention</label>
+            <label for="anchorNote">Intentions</label>
             <button
               id="addAnchorMessage"
               class="anchor-field__add"
               type="button"
-              aria-label="Add Anchor messages in Options"
-              title="Add Anchor messages in Options"
+              aria-label="Add another Anchor message"
+              title="Add another Anchor message"
             >+</button>
           </div>
-          <input
-            id="anchorNote"
-            type="text"
-            maxlength="180"
-            placeholder="Finish what deserves your attention."
-          >
+          <div id="anchorNotes" class="anchor-notes"></div>
           <small id="anchorCount">1/5 local messages</small>
         </div>
       </section>

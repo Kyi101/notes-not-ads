@@ -375,6 +375,104 @@ function getShortLabelText(element) {
   return element.textContent ? element.textContent.trim().slice(0, 240) : "";
 }
 
+function getOwnText(element) {
+  return Array.from(element.childNodes)
+    .filter((node) => node.nodeType === Node.TEXT_NODE)
+    .map((node) => node.textContent)
+    .join(" ");
+}
+
+function isAdLabelString(value) {
+  if (!value) {
+    return false;
+  }
+
+  const text = String(value).replace(/\s+/g, " ").trim();
+  if (!text || text.length > AD_LABEL_MAX_LENGTH) {
+    return false;
+  }
+
+  return AD_LABEL_RE.test(text);
+}
+
+function hasAdLabel(element) {
+  if (
+    isAdLabelString(getOwnText(element)) ||
+    isAdLabelString(element.getAttribute("aria-label")) ||
+    isAdLabelString(element.getAttribute("title"))
+  ) {
+    return true;
+  }
+
+  // A label-only leaf counts only when the container has little other text.
+  // Long text blocks that happen to contain a standalone "Реклама"/"Sponsored"
+  // word (icon legends, encyclopedia definitions) are editorial content.
+  const totalText = String(element.textContent || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (totalText.length > 120) {
+    return false;
+  }
+
+  const descendants = element.querySelectorAll(
+    "span,div,p,small,b,strong,em,i,h4,h5,h6,figcaption,label"
+  );
+  let checked = 0;
+
+  for (const node of descendants) {
+    if (checked >= 40) {
+      break;
+    }
+    checked += 1;
+
+    // Anchor leaves are site chrome ("Advertising" nav links); paragraph
+    // leaves are prose (bolded definition words), not slot badges.
+    if (node.closest("a,p")) {
+      continue;
+    }
+
+    if (isAdLabelString(getOwnText(node))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isBareLinkedMediaSlot(element) {
+  const children = Array.from(element.children).filter(
+    (child) => !child.matches("script,style,noscript")
+  );
+  if (children.length !== 1 || !children[0].matches("a[href]")) {
+    return false;
+  }
+
+  const link = children[0];
+  if (link.textContent.trim()) {
+    return false;
+  }
+
+  const media = link.querySelector("img,embed,picture,iframe");
+  if (!media) {
+    return false;
+  }
+
+  return hasSimilarRect(media, element);
+}
+
+function hasNonAdIframe(element) {
+  return Array.from(element.querySelectorAll("iframe"))
+    .slice(0, 8)
+    .some((frame) => {
+      const src =
+        frame.getAttribute("src") || frame.getAttribute("data-src") || "";
+      if (!src || /^(about:|javascript:)/i.test(src)) {
+        return false;
+      }
+      return !AD_SOURCE_RE.test(src);
+    });
+}
+
 function hasAdLikeSource(element) {
   const srcValues = Array.from(
     element.querySelectorAll("iframe,img,embed,source")

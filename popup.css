@@ -260,6 +260,11 @@ button:disabled {
   line-height: 1.25;
 }
 
+.anchor-notes {
+  display: grid;
+  gap: 5px;
+}
+
 .anchor-field input {
   width: 100%;
   height: 36px;

@@ -131,6 +131,24 @@ try {
     throw new Error("Mixed fixed ukr.net rail was replaced instead of its child ad.");
   }
   await page
+    .locator("#partner-story-card.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
+  const falsePositiveBaits = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll("[id^='fp-'],[id^='cite_note-']"))
+      .filter((element) => {
+        return (
+          element.classList.contains("attention-redirector-slot") ||
+          element.dataset.attentionRedirectorReplaced === "true"
+        );
+      })
+      .map((element) => `#${element.id}`);
+  });
+  if (falsePositiveBaits.length) {
+    throw new Error(
+      `Editorial bait elements were replaced: ${falsePositiveBaits.join(", ")}.`
+    );
+  }
+  await page
     .locator("#ukrnet-fixed-media-child.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
   await page
@@ -505,6 +523,7 @@ try {
   const popupPage = await context.newPage();
   await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
   await popupPage.locator("#visualPresence").waitFor({ timeout: 5000 });
+  await popupPage.locator("#anchorNote").waitFor({ timeout: 5000 });
   const migratedPopup = await popupPage.evaluate(() => {
     return {
       mode: document.querySelector("[data-mode][aria-pressed='true']")?.dataset.mode,
@@ -522,7 +541,19 @@ try {
     );
   }
   await popupPage.locator("[data-mode='anchor']").click();
-  await popupPage.locator("#anchorNote").fill("Protect the next hour.");
+  // Type across the debounced-save boundary with a trailing space to catch
+  // the caret-stealing regression where saves rewrote the input mid-word.
+  const popupNoteInput = popupPage.locator("#anchorNote");
+  await popupNoteInput.fill("");
+  await popupNoteInput.pressSequentially("Protect ");
+  await popupPage.waitForTimeout(400);
+  await popupNoteInput.pressSequentially("the next hour.");
+  const popupNoteValue = await popupNoteInput.inputValue();
+  if (popupNoteValue !== "Protect the next hour.") {
+    throw new Error(
+      `Popup note input lost text across debounced saves: ${JSON.stringify(popupNoteValue)}`
+    );
+  }
   await popupPage.locator("#visualPresence").evaluate((element) => {
     element.value = "4";
     element.dispatchEvent(new Event("input", { bubbles: true }));
@@ -538,6 +569,26 @@ try {
   ) {
     throw new Error(
       `Popup did not persist controls: ${JSON.stringify(popupSettings)}`
+    );
+  }
+
+  const pagesBeforeAdd = context.pages().length;
+  await popupPage.locator("#addAnchorMessage").click();
+  const secondNoteInput = popupPage.locator("#anchorNotes input").nth(1);
+  await secondNoteInput.waitFor({ timeout: 5000 });
+  await secondNoteInput.pressSequentially("Second popup note.");
+  await popupPage.waitForTimeout(350);
+  if (context.pages().length !== pagesBeforeAdd) {
+    throw new Error("Popup add-note button opened a new page instead of an inline input.");
+  }
+  const popupNotesSettings = await loadExtensionSettings(serviceWorker);
+  if (
+    popupNotesSettings.anchorNotes?.length !== 2 ||
+    popupNotesSettings.anchorNotes?.[0] !== "Protect the next hour." ||
+    popupNotesSettings.anchorNotes?.[1] !== "Second popup note."
+  ) {
+    throw new Error(
+      `Popup add-note flow did not persist: ${JSON.stringify(popupNotesSettings.anchorNotes)}`
     );
   }
   await popupPage.close();

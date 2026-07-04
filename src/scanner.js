@@ -266,14 +266,13 @@ function isAdWrapperCandidate(element, origin = element) {
   }
 
   const identifiers = getIdentifierText(element);
-  const textLabel = getShortLabelText(element);
   const sources = getSourceValues(element).join(" ");
 
   return Boolean(
     brandingTakeover ||
       AD_IDENTIFIER_RE.test(identifiers) ||
       VIDEO_AD_IDENTIFIER_RE.test(identifiers) ||
-      AD_TEXT_RE.test(textLabel) ||
+      hasAdLabel(element) ||
       AD_SOURCE_RE.test(sources)
   );
 }
@@ -309,11 +308,10 @@ function getMatchReason(element) {
   }
 
   const identifiers = getIdentifierText(element);
-  const textLabel = getShortLabelText(element);
   const rect = element.getBoundingClientRect();
   const hasAdIdentifier = AD_IDENTIFIER_RE.test(identifiers);
   const hasBannerIdentifier = BANNER_IDENTIFIER_RE.test(identifiers);
-  const hasAdText = AD_TEXT_RE.test(textLabel);
+  const hasLabel = hasAdLabel(element);
   const hasAdSource = hasAdLikeSource(element);
   const hasScriptIframe = hasScriptAdIframe(element);
   const hasCommonSize = isCommonAdSize(rect);
@@ -322,7 +320,7 @@ function getMatchReason(element) {
     return "ad-like identifier";
   }
 
-  if (hasAdText && (isSmallContainer(rect) || isSidebarElement(element))) {
+  if (hasLabel && (isSmallContainer(rect) || isSidebarElement(element))) {
     return "sponsored label";
   }
 
@@ -330,11 +328,20 @@ function getMatchReason(element) {
     return "banner-sized slot";
   }
 
-  if (hasCommonSize && (hasAdSource || hasAdText || isSidebarElement(element))) {
+  if (
+    hasCommonSize &&
+    (hasAdSource ||
+      hasLabel ||
+      (isBareLinkedMediaSlot(element) && isSidebarElement(element)))
+  ) {
     return "common ad-sized slot";
   }
 
-  if (hasAdSource && (hasAdText || isFixedOrSticky(element) || isSmallContainer(rect))) {
+  if (
+    hasAdSource &&
+    (hasLabel || isFixedOrSticky(element) || isSmallContainer(rect)) &&
+    !hasNonAdIframe(element)
+  ) {
     return "ad-like source";
   }
 
@@ -420,7 +427,6 @@ function safeToReplace(element) {
 
 function hasStrongAdSignal(element) {
   const identifiers = getIdentifierText(element);
-  const textLabel = getShortLabelText(element);
   const rect = element.getBoundingClientRect();
 
   return Boolean(
@@ -428,7 +434,7 @@ function hasStrongAdSignal(element) {
       hasCosmeticMatch(element) ||
       AD_IDENTIFIER_RE.test(identifiers) ||
       VIDEO_AD_IDENTIFIER_RE.test(identifiers) ||
-      AD_TEXT_RE.test(textLabel) ||
+      hasAdLabel(element) ||
       hasAdLikeSource(element) ||
       hasScriptAdIframe(element) ||
       (isCommonAdSize(rect) &&
@@ -439,7 +445,6 @@ function hasStrongAdSignal(element) {
 
 function isExplicitAdSlot(element) {
   const identifiers = getIdentifierText(element);
-  const textLabel = getShortLabelText(element);
   const sourceText = getSourceValues(element).join(" ");
   const rect = element.getBoundingClientRect();
 
@@ -455,7 +460,7 @@ function isExplicitAdSlot(element) {
     return true;
   }
 
-  if (AD_TEXT_RE.test(textLabel) && element.matches("iframe,ins,amp-ad")) {
+  if (hasAdLabel(element) && element.matches("iframe,ins,amp-ad")) {
     return true;
   }
 
@@ -469,7 +474,7 @@ function isExplicitAdSlot(element) {
 
   return Boolean(
     AD_IDENTIFIER_RE.test(identifiers) &&
-      (AD_TEXT_RE.test(textLabel) ||
+      (hasAdLabel(element) ||
         isCommonAdSize(rect) ||
         element.matches("iframe,ins,amp-ad"))
   );
@@ -625,9 +630,9 @@ function inspectElement(element, extraReasons = []) {
     reasons.push("banner-like identifier");
   }
 
-  if (AD_TEXT_RE.test(textSnippet)) {
+  if (hasAdLabel(element)) {
     score += 3;
-    reasons.push("ad/sponsor text");
+    reasons.push("ad/sponsor label");
   }
 
   if (AD_SOURCE_RE.test(sources.join(" "))) {

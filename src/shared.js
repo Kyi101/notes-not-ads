@@ -286,7 +286,7 @@ const INSPECTOR_MAX_REPORT_CANDIDATES = 20;
 const INSPECTOR_MAX_SAVED_REPORTS = 75;
 
 const AD_IDENTIFIER_RE =
-  /(^|[\s_.:-])(ad|ads|adslot|ad-slot|ad_unit|ad-unit|advert|advertisement|advertising|sponsor|sponsored|promoted|promo|dfp|gpt|doubleclick|adsbygoogle|native-ad|paid-placement)([\s_.:-]|$)/i;
+  /(^|[\s_.:-])(ad|ads|adslot|ad-slot|ad_unit|ad-unit|advert|advertisement|advertising|sponsor|sponsored|promoted|dfp|gpt|doubleclick|adsbygoogle|native-ad|paid-placement|taboola|outbrain|mgid)([\s_.:-]|$)/i;
 
 const VIDEO_AD_IDENTIFIER_RE =
   /(^|[\s_.:-])(ima-ad-container|ad-container|ad_container|ima|vast|vpaid|preroll|pre-roll|midroll|mid-roll)([\s_.:-]|$)/i;
@@ -295,16 +295,42 @@ const BANNER_IDENTIFIER_RE =
   /(^|[\s_.:-])(banner|leaderboard)([\s_.:-]|$)/i;
 
 const UNSAFE_IDENTIFIER_RE =
-  /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|modal|dialog|toast|navigation|menu|navbar|breadcrumb|footer|header|search|subscribe|newsletter)/i;
+  /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|modal|dialog|toast|navigation|menu|navbar|breadcrumb|footer|header|search|subscribe|newsletter|cite_note|cite_ref|footnote)/i;
 
 const HARD_UNSAFE_IDENTIFIER_RE =
-  /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|navigation|menu|navbar|breadcrumb|search|subscribe|newsletter)/i;
+  /(comment|comments|reply|discussion|thread|editor|compose|message|chat|checkout|cart|basket|payment|billing|invoice|login|signin|password|cookie|consent|privacy|navigation|menu|navbar|breadcrumb|search|subscribe|newsletter|cite_note|cite_ref|footnote)/i;
 
 const SOFT_UNSAFE_IDENTIFIER_RE =
   /(modal|dialog|toast|footer|header)/i;
 
-const AD_TEXT_RE =
-  /(advertisement|advertising|sponsored|promoted|paid placement|реклама|рекламний|рекламная)/i;
+// Full-string label match (not substring): editorial text that merely mentions
+// advertising must not condemn its container. See DECISIONS.md 2026-07-03.
+const AD_LABEL_MAX_LENGTH = 64;
+
+const AD_LABEL_RE = new RegExp(
+  "^(?:" +
+    [
+      "ads?",
+      "advert",
+      "advertisements?",
+      "advertisement[ \\u2013-]+continue reading below",
+      "sponsored",
+      "sponsored (?:content|post|story|stories|links?|results?)",
+      "sponsored by [\\w .,'\\u2019&-]{1,40}",
+      "ads? by [\\w .,'\\u2019&-]{1,40}",
+      "paid (?:content|post|placement|partnership)",
+      "promoted",
+      "promoted (?:content|post|story|stories|links?)",
+      "promoted by [\\w .,'\\u2019&-]{1,40}",
+      "реклама",
+      "на правах реклами",
+      "на правах рекламы",
+      "рекламний матеріал",
+      "рекламный материал"
+    ].join("|") +
+    ")[.:]?$",
+  "i"
+);
 
 const AD_SOURCE_RE =
   /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;

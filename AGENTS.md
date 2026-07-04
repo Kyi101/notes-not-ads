@@ -55,6 +55,7 @@ calm Tide field and an optional user-written intention.
 - `scripts/test-adblock-tester.mjs` - optional live benchmark against adblock-tester.com.
 - `scripts/eval-live-sites.mjs` - live-site eval runner for real ad-heavy pages and controlled test pages.
 - `scripts/diagnose-live-miss.mjs` - targeted capture for supplied live misses: screenshots, frames, overlays, popups, and request hosts.
+- `scripts/diagnose-false-positives.mjs` - FP-capture harness: records reason, signature, ancestry, original text/links/sources, and screenshots for every replaced slot on given URLs or eval cases.
 - `scripts/diagnose-controlled-testers.mjs` - exploratory controlled-tester harness for Canyoublockit, GetBlockify, and Turtlecute baseline extraction.
 - `scripts/package-release.mjs` - clean Git archive release ZIP builder for Chrome Web Store upload.
 - `scripts/benchmark-performance.mjs` - local multi-card scroll/frame/CDP performance benchmark.

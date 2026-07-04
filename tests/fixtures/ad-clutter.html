@@ -101,13 +101,53 @@
         animation: pulse 1.5s infinite;
       }
 
-      .sponsored-card {
+      .native-card {
         width: 300px;
         min-height: 120px;
         margin-top: 18px;
         padding: 16px;
         border: 1px dashed #5c8394;
         background: #e9f6fb;
+      }
+
+      .native-badge {
+        display: inline-block;
+        margin-bottom: 6px;
+        color: #567;
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .fp-box {
+        box-sizing: border-box;
+        width: 300px;
+        height: 250px;
+        margin-top: 18px;
+        padding: 14px;
+        border: 1px solid #d8dee2;
+        background: #fff;
+      }
+
+      .fp-gauntlet {
+        max-width: 1120px;
+        margin: 24px auto;
+        padding: 24px;
+        background: #fff;
+      }
+
+      .fp-gauntlet li {
+        margin-bottom: 8px;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .fp-inline-teaser {
+        width: 320px;
+        margin-top: 14px;
+        padding: 12px;
+        background: #f4f7f4;
       }
 
       .plain-missed-rectangle {
@@ -532,8 +572,22 @@
         <div id="animated-promo" class="animated-rectangle">
           Animated rectangle
         </div>
-        <div id="native-sponsored" class="sponsored-card">
-          Sponsored story from a partner
+        <div id="partner-story-card" class="native-card">
+          <span class="native-badge">Sponsored</span>
+          <p>Story from a partner about better mornings</p>
+        </div>
+        <div id="fp-sidebar-widget" class="fp-box">
+          <strong>Exchange rates</strong>
+          <ul>
+            <li>USD 41.20</li>
+            <li>EUR 44.85</li>
+            <li>PLN 10.40</li>
+          </ul>
+          <a href="#currency">All rates</a>
+        </div>
+        <div id="fp-news-teaser" class="fp-box">
+          <a href="#news">Реклама азартних ігор: Рада ухвалила повну заборону</a>
+          <p>Закон набуде чинності наступного року.</p>
         </div>
         <div id="plain-missed-rectangle" class="plain-missed-rectangle">
           Plain missed rectangle
@@ -611,6 +665,51 @@
         </div>
       </aside>
     </main>
+
+    <div id="fp-gauntlet" class="fp-gauntlet">
+      <h2>Reference list and teasers must never be replaced</h2>
+      <ol id="fp-citation-list">
+        <li id="fp-citation-1">
+          Peeter Verlegh, Hilde Voorveld, and Martin Eisend, eds. Advances in
+          Advertising Research. Berlin: Springer Gabler, 2015, pp. 41-63.
+        </li>
+        <li id="fp-citation-2">
+          Fischer, Sara (2024). "Harris-sponsored Google search results suggest
+          publisher headlines lean sympathetic". Axios. Retrieved 2024-08-14.
+        </li>
+        <li id="fp-citation-3">
+          Марчук, О. (2024). «Реклама у медіа: історія та регулювання».
+          Київ: Академія, с. 112-140.
+        </li>
+        <li id="cite_note-Advertising_Age-9">
+          "Who's Buying What at Super Bowl 2007".
+          <a href="#cite">Advertising Age</a>. Archived from the original.
+        </li>
+      </ol>
+      <p id="fp-defn-para">
+        <b>Реклама</b> — інформація, поширена будь-яким способом, призначена
+        сформувати або підтримати обізнаність споживачів та їхній інтерес
+        щодо товару чи послуги.
+      </p>
+      <div id="fp-rights-legend">
+        <span>Реклама</span>
+        <span>На правах реклами</span>
+        <p>
+          Матеріали, відмічені значками, публікуються на правах реклами,
+          відповідальність за їхній зміст несе рекламодавець.
+        </p>
+      </div>
+      <div id="fp-teaser-career" class="fp-inline-teaser">
+        <a href="#business">Kovalenko promoted to chief executive after record quarter</a>
+      </div>
+      <div id="fp-teaser-industry" class="fp-inline-teaser">
+        <a href="#business">Advertising industry braces for sweeping privacy rules</a>
+      </div>
+      <div id="fp-teaser-editorial" class="article-promo promo-block">
+        <a href="#culture">Editorial: our summer reading picks</a>
+        <p>Selected by the culture desk, updated weekly.</p>
+      </div>
+    </div>
 
     <div id="sticky-offer" class="sticky-offer" role="dialog" aria-label="Persistent offer">
       <button type="button">Close</button>

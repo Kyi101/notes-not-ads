@@ -630,3 +630,53 @@ on first contact with reality, and any implication that the engine is bad.
   prose instead of recorded eval results, which made the testing history easy
   to misremember at decision time. Human-pass sessions should be logged as
   first-class eval artifacts.
+
+## 2026-07-03 - Detection Precision Pass: Full-Match Labels And Scoped Rungs
+
+**Decision**: Before the month of private dogfooding, fix the false-positive
+classes introduced by pushing detection past the safe checkpoint, using
+evidence from bait pages (Wikipedia "Advertising"/«Реклама», HN, MDN) and a
+new FP-capture harness (`scripts/diagnose-false-positives.mjs`) that records
+the original content of every replaced slot. Changes:
+
+1. **Labels match full strings, not substrings.** `AD_TEXT_RE` (substring)
+   is replaced by `AD_LABEL_RE` + `hasAdLabel`: a leaf's entire text must be
+   a known label ("Advertisement", "Sponsored Content", «Реклама», «На правах
+   реклами», …). Checked on own text/aria-label/title and non-link leaf
+   descendants. Guards: leaves inside `a` (nav links) or `p` (bolded prose
+   words) don't count; leaf labels only count when the container's total text
+   is ≤120 chars (icon legends and definition paragraphs are editorial).
+2. **`promo` dropped from `AD_IDENTIFIER_RE`** (house-promo modules on nypost,
+   dailymail, foodnetwork are content, not ads); `taboola|outbrain|mgid` added
+   (keeps native-feed widgets caught by identifier instead of label).
+3. **Sidebar blanket-pass removed from "common ad-sized slot".** Being in a
+   sidebar at 300x250 is not evidence (social widgets, editorial cards). The
+   true-positive pattern it carried — a bare no-text link wrapping a
+   slot-filling image — got its own explicit condition
+   (`isBareLinkedMediaSlot` + sidebar). `findLinkedMediaAdContainer` turned
+   out to be dead code; the fixture had been passing through the blanket pass.
+4. **"Ad-like source" refuses mixed containers** (`hasNonAdIframe`): one ad
+   iframe inside a rail that also embeds a functional iframe (ukr.net mail
+   widget) no longer condemns the whole rail.
+5. **`cite_note|cite_ref|footnote` are hard-unsafe identifiers** — Wikipedia
+   citation ids embed slugified article titles ("…_Ad_Really_Is_Worth…").
+
+**Why**: The FP hunt showed every observed false positive came from four
+mechanisms (substring labels, `promo`, sidebar+size, unscoped ad-source),
+while every observed true positive had a stronger signal available. Accepted
+tradeoff: leaf-label misses on long native teasers (>120 chars without ad
+identifiers) and first-party sponsored commerce listings inside links —
+conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
+
+**Consequences**:
+- Bait pages: en-wiki 141→0, uk-wiki 2→0 replacements; HN/MDN stay 0.
+- Real-site FP set (nypost house promos ×4, social widget, weather editorial
+  cards ×2, nv.ua rights legend, ukr.net mixed rail, dailymail promo banner):
+  all gone; dailymail/pravda/yahoo/espn/weather/nv.ua true positives intact.
+- Full battery 25/27 pass (same two pre-existing exceptions: canary-portal policy
+  mismatch, msn bot-block). Cards 202→123; the drop is dominated by the
+  killed FP classes. Controlled testers score via DNR, unaffected.
+- Fixture gained an editorial bait gauntlet (`#fp-*`, `#cite_note-*`) asserted
+  never-replaced in `npm run test:extension`, plus a badge-pattern native card
+  (`#partner-story-card`) asserted replaced — the label path has a regression
+  surface now.
