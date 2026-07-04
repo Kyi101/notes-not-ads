@@ -342,6 +342,8 @@
   const SCRIPT_IFRAME_SOURCE_RE =
     /(javascript:void|document\.write|document\.createElement\(['"]script|script\.innerHTML|script\.src)/i;
 
+  const FULL_PAGE_TAKEOVER_REASON = "full-page branding takeover";
+
   const BRANDING_TAKEOVER_IDENTIFIER_RE =
     /(^|[\s_.:-])i?brnd[a-z0-9]{6,}([\s_.:-]|$)/i;
 
@@ -2153,7 +2155,7 @@
     }
 
     if (isBrandingTakeover(element)) {
-      return "full-page branding takeover";
+      return FULL_PAGE_TAKEOVER_REASON;
     }
 
     const cosmeticMatch = getCosmeticMatch(element);
@@ -2852,6 +2854,11 @@
     slot.dataset.attentionRedirectorSurfaceKey = surfaceKey;
     slot.dataset.attentionRedirectorWidth = String(Math.round(rect.width));
     slot.dataset.attentionRedirectorHeight = String(Math.round(rect.height));
+    // Capture overlay status before slot classes apply position overrides
+    // (--preserve-children forces position: relative on the element).
+    if (window.getComputedStyle(element).position === "fixed") {
+      slot.dataset.attentionRedirectorOverlay = "true";
+    }
     slot.classList.add("attention-redirector-slot");
     slot.classList.toggle(
       "attention-redirector-slot--preserve-children",
@@ -2895,7 +2902,19 @@
       "attention-redirector-slot--preserve-children"
     );
 
-    if (!isPageAllowed(state.settings) || !shouldVisualizeSurface(surfaceKey)) {
+    // Overlay ads are hidden, never carded: a Tide card in a fixed overlay or
+    // viewport takeover occupies the screen exactly like the ad did. Cards are
+    // reserved for in-flow slots, where they preserve the page's layout.
+    const isOverlaySlot =
+      slot.dataset.attentionRedirectorReason === FULL_PAGE_TAKEOVER_REASON ||
+      slot.dataset.attentionRedirectorOverlay === "true" ||
+      window.getComputedStyle(slot).position === "fixed";
+
+    if (
+      !isPageAllowed(state.settings) ||
+      isOverlaySlot ||
+      !shouldVisualizeSurface(surfaceKey)
+    ) {
       if (existingGuard) {
         existingGuard.disconnect();
         state.replacementGuards.delete(slot);
@@ -3154,7 +3173,6 @@
     const parts = [
       element.id,
       element.className,
-      element.getAttribute("aria-label"),
       element.getAttribute("data-testid"),
       element.getAttribute("data-ad-slot"),
       element.getAttribute("data-ad-client"),
@@ -3162,6 +3180,16 @@
     ];
 
     return parts.filter(Boolean).join(" ").toLowerCase();
+  }
+
+  // aria-label is human prose, not a machine identifier: an app describing ads
+  // (e.g. "Ads conversion diagnostic") must never be condemned by it, but it may
+  // still veto a replacement as unsafe.
+  function getSafetyIdentifierText(element) {
+    const ariaLabel = element.getAttribute("aria-label");
+    return ariaLabel
+      ? `${getIdentifierText(element)} ${ariaLabel.toLowerCase()}`
+      : getIdentifierText(element);
   }
 
   function getElementSignature(element) {
@@ -3386,22 +3414,22 @@
   }
 
   function hasUnsafeIdentifier(element) {
-    return UNSAFE_IDENTIFIER_RE.test(getIdentifierText(element));
+    return UNSAFE_IDENTIFIER_RE.test(getSafetyIdentifierText(element));
   }
 
   function hasHardUnsafeIdentifier(element) {
-    return HARD_UNSAFE_IDENTIFIER_RE.test(getIdentifierText(element));
+    return HARD_UNSAFE_IDENTIFIER_RE.test(getSafetyIdentifierText(element));
   }
 
   function hasSoftUnsafeIdentifier(element) {
-    return SOFT_UNSAFE_IDENTIFIER_RE.test(getIdentifierText(element));
+    return SOFT_UNSAFE_IDENTIFIER_RE.test(getSafetyIdentifierText(element));
   }
 
   function hasUnsafeIdentifierInAncestors(element) {
     let current = element.parentElement;
 
     while (current && current !== document.body) {
-      if (UNSAFE_IDENTIFIER_RE.test(getIdentifierText(current))) {
+      if (UNSAFE_IDENTIFIER_RE.test(getSafetyIdentifierText(current))) {
         return true;
       }
 
@@ -3415,7 +3443,7 @@
     let current = element.parentElement;
 
     while (current && current !== document.body) {
-      if (HARD_UNSAFE_IDENTIFIER_RE.test(getIdentifierText(current))) {
+      if (HARD_UNSAFE_IDENTIFIER_RE.test(getSafetyIdentifierText(current))) {
         return true;
       }
 
@@ -3429,7 +3457,7 @@
     let current = element.parentElement;
 
     while (current && current !== document.body) {
-      if (SOFT_UNSAFE_IDENTIFIER_RE.test(getIdentifierText(current))) {
+      if (SOFT_UNSAFE_IDENTIFIER_RE.test(getSafetyIdentifierText(current))) {
         return true;
       }
 

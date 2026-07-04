@@ -299,7 +299,7 @@ function getMatchReason(element) {
   }
 
   if (isBrandingTakeover(element)) {
-    return "full-page branding takeover";
+    return FULL_PAGE_TAKEOVER_REASON;
   }
 
   const cosmeticMatch = getCosmeticMatch(element);

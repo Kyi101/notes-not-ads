@@ -680,3 +680,42 @@ conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
   never-replaced in `npm run test:extension`, plus a badge-pattern native card
   (`#partner-story-card`) asserted replaced — the label path has a regression
   surface now.
+
+## 2026-07-04 - Overlay Ads Are Hidden, Never Carded; aria-label Is Safety-Only
+
+**Decision**: Two dogfooding-day-1 rules, from Hlib's first two field reports
+(canary-portal.example full-screen block; his own localhost:4321 tool condemned).
+
+1. **Treatment contract: Tide cards only for in-flow slots.** A detected
+   full-page branding takeover (`FULL_PAGE_TAKEOVER_REASON`) or any slot whose
+   element is `position: fixed` at marking time takes the clean/hide path
+   (`visibility: hidden` + `pointer-events: none`), never an ambient card.
+   Rationale: a card inside a fixed overlay or viewport takeover occupies the
+   screen exactly like the ad did — on canary-portal the "replacement" was itself a
+   full-screen block. Cards exist to preserve layout; overlays have no layout
+   to preserve. Sticky elements stay carded (they occupy real flow space).
+   Implementation note: overlay status must be captured into
+   `dataset.attentionRedirectorOverlay` in `replaceCandidate` *before* slot
+   classes apply — `--preserve-children` forces `position: relative
+   !important`, so a render-time computed-style check alone misses fixed
+   elements (caught by the AdThrive footer fixture).
+2. **aria-label leaves identifier text.** `getIdentifierText` is machine
+   identifiers only (id/class/data-* / tag); the ad-like-identifier rung
+   condemns unconditionally, and aria-label is human prose — Hlib's tool with
+   `aria-label="Ads conversion diagnostic constellation"` was condemned by the
+   `ads` token. New `getSafetyIdentifierText` keeps aria-label for the six
+   unsafe-identifier (veto) helpers: prose may still veto a replacement as
+   unsafe, but can never condemn. Genuine `aria-label="Advertisement"` slots
+   remain caught by the full-match `hasAdLabel` rung.
+
+**Consequences**:
+- canary-portal.example: takeover still detected (`div#brnd…`, 1270x720) but hidden;
+  page renders normally (before/after: `runs/fp-hunt/2026-07-04T08-19*` vs
+  `…14-24-43*`).
+- localhost:4321 (offer-triage): 1→0 replaced slots
+  (`runs/fp-hunt/2026-07-04T14-24-30*`).
+- Fixed-overlay fixtures (AdThrive footer, floating video, schulist bottom
+  banner) asserted hidden-not-carded in `npm run test:extension`; new
+  `#fp-aria-tool-map` fixture asserts aria-label prose never condemns.
+  Anchor-rotation/quiet asserts moved from the AdThrive slot to `#top-ad`
+  since overlay slots no longer render cards.

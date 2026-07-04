@@ -341,6 +341,8 @@ const AD_SCRIPT_TEXT_RE =
 const SCRIPT_IFRAME_SOURCE_RE =
   /(javascript:void|document\.write|document\.createElement\(['"]script|script\.innerHTML|script\.src)/i;
 
+const FULL_PAGE_TAKEOVER_REASON = "full-page branding takeover";
+
 const BRANDING_TAKEOVER_IDENTIFIER_RE =
   /(^|[\s_.:-])i?brnd[a-z0-9]{6,}([\s_.:-]|$)/i;
 

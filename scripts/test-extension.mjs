@@ -46,7 +46,7 @@ try {
   await page.waitForLoadState("domcontentloaded");
   await page
     .locator("#AdThrive_Footer_1_desktop.attention-redirector-slot")
-    .waitFor({ timeout: 5000 });
+    .waitFor({ state: "attached", timeout: 5000 });
   await page
     .locator("#commerce-showcase.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
@@ -162,16 +162,16 @@ try {
     .waitFor({ timeout: 5000 });
   await page
     .locator("#floating-video-unit.attention-redirector-slot")
-    .waitFor({ timeout: 5000 });
+    .waitFor({ state: "attached", timeout: 5000 });
   await page
     .locator("#schulist-bottom-banner.attention-redirector-slot")
-    .waitFor({ timeout: 5000 });
+    .waitFor({ state: "attached", timeout: 5000 });
   await page
     .locator("#framework-owned-ad.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
   await page
     .locator("#brnd8e78c7f2c.attention-redirector-slot")
-    .waitFor({ timeout: 5000 });
+    .waitFor({ state: "attached", timeout: 5000 });
   await page
     .locator("#late-injected-ad.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
@@ -210,6 +210,54 @@ try {
     "#ibrnd8e78c7f2c",
     "Branding takeover iframe"
   );
+  // A viewport takeover must be hidden, never replaced with a
+  // viewport-covering Tide card that blocks the page itself.
+  await page.waitForFunction(() => {
+    const slot = document.getElementById("brnd8e78c7f2c");
+    return slot?.dataset.attentionRedirectorPresentation === "clean";
+  }, undefined, { timeout: 5000 });
+  const takeoverState = await page.evaluate(() => {
+    const slot = document.getElementById("brnd8e78c7f2c");
+    return {
+      presentation: slot?.dataset.attentionRedirectorPresentation,
+      cards: slot?.querySelectorAll(".attention-redirector-card").length,
+      visibility: slot ? getComputedStyle(slot).visibility : ""
+    };
+  });
+  if (
+    takeoverState.presentation !== "clean" ||
+    takeoverState.cards !== 0 ||
+    takeoverState.visibility !== "hidden"
+  ) {
+    throw new Error(
+      `Branding takeover rendered a card instead of being hidden: ${JSON.stringify(takeoverState)}`
+    );
+  }
+  // Fixed-position overlay ads follow the same contract: hidden, never carded.
+  for (const overlayId of [
+    "AdThrive_Footer_1_desktop",
+    "floating-video-unit",
+    "schulist-bottom-banner"
+  ]) {
+    const overlayState = await page.evaluate((id) => {
+      const slot = document.getElementById(id);
+      return {
+        id,
+        presentation: slot?.dataset.attentionRedirectorPresentation,
+        cards: slot?.querySelectorAll(".attention-redirector-card").length,
+        visibility: slot ? getComputedStyle(slot).visibility : ""
+      };
+    }, overlayId);
+    if (
+      overlayState.presentation !== "clean" ||
+      overlayState.cards !== 0 ||
+      overlayState.visibility !== "hidden"
+    ) {
+      throw new Error(
+        `Fixed overlay ad was carded instead of hidden: ${JSON.stringify(overlayState)}`
+      );
+    }
+  }
   await assertVisuallySuppressed(
     page,
     "#commerce-showcase-ad-sidecar",
@@ -287,7 +335,7 @@ try {
   await anchorPage.waitForLoadState("domcontentloaded");
   await anchorPage
     .locator(
-      "#AdThrive_Footer_1_desktop.attention-redirector-slot .attention-redirector-card[data-mode='anchor']"
+      "#top-ad.attention-redirector-slot .attention-redirector-card[data-mode='anchor']"
     )
     .waitFor({ timeout: 5000 });
 
@@ -645,7 +693,7 @@ try {
   await page.waitForLoadState("domcontentloaded");
   await page
     .locator(
-      "#AdThrive_Footer_1_desktop.attention-redirector-slot .attention-redirector-card[data-mode='quiet']"
+      "#top-ad.attention-redirector-slot .attention-redirector-card[data-mode='quiet']"
     )
     .waitFor({ state: "visible", timeout: 5000 });
 
