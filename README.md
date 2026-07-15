@@ -33,7 +33,7 @@ This product overlaps with ad blockers, but its unique value is still the attent
 
 The content script skips sensitive or risky contexts:
 
-- Google Docs, Gmail, Google Drive, and Google account pages
+- Google Docs, Gmail, Google Drive, Google account pages, Figma, Canva, and Notion
 - Known banking/payment-style domains
 - Checkout, cart, billing, payment, login, and password pages
 - Pages with visible password fields
@@ -172,9 +172,11 @@ Use the live-site eval to automate broad coverage across real ad-heavy sites and
 
 ```bash
 npm run eval:live:dry
+npm run eval:live:discovery:dry
 npm run eval:live -- --limit 5
 npm run eval:live -- --group controlled
 npm run eval:live -- --group risk-canary
+npm run eval:live -- --group discovery-stock-search
 npm run eval:live -- --case tomsguide
 npm run eval:live -- --url https://example.com/page --id one-off
 ```
@@ -197,6 +199,21 @@ Use automation for trend detection: card counts, obvious remaining ad suspects, 
 - whether a native commerce module should count as clutter
 - whether a replacement looks visually acceptable
 - whether a page workflow broke
+
+The `discovery-stock-search` group tracks image/stock search pages such as
+Pexels, Unsplash, and Shutterstock. These sites often embed affiliate or
+promoted image modules as first-party DOM rather than normal third-party ad
+slots. Treat them as conditional live canaries: use focused reports and
+host-scoped cosmetic rules when a stable wrapper is visible. Do not add global
+`istockphoto.com`, Getty, Shutterstock, or broad stock-media blocking from one
+case; those domains can also appear as legitimate stock/reference content.
+
+Antigravity/Gemini discovery prompts live in `prompts/`. For a broad stock
+search sweep, start with:
+
+```bash
+prompts/antigravity-stock-search-affiliate-sweep.md
+```
 
 ## Manual Test Targets
 

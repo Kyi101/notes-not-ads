@@ -719,3 +719,306 @@ conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
   `#fp-aria-tool-map` fixture asserts aria-label prose never condemns.
   Anchor-rotation/quiet asserts moved from the AdThrive slot to `#top-ad`
   since overlay slots no longer render cards.
+
+## 2026-07-04 - Overlay Ads Collapse Like Blocker Rules
+
+**Decision**: Full-page takeovers and fixed overlay ads now use a collapsed
+clean path (`display: none`, zero height/padding/margin/border) instead of the
+normal Clean-mode layout-preserving path.
+
+**Why**: The first overlay fix removed the Tide card but reused
+`visibility: hidden` with preserved geometry. On canary-portal, the replaced fixed
+branding container also received the preserved-children slot class, which
+forces `position: relative !important`; that turned a fixed 1270x720 takeover
+into a hidden in-flow block and pushed the page down. Overlay ads have no
+useful page layout to preserve, so they should behave like uBlock-style
+cosmetic removal. In-flow Clean slots still preserve geometry to reduce
+framework layout thrash.
+
+**Consequences**:
+- Overlay/takeover slots remain marked as `presentation="clean"` but collapse
+  to a `0x0` box.
+- Normal Clean-mode and disabled/open-page in-flow slots still use
+  `visibility: hidden` and keep their measured space.
+- Regression coverage now asserts fixed overlays and branding takeovers are
+  display-none/zero-height, while non-overlay Clean slots remain hidden but
+  noncollapsed.
+
+## 2026-07-05 - Block canary-portal/Ashdi Pre-Roll Ad Stack With Path-Scoped DNR
+
+**Decision**: Add hand-curated DNR rules for the canary-portal embedded-player
+pre-roll stack, scoped to observed ad paths rather than whole content hosts:
+`franecki.net/assets/vendor/`, `franecki.net/assets/pack/`,
+`franecki.net/js/ma.js`, `franecki.net/content/static/`,
+`reichelcormier.bid/candy/`, `base.ashdi.vip/stats/stats_vast.php`,
+`nogravity4.click`, and `video.unocdn.com/*_fix.mp4`.
+
+**Why**: canary-portal embeds the player through `ashdi.vip/vod/...`. The actual
+movie HLS stream comes from `ashdi.vip`/`*.ashdi.vip` segment URLs, so broad
+blocking `ashdi.vip` would break playback. The visible pre-roll came from a
+separate ad chain: VAST/vendor XML and scripts on `franecki.net`, identity
+redirects on `reichelcormier.bid`, and a separate pre-roll MP4 observed on
+`v.nogravity4.click`. A follow-up probe without the `nogravity` rule showed the
+ad stack rotating the visible pre-roll media to
+`video.unocdn.com/..._fix.mp4`, so the media layer also needs coverage. Public
+search showed no normal-content footprint for `nogravity4.click`, and local
+evidence only saw it as pre-roll media, so it is blocked at the domain level.
+`video.unocdn.com` is more CDN-shaped, so it is limited to the observed
+`*_fix.mp4` media pattern. A broader `franecki.net/js/` block was tested and
+rejected because it prevented the ashdi player from initializing any video.
+The top-page DOM cannot safely replace this because the ad is inside a
+cross-origin player frame and rendered as a video source.
+
+**Consequences**:
+- canary-portal movie playback remains allowed through `ashdi.vip` HLS manifests and
+  segment requests.
+- The observed player frame no longer exposes `Реклама` / `Пропустити`
+  pre-roll UI after play.
+- The release contract now asserts these curated path-scoped rules remain
+  packaged, so a future DNR cleanup cannot silently drop them.
+- This is not a general video-CDN block; `ashdi.vip` remains untouched and
+  `video.unocdn.com` is scoped to the observed ad-media filename pattern.
+
+## 2026-07-06 - Add FreeWheel fwmrm.net Preroll Coverage
+
+**Decision**: Add `||fwmrm.net^` to the curated DNR seed list.
+
+**Why**: A live NBC Sports video probe showed a FreeWheel preroll ad decision
+loading from `29773.v.fwmrm.net/ad/g/1?...slau=preroll...`. The extension
+already blocked `ads.freewheel.tv`, but that did not cover this commonly used
+FreeWheel ad-server host. `fwmrm.net` is an ad-management host, not the content
+video CDN; the observed content source was `link.theplatform.com/...`, so this
+is a safer generalization than blocking publisher or player domains.
+
+**Consequences**:
+- FreeWheel preroll JSON/script calls on `*.fwmrm.net` are now blocked across
+  sites.
+- This remains a network-layer rule; no DOM replacement or player-specific
+  scriptlet behavior was added.
+- NBC Sports remains an imperfect automated canary because its player errored
+  in the harness even before a clean content-playback pass was established.
+  Treat the rule as ad-host coverage, not as a fully verified NBC playback fix.
+
+## 2026-07-06 - Add YouTube-Specific Player Ad Suppression
+
+**Decision**: Add a YouTube-only document-start loader and main-world player-ad
+layer, plus first-party YouTube ad endpoint DNR rules. The network rules block
+`youtube.com/pagead/` and `youtube.com/api/stats/ads`. The main-world layer
+prunes `adPlacements`, `adSlots`, and `playerAds` from YouTube player
+responses, hides YouTube ad surfaces, clicks skip controls, fast-forwards ad
+media when the player marks itself `ad-showing`, and uses a bounded
+`loadVideoById(current v=)` recovery when YouTube is stuck in `ad-showing`
+without a playable video. The loader checks stored settings first, so global
+off and site-disabled YouTube pages pass through without injecting the
+main-world script.
+
+**Why**: YouTube ads are not covered by ordinary third-party ad-host blocking.
+A baseline probe showed existing DNR blocked DoubleClick / GoogleSyndication
+requests but first-party YouTube ad endpoints still loaded. Adding
+`youtube.com/pagead/` and `youtube.com/api/stats/ads` blocked those requests,
+but a Gangnam Style probe still entered `ad-showing` and played a 116-second
+ad. Open uBlock filter evidence points at player-response pruning rather than
+broad `googlevideo.com` blocking; broad `googlevideo.com` blocking would also
+block real videos. The first implementation that replaced the whole `fetch`
+`Response` object and trapped `ytInitialPlayerResponse` broke playback, so it
+was rejected. The kept implementation preserves the native response object and
+overrides only `text()` / `json()` for matched player responses, with a short
+global prune loop instead of redefining YouTube globals.
+
+**Consequences**:
+- YouTube now has a narrow procedural layer; this is not a general scriptlet
+  engine and should not be expanded casually.
+- YouTube site disable remains meaningful: the loader does not inject the
+  main-world script when `youtube.com` is disabled or the extension is globally
+  off.
+- Real content media stays on `googlevideo.com`; no broad media-CDN block was
+  added.
+- Live verification passed for Rick Astley, Gangnam Style, and Me at the zoo
+  in `runs/youtube-probe/2026-07-06T09-58-15-406Z/`: all ended with
+  `adShowing: false`, no player ad placements, and real content video playing.
+- YouTube is a moving target. Treat this as dogfooding-grade coverage that may
+  need maintenance when YouTube changes player internals.
+
+## 2026-07-06 - Bypass Generic DOM Replacement on YouTube
+
+**Decision**: Disable the generic Attention Redirector DOM scanner/replacement
+observer on YouTube hosts while leaving DNR rules and the YouTube-specific
+main-world player-ad layer active.
+
+**Why**: Hlib reported browser lag with the extension enabled after the
+YouTube blocker was added. A focused four-way performance probe on Gangnam
+Style separated the layers:
+
+- YouTube site-disabled: p95 ~16.8-33.4ms, script ~12-13%.
+- DNR-only: p95 16.8ms, script ~13.8%, but YouTube remained in ad playback.
+- Procedural/content path before the fix: p95 >1s, script >110%.
+- Fully enabled before the fix: p95 >1s, script >110%.
+
+The DNR layer was not the problem. The expensive path appeared only when the
+procedural/content path was active. After bypassing generic DOM replacement on
+YouTube, the same probe showed enabled YouTube back at p95 16.8ms and script
+~12.4%, with `adShowing: false` and real content playback. The generic scanner
+is useful on news/ad-heavy pages but poorly matched to YouTube's constantly
+mutating SPA; YouTube now has a dedicated player-ad layer, so running both was
+unnecessary risk.
+
+**Consequences**:
+- YouTube no longer gets normal Tide card replacement from the generic scanner.
+  That is intentional; ad surfaces there are handled by DNR plus the YouTube
+  player-ad layer.
+- Other sites keep the existing generic DOM replacement engine.
+- Startup and open-page site-disable semantics remain covered in
+  `scripts/test-extension.mjs`.
+- Verified artifacts: `runs/performance/youtube-2026-07-06T12-11-22-831Z/`,
+  `runs/youtube-probe/2026-07-06T12-13-55-768Z/`, and
+  `runs/performance/2026-07-06T12-16-21-997Z/`.
+
+## 2026-07-06 - Back Off Generic Scanning on Large Zero-Hit Pages
+
+**Decision**: Keep the generic DOM replacement engine active on normal pages,
+but reduce no-op work on large pages that initially produce no replacements:
+skip delayed full-document warmups when the initial large-page scan finds zero
+insertions and zero candidates, require mutation-triggered scans to carry an
+ad-shaped tag/attribute/source/shadow-root signal, add repeated zero-scan
+backoff, and move the DOM-replacement-disabled-domain guard inside `runScan`.
+Add `translate.google.com` to the protected utility-host bypass list.
+
+**Why**: Tapstitch and Google Translate lagged badly with the extension enabled
+despite inserting zero cards. Live probes separated the issue from the Tide
+card renderer: Translate went from script ~129.8%, p99 584.5ms, and ~20.4s
+long-task total to baseline after generic DOM replacement was bypassed;
+Tapstitch improved from script ~19.0% and p99 66.7ms to script ~7.0% and p99
+16.8ms after large zero-hit warmup/mutation scans were reduced. The previous
+warmup and observer behavior was useful for late ad slots, but it burned
+main-thread time on large app-like pages where the scanner repeatedly found
+nothing.
+
+**Consequences**:
+- DNR rules, curated preroll rules, and the YouTube-specific player layer are
+  unchanged.
+- Google Translate intentionally receives no generic Tide/clean DOM
+  replacement. That is acceptable for a protected utility page; network DNR
+  still follows normal global/site settings.
+- Delayed ads on very large pages that appear without ad-like tags,
+  identifiers, sources, labels, or open shadow roots may be detected later or
+  require a field report. This is accepted to avoid browser-wide lag from
+  repeated blind scans.
+- Existing browser smoke still covers late light-DOM and shadow-DOM ads, and
+  the local 60-card benchmark remains smooth after the backoff.
+
+## 2026-07-07 - Split Live Evals Into Regression, Discovery, and Manual Tracks
+
+**Decision**: Expand `evals/live-sites.json` from a small ad-heavy real-site
+list into a labeled matrix with `track` and `category` metadata. Keep the
+default live eval small: default `npm run eval:live` / `eval:live:dry` selects
+only regression and controlled cases. Broad discovery must be requested
+explicitly with `--track discovery`; logged-in protected workflows are marked
+`manualOnly` and cannot be executed by the automated runner.
+
+**Why**: Antigravity/Gemini sweeps showed that broad automated browsing can
+surface useful leads, but it also creates noisy findings: bot walls, login
+walls, background tracker pings misclassified as missed ads, and shallow
+homepage passes for apps that need logged-in workflow testing. The eval system
+needs more coverage without making every live run huge or treating discovery
+signals as release gates.
+
+**Consequences**:
+- Regression remains bounded at 23 real/risk-canary cases plus 4 controlled
+  tester cases.
+- Discovery now has 75 non-gating cases across news, sports, commerce,
+  stock/search, video, productivity/public utility pages, reference/developer
+  sites, community, finance, travel/jobs, and health/lifestyle.
+- Manual protected checks cover Docs, Gmail, Drive, Figma editor, Canva editor,
+  Notion, Amazon cart, and Reddit feed/comments. The runner exits before
+  launching if a manual-only case is selected for execution; `--dry-run` lists
+  them for human testing.
+- Reports now carry `track` and `category`, making Antigravity/Gemini triage
+  easier to cluster without patching from raw noisy output.
+
+## 2026-07-07 - Prioritize Domain-Scoped Cosmetic Rules Before Generic Chunks
+
+**Decision**: Run a small bounded priority pass for domain-scoped cosmetic
+rules before the generic chunked cosmetic selector scan. Add
+`amazon.com##.s-left-ads-item` as a domain-scoped seed rule for Amazon's
+sponsored left-rail search ad.
+
+**Why**: The discovery commerce sweep found a visible Amazon search ad:
+`div.s-left-ads-item` containing a 160x600
+`ape_Search_auto-left-advertising...` iframe and `Sponsored` text. Adding the
+domain-scoped selector alone was not enough because the scanner batches many
+cosmetic selectors into comma-separated chunks and then caps each chunk to the
+first 60 DOM-order matches. On large pages, a specific host rule can be
+crowded out by earlier generic matches even though the parser loaded it
+correctly. Host-specific rules are few and usually come from field evidence, so
+they should get a bounded first pass.
+
+**Consequences**:
+- Amazon's left-rail sponsored search ad is now removed without broad Amazon
+  product-card matching.
+- The priority pass is bounded to 20 matches per domain-scoped rule and the
+  existing 260 cosmetic candidate cap, preserving the scanner's performance
+  constraints.
+- Generic EasyList-style cosmetic scanning remains chunked for performance.
+- Future host-specific rules should still be added conservatively and backed
+  by either a field report or live eval reproduction.
+
+## 2026-07-08 - Treat Stock-Search Affiliate Modules as Host-Scoped Cosmetics
+
+**Decision**: Block the observed iStock/Getty affiliate modules on Pexels and
+Unsplash with narrow host-scoped cosmetic rules, not global stock-media or
+Getty/iStock network/source rules.
+
+**Why**: Pexels and Unsplash embed these promotions as first-party search
+content. Pexels fetches Getty media through first-party endpoints and renders
+`media.istockphoto.com` images inside dedicated sponsored module wrappers.
+Unsplash renders a premium iStock block with `data-ad="true"` and sponsored
+outbound links. Globally blocking `istockphoto.com`, `media.istockphoto.com`,
+or Getty-like source text would be too broad: stock media URLs can appear as
+legitimate search/reference/product content, and network blocking could leave
+broken empty grids.
+
+**Consequences**:
+- Pexels search results now target only the observed
+  `Inline_container__*`, `FullWidth_wrapper__*`, and
+  `AIGCShared_container__*` sponsored/promo module wrappers.
+- Unsplash targets only host-local `[data-ad="true"]` modules, which matched
+  the captured iStock premium block and a separate brand-content promo block.
+- Own `data-ad="true"` now counts as explicit ad-slot evidence for safety
+  purposes, so cosmetic matches are not vetoed merely because they live inside
+  search-result containers. The attribute alone still does not create a
+  replacement reason.
+- Current-host domain-scoped cosmetic rules can now wake mutation scans when a
+  matching node hydrates late. Generic cosmetic rules still do not wake scans
+  on arbitrary mutations, preserving the large-page performance backoff.
+- Oversized current-host domain-scoped cosmetic matches can pass the normal
+  large-ad safety gate only when bounded to roughly the viewport, and they
+  collapse as Clean blocker removals instead of rendering giant Tide cards.
+- This may miss future renamed Pexels CSS-module wrappers, but that is a
+  safer failure mode than global stock-media false positives.
+- Verified Pexels live with 3 replacement cards and 0 visible suspects, and
+  Unsplash live with 2 replacement cards and 0 visible suspects.
+
+## 2026-07-08 - Protect Canva and Current Notion Domain as App Surfaces
+
+**Decision**: Add `canva.com` to the hard sensitive/protected domain lists for
+content-script DOM replacement, background DNR allow rules, and the pure
+site-policy classifier. Also add `notion.com` beside the existing `notion.so`
+entries because live productivity evals now redirect Notion's public surface
+to `www.notion.com`.
+
+**Why**: Logged-in design/workspace editors are high false-positive-risk app
+surfaces and low value targets for visual ad replacement. Canva was already in
+the manual protected eval set but was not in the hard domain lists. The
+`discovery-productivity` run then showed the same alias drift risk for Notion:
+the initial `notion.so` URL classified as protected, but the final
+`notion.com` host was standard until the alias was added.
+
+**Consequences**:
+- Canva and Notion app surfaces now exit the content script early like Figma,
+  Docs, Gmail, and Drive.
+- Their initiator domains receive the same high-priority DNR allow treatment
+  as other known sensitive domains.
+- Public homepages may no longer receive Tide/cosmetic replacement, which is
+  intentional for these app brands; ad blocking value there is lower than
+  avoiding editor breakage.
+- No new ad detection rules, DNR block rules, or broader heuristics were added.

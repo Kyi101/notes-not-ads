@@ -1,10 +1,35 @@
 {
-  "version": 1,
-  "description": "Real-world and controlled ad-heavy pages for Attention Redirector live benchmarking.",
+  "version": 2,
+  "description": "Real-world, controlled, discovery, and manual-protected eval cases for Attention Redirector.",
+  "tracks": {
+    "regression": "Small automated set for bugs and site classes that have already mattered during dogfooding.",
+    "discovery": "Broad non-gating sweep for finding new missed ads, false positives, breakage, and performance patterns.",
+    "controlled": "Purpose-built adblock tester pages; useful for trend checks but not product truth by themselves.",
+    "manual": "Logged-in or sensitive workflows that require human testing and must not be run automatically."
+  },
+  "groups": {
+    "real": "Legacy real-site regression set from the release-candidate phase.",
+    "risk-canary": "Known fragile site where blank pages or aggressive patching are release risks.",
+    "controlled": "External adblock test pages.",
+    "discovery-news": "Broad publisher/news discovery sweep.",
+    "discovery-sports": "Sports publisher and league discovery sweep.",
+    "discovery-commerce": "Shopping and product-search discovery sweep.",
+    "discovery-stock-search": "Image/stock search pages with affiliate image modules and promoted native grids.",
+    "discovery-video": "Video and streaming discovery sweep; automated runs do not prove preroll behavior unless a case explicitly plays media.",
+    "discovery-productivity": "Public productivity/utility landing pages and performance canaries.",
+    "discovery-reference": "Reference, developer, and knowledge sites used for false-positive canaries.",
+    "discovery-community": "Social/forum/feed sites where login walls or bot challenges are common.",
+    "discovery-finance": "Finance/news/research sites with ad, tracker, and paywall variation.",
+    "discovery-travel-jobs": "Travel and job-board pages with search/filter workflows.",
+    "discovery-health-lifestyle": "Health, food, and lifestyle pages with high ad density.",
+    "protected-manual": "Human-only logged-in workflow checks."
+  },
   "cases": [
     {
       "id": "forbes",
       "group": "real",
+      "track": "regression",
+      "category": "news",
       "url": "https://www.forbes.com/",
       "notes": "Ad-heavy publisher homepage.",
       "policy": {
@@ -15,6 +40,8 @@
     {
       "id": "dailymail-uk",
       "group": "real",
+      "track": "regression",
+      "category": "news",
       "url": "https://www.dailymail.co.uk/home/index.html",
       "notes": "Ad-heavy tabloid homepage with rails and video ads.",
       "policy": {
@@ -25,6 +52,8 @@
     {
       "id": "nypost",
       "group": "real",
+      "track": "regression",
+      "category": "news",
       "url": "https://nypost.com/",
       "notes": "Ad-heavy news homepage.",
       "policy": {
@@ -35,6 +64,8 @@
     {
       "id": "thesun-uk",
       "group": "real",
+      "track": "regression",
+      "category": "news",
       "url": "https://www.thesun.co.uk/",
       "notes": "Ad-heavy tabloid homepage.",
       "policy": {
@@ -45,6 +76,8 @@
     {
       "id": "mirror-uk",
       "group": "real",
+      "track": "regression",
+      "category": "news",
       "url": "https://www.mirror.co.uk/",
       "notes": "Ad-heavy tabloid homepage.",
       "policy": {
@@ -55,6 +88,8 @@
     {
       "id": "ukr-net",
       "group": "risk-canary",
+      "track": "regression",
+      "category": "portal",
       "url": "https://www.ukr.net/",
       "notes": "Release-blocker canary: ad-heavy Ukrainian portal that must render normally and must not be patched ad hoc.",
       "policy": {
@@ -65,8 +100,10 @@
     {
       "id": "canary-portal-ua",
       "group": "real",
+      "track": "regression",
+      "category": "video-hostile",
       "url": "https://canary-portal.example/ua/",
-      "notes": "Full-page cross-origin branding takeover with click-triggered popup behavior.",
+      "notes": "Full-page cross-origin branding takeover and Ukrainian streaming/preroll canary.",
       "policy": {
         "expectedTier": "hostile",
         "expectedProtocol": "hostile"
@@ -75,102 +112,136 @@
     {
       "id": "tmz",
       "group": "real",
+      "track": "regression",
+      "category": "entertainment",
       "url": "https://www.tmz.com/",
       "notes": "Entertainment site with display ads."
     },
     {
       "id": "people",
       "group": "real",
+      "track": "regression",
+      "category": "lifestyle",
       "url": "https://www.people.com/",
       "notes": "Entertainment/lifestyle site with display ads."
     },
     {
       "id": "weather",
       "group": "real",
+      "track": "regression",
+      "category": "weather",
       "url": "https://weather.com/",
       "notes": "Weather portal with heavy dynamic widgets and ads."
     },
     {
       "id": "accuweather",
       "group": "real",
+      "track": "regression",
+      "category": "weather",
       "url": "https://www.accuweather.com/",
       "notes": "Weather site with dynamic ad slots."
     },
     {
       "id": "fandom",
       "group": "real",
+      "track": "regression",
+      "category": "reference",
       "url": "https://www.fandom.com/",
       "notes": "Fandom network entry page; wiki article cases may be added later."
     },
     {
       "id": "game8",
       "group": "real",
+      "track": "regression",
+      "category": "gaming",
       "url": "https://game8.co/",
       "notes": "Game guide site with display/native ads."
     },
     {
       "id": "screenrant",
       "group": "real",
+      "track": "regression",
+      "category": "entertainment",
       "url": "https://screenrant.com/",
       "notes": "Entertainment content site with display ads."
     },
     {
       "id": "cnet",
       "group": "real",
+      "track": "regression",
+      "category": "tech",
       "url": "https://www.cnet.com/",
       "notes": "Tech publisher with ad slots and native modules."
     },
     {
       "id": "techradar",
       "group": "real",
+      "track": "regression",
+      "category": "tech",
       "url": "https://www.techradar.com/",
       "notes": "Tech publisher with display ads."
     },
     {
       "id": "tomsguide",
       "group": "real",
+      "track": "regression",
+      "category": "tech",
       "url": "https://www.tomsguide.com/",
       "notes": "Tech/lifestyle site with refreshing display ads."
     },
     {
       "id": "allrecipes",
       "group": "real",
+      "track": "regression",
+      "category": "food",
       "url": "https://www.allrecipes.com/",
       "notes": "Recipe site with display/native ads."
     },
     {
       "id": "foodnetwork",
       "group": "real",
+      "track": "regression",
+      "category": "food",
       "url": "https://www.foodnetwork.com/",
       "notes": "Recipe/media site with top banner ads."
     },
     {
       "id": "yahoo",
       "group": "real",
+      "track": "regression",
+      "category": "portal",
       "url": "https://www.yahoo.com/",
       "notes": "Portal with safeframe rail ads and commerce/native modules."
     },
     {
       "id": "msn",
       "group": "real",
+      "track": "regression",
+      "category": "portal",
       "url": "https://www.msn.com/",
       "notes": "Portal with native and display ads."
     },
     {
       "id": "bleacherreport",
       "group": "real",
+      "track": "regression",
+      "category": "sports",
       "url": "https://bleacherreport.com/",
       "notes": "Sports publisher with display/native ads."
     },
     {
       "id": "espn",
       "group": "real",
+      "track": "regression",
+      "category": "sports",
       "url": "https://www.espn.com/",
       "notes": "Sports publisher with dynamic ad slots."
     },
     {
       "id": "adblock-tester",
       "group": "controlled",
+      "track": "controlled",
+      "category": "adblock-tester",
       "url": "https://adblock-tester.com/",
       "notes": "Controlled adblock score page; total score includes network/script checks.",
       "policy": {
@@ -181,6 +252,8 @@
     {
       "id": "canyoublockit",
       "group": "controlled",
+      "track": "controlled",
+      "category": "adblock-tester",
       "url": "https://canyoublockit.com/",
       "notes": "Controlled adblock test page.",
       "policy": {
@@ -191,6 +264,8 @@
     {
       "id": "getblockify",
       "group": "controlled",
+      "track": "controlled",
+      "category": "adblock-tester",
       "url": "https://getblockify.com/adblock-test",
       "notes": "Controlled adblock test page.",
       "policy": {
@@ -201,12 +276,686 @@
     {
       "id": "turtlecute",
       "group": "controlled",
+      "track": "controlled",
+      "category": "adblock-tester",
       "url": "https://adblock.turtlecute.org/",
       "notes": "Controlled adblock test page.",
       "policy": {
         "expectedTier": "standard",
         "expectedProtocol": "standard"
       }
+    },
+    {
+      "id": "cnn",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.cnn.com/",
+      "notes": "News homepage and video module discovery; active video playback requires a focused manual or diagnostic pass."
+    },
+    {
+      "id": "edition-cnn",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://edition.cnn.com/",
+      "notes": "International CNN surface with different ad stack from cnn.com."
+    },
+    {
+      "id": "bbc-news",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.bbc.com/news",
+      "notes": "International news site; useful as lower-ad false-positive contrast."
+    },
+    {
+      "id": "reuters",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.reuters.com/",
+      "notes": "Wire-service news site with login/paywall and ad variation."
+    },
+    {
+      "id": "apnews",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://apnews.com/",
+      "notes": "Wire-service news site for false-positive and ad coverage contrast."
+    },
+    {
+      "id": "nbcnews",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.nbcnews.com/",
+      "notes": "News publisher with video and display ads."
+    },
+    {
+      "id": "cbsnews",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.cbsnews.com/",
+      "notes": "News publisher with video/display ads."
+    },
+    {
+      "id": "abcnews",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://abcnews.go.com/",
+      "notes": "News publisher with article and video ad surfaces."
+    },
+    {
+      "id": "foxnews",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.foxnews.com/",
+      "notes": "News publisher with video and display ad surfaces."
+    },
+    {
+      "id": "theguardian",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.theguardian.com/",
+      "notes": "News publisher with membership and ad modules."
+    },
+    {
+      "id": "washingtonpost",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.washingtonpost.com/",
+      "notes": "Paywall/news publisher; useful for false-positive and bot-wall classification."
+    },
+    {
+      "id": "nytimes",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.nytimes.com/",
+      "notes": "Subscription news site; high false-positive risk around paywalls and account prompts."
+    },
+    {
+      "id": "wsj",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.wsj.com/",
+      "notes": "Subscription news site with paywall/account prompts."
+    },
+    {
+      "id": "bloomberg",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.bloomberg.com/",
+      "notes": "Business news site with leaderboard and article ad canaries."
+    },
+    {
+      "id": "politico",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.politico.com/",
+      "notes": "Politics publisher with ad and newsletter surfaces."
+    },
+    {
+      "id": "axios",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.axios.com/",
+      "notes": "Modern news layout with newsletter/native modules."
+    },
+    {
+      "id": "usa-today",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.usatoday.com/",
+      "notes": "Large news publisher with display/native surfaces."
+    },
+    {
+      "id": "latimes",
+      "group": "discovery-news",
+      "track": "discovery",
+      "category": "news",
+      "url": "https://www.latimes.com/",
+      "notes": "News publisher with subscription and ad surfaces."
+    },
+    {
+      "id": "cbssports",
+      "group": "discovery-sports",
+      "track": "discovery",
+      "category": "sports",
+      "url": "https://www.cbssports.com/",
+      "notes": "Sports homepage with native/ad modules."
+    },
+    {
+      "id": "nbcsports",
+      "group": "discovery-sports",
+      "track": "discovery",
+      "category": "sports-video",
+      "url": "https://www.nbcsports.com/",
+      "notes": "Sports/video site; FreeWheel preroll coverage should be separately probed on active video."
+    },
+    {
+      "id": "skysports",
+      "group": "discovery-sports",
+      "track": "discovery",
+      "category": "sports",
+      "url": "https://www.skysports.com/",
+      "notes": "Sports publisher with display and video modules."
+    },
+    {
+      "id": "yahoo-sports",
+      "group": "discovery-sports",
+      "track": "discovery",
+      "category": "sports",
+      "url": "https://sports.yahoo.com/",
+      "notes": "Portal sports page with native/display ads."
+    },
+    {
+      "id": "si",
+      "group": "discovery-sports",
+      "track": "discovery",
+      "category": "sports",
+      "url": "https://www.si.com/",
+      "notes": "Sports publisher with ad and sponsored surfaces."
+    },
+    {
+      "id": "nfl",
+      "group": "discovery-sports",
+      "track": "discovery",
+      "category": "sports-league",
+      "url": "https://www.nfl.com/",
+      "notes": "League site with video and sponsor modules."
+    },
+    {
+      "id": "nba",
+      "group": "discovery-sports",
+      "track": "discovery",
+      "category": "sports-league",
+      "url": "https://www.nba.com/",
+      "notes": "League site with video/sponsor modules."
+    },
+    {
+      "id": "amazon",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "commerce",
+      "url": "https://www.amazon.com/s?k=wireless+keyboard",
+      "notes": "Product-search page for sponsored-listing removal and commerce false-positive checks."
+    },
+    {
+      "id": "ebay",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "commerce",
+      "url": "https://www.ebay.com/",
+      "notes": "Marketplace homepage/search path with ads and tracking."
+    },
+    {
+      "id": "etsy",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "commerce",
+      "url": "https://www.etsy.com/",
+      "notes": "Marketplace with promoted listings and product grids."
+    },
+    {
+      "id": "walmart",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "commerce",
+      "url": "https://www.walmart.com/",
+      "notes": "Retail homepage/search path with sponsored modules."
+    },
+    {
+      "id": "target",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "commerce",
+      "url": "https://www.target.com/",
+      "notes": "Retail homepage/search path with ads and personalized modules."
+    },
+    {
+      "id": "bestbuy",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "commerce",
+      "url": "https://www.bestbuy.com/",
+      "notes": "Retail product/category pages with sponsored placements."
+    },
+    {
+      "id": "homedepot",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "commerce",
+      "url": "https://www.homedepot.com/",
+      "notes": "Retail homepage/search path with ads and recommendation modules."
+    },
+    {
+      "id": "wayfair",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "commerce",
+      "url": "https://www.wayfair.com/",
+      "notes": "Commerce page with image-heavy grids and promotions."
+    },
+    {
+      "id": "pexels-strawberry",
+      "group": "discovery-stock-search",
+      "track": "discovery",
+      "category": "stock-search",
+      "url": "https://www.pexels.com/search/strawberry/",
+      "notes": "Stock/search page with conditional iStock/Getty and Canva AI first-party promo modules; large modules may need Clean collapse rather than ambient cards."
+    },
+    {
+      "id": "unsplash-strawberry",
+      "group": "discovery-stock-search",
+      "track": "discovery",
+      "category": "stock-search",
+      "url": "https://unsplash.com/s/photos/strawberry",
+      "notes": "Stock/search page with conditional iStock premium/native modules using first-party layout and sponsored outbound links."
+    },
+    {
+      "id": "shutterstock-strawberry",
+      "group": "discovery-stock-search",
+      "track": "discovery",
+      "category": "stock-search",
+      "url": "https://www.shutterstock.com/search/strawberry",
+      "notes": "Future stock-search discovery case for promoted/native image modules; do not patch from this case without focused manual report evidence."
+    },
+    {
+      "id": "youtube-home",
+      "group": "discovery-video",
+      "track": "discovery",
+      "category": "video",
+      "url": "https://www.youtube.com/",
+      "notes": "Homepage/SPA performance canary; actual ad playback belongs in the dedicated YouTube probe."
+    },
+    {
+      "id": "youtube-watch",
+      "group": "discovery-video",
+      "track": "discovery",
+      "category": "video",
+      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "notes": "Watch page load canary; dedicated probe is still required for player-ad assertions."
+    },
+    {
+      "id": "twitch",
+      "group": "discovery-video",
+      "track": "discovery",
+      "category": "video",
+      "url": "https://www.twitch.tv/",
+      "notes": "Video platform homepage; live-channel preroll requires manual/focused testing."
+    },
+    {
+      "id": "dailymotion",
+      "group": "discovery-video",
+      "track": "discovery",
+      "category": "video",
+      "url": "https://www.dailymotion.com/",
+      "notes": "Video platform with preroll/display variations."
+    },
+    {
+      "id": "vimeo",
+      "group": "discovery-video",
+      "track": "discovery",
+      "category": "video",
+      "url": "https://vimeo.com/",
+      "notes": "Video platform and marketing pages; false-positive contrast."
+    },
+    {
+      "id": "translate-google",
+      "group": "discovery-productivity",
+      "track": "discovery",
+      "category": "performance-canary",
+      "url": "https://translate.google.com/",
+      "notes": "Protected utility/performance canary; generic DOM replacement should remain off."
+    },
+    {
+      "id": "tapstitch",
+      "group": "discovery-productivity",
+      "track": "discovery",
+      "category": "performance-canary",
+      "url": "https://www.tapstitch.com/",
+      "notes": "Large app-like page that exposed zero-hit scanner overhead."
+    },
+    {
+      "id": "figma-home",
+      "group": "discovery-productivity",
+      "track": "discovery",
+      "category": "productivity-marketing",
+      "url": "https://www.figma.com/",
+      "notes": "Protected design-tool domain; public homepage is only a shallow false-positive/performance check."
+    },
+    {
+      "id": "canva-home",
+      "group": "discovery-productivity",
+      "track": "discovery",
+      "category": "productivity-marketing",
+      "url": "https://www.canva.com/",
+      "notes": "Design-tool public surface; logged-in editor belongs in protected-manual."
+    },
+    {
+      "id": "notion-home",
+      "group": "discovery-productivity",
+      "track": "discovery",
+      "category": "productivity-marketing",
+      "url": "https://www.notion.so/",
+      "notes": "Protected workspace domain; public homepage is a shallow check only."
+    },
+    {
+      "id": "trello",
+      "group": "discovery-productivity",
+      "track": "discovery",
+      "category": "productivity-marketing",
+      "url": "https://trello.com/",
+      "notes": "Productivity marketing/login surface; app workflow requires manual login."
+    },
+    {
+      "id": "asana",
+      "group": "discovery-productivity",
+      "track": "discovery",
+      "category": "productivity-marketing",
+      "url": "https://asana.com/",
+      "notes": "Productivity marketing/login surface; app workflow requires manual login."
+    },
+    {
+      "id": "slack",
+      "group": "discovery-productivity",
+      "track": "discovery",
+      "category": "productivity-marketing",
+      "url": "https://slack.com/",
+      "notes": "Productivity marketing/login surface; app workflow requires manual login."
+    },
+    {
+      "id": "wikipedia",
+      "group": "discovery-reference",
+      "track": "discovery",
+      "category": "reference",
+      "url": "https://en.wikipedia.org/wiki/Main_Page",
+      "notes": "Low-ad false-positive canary."
+    },
+    {
+      "id": "mdn",
+      "group": "discovery-reference",
+      "track": "discovery",
+      "category": "developer-reference",
+      "url": "https://developer.mozilla.org/",
+      "notes": "Developer documentation false-positive canary."
+    },
+    {
+      "id": "stackoverflow",
+      "group": "discovery-reference",
+      "track": "discovery",
+      "category": "developer-community",
+      "url": "https://stackoverflow.com/",
+      "notes": "Developer Q&A with ad/sidebar surfaces and high false-positive cost."
+    },
+    {
+      "id": "github",
+      "group": "discovery-reference",
+      "track": "discovery",
+      "category": "developer",
+      "url": "https://github.com/",
+      "notes": "Developer platform false-positive canary."
+    },
+    {
+      "id": "medium",
+      "group": "discovery-reference",
+      "track": "discovery",
+      "category": "publishing",
+      "url": "https://medium.com/",
+      "notes": "Publishing/feed surface with membership prompts and recommendations."
+    },
+    {
+      "id": "hackernews",
+      "group": "discovery-reference",
+      "track": "discovery",
+      "category": "community",
+      "url": "https://news.ycombinator.com/",
+      "notes": "Minimal page false-positive canary."
+    },
+    {
+      "id": "reddit",
+      "group": "discovery-community",
+      "track": "discovery",
+      "category": "community",
+      "url": "https://www.reddit.com/",
+      "notes": "Feed/comment site; automation may hit CDN challenge."
+    },
+    {
+      "id": "quora",
+      "group": "discovery-community",
+      "track": "discovery",
+      "category": "community",
+      "url": "https://www.quora.com/",
+      "notes": "Q&A/feed site with login walls and promoted modules."
+    },
+    {
+      "id": "pinterest",
+      "group": "discovery-community",
+      "track": "discovery",
+      "category": "community",
+      "url": "https://www.pinterest.com/",
+      "notes": "Image feed/login wall; high false-positive and automation-block risk."
+    },
+    {
+      "id": "x",
+      "group": "discovery-community",
+      "track": "discovery",
+      "category": "social",
+      "url": "https://x.com/",
+      "notes": "Social/login/feed surface; automated result may be shallow."
+    },
+    {
+      "id": "facebook",
+      "group": "discovery-community",
+      "track": "discovery",
+      "category": "social",
+      "url": "https://www.facebook.com/",
+      "notes": "Social/login surface; manual profile testing required for feed behavior."
+    },
+    {
+      "id": "yahoo-finance",
+      "group": "discovery-finance",
+      "track": "discovery",
+      "category": "finance",
+      "url": "https://finance.yahoo.com/",
+      "notes": "Finance portal with quote widgets and ad/native modules."
+    },
+    {
+      "id": "marketwatch",
+      "group": "discovery-finance",
+      "track": "discovery",
+      "category": "finance",
+      "url": "https://www.marketwatch.com/",
+      "notes": "Finance news site with ticker widgets, ads, and paywalls."
+    },
+    {
+      "id": "investopedia",
+      "group": "discovery-finance",
+      "track": "discovery",
+      "category": "finance-reference",
+      "url": "https://www.investopedia.com/",
+      "notes": "Finance/reference site with ads and educational content."
+    },
+    {
+      "id": "cnbc",
+      "group": "discovery-finance",
+      "track": "discovery",
+      "category": "finance-news",
+      "url": "https://www.cnbc.com/",
+      "notes": "Finance news/video site with ticker, video, and ad modules."
+    },
+    {
+      "id": "booking",
+      "group": "discovery-travel-jobs",
+      "track": "discovery",
+      "category": "travel",
+      "url": "https://www.booking.com/",
+      "notes": "Travel search surface with modals, filters, and promotions."
+    },
+    {
+      "id": "tripadvisor",
+      "group": "discovery-travel-jobs",
+      "track": "discovery",
+      "category": "travel",
+      "url": "https://www.tripadvisor.com/",
+      "notes": "Travel/review site with ads and booking widgets."
+    },
+    {
+      "id": "expedia",
+      "group": "discovery-travel-jobs",
+      "track": "discovery",
+      "category": "travel",
+      "url": "https://www.expedia.com/",
+      "notes": "Travel booking surface with forms, filters, and promotions."
+    },
+    {
+      "id": "indeed",
+      "group": "discovery-travel-jobs",
+      "track": "discovery",
+      "category": "jobs",
+      "url": "https://www.indeed.com/",
+      "notes": "Job-search surface with sponsored jobs and filters."
+    },
+    {
+      "id": "glassdoor",
+      "group": "discovery-travel-jobs",
+      "track": "discovery",
+      "category": "jobs",
+      "url": "https://www.glassdoor.com/",
+      "notes": "Jobs/reviews/login-wall surface with ads and modals."
+    },
+    {
+      "id": "webmd",
+      "group": "discovery-health-lifestyle",
+      "track": "discovery",
+      "category": "health",
+      "url": "https://www.webmd.com/",
+      "notes": "Health information site with ads, tools, and sensitive-content false-positive risk."
+    },
+    {
+      "id": "healthline",
+      "group": "discovery-health-lifestyle",
+      "track": "discovery",
+      "category": "health",
+      "url": "https://www.healthline.com/",
+      "notes": "Health content site with ads and recommendation modules."
+    },
+    {
+      "id": "verywellhealth",
+      "group": "discovery-health-lifestyle",
+      "track": "discovery",
+      "category": "health",
+      "url": "https://www.verywellhealth.com/",
+      "notes": "Health content site with ads and glossary/article templates."
+    },
+    {
+      "id": "delish",
+      "group": "discovery-health-lifestyle",
+      "track": "discovery",
+      "category": "food",
+      "url": "https://www.delish.com/",
+      "notes": "Recipe/lifestyle publisher with ad density."
+    },
+    {
+      "id": "seriouseats",
+      "group": "discovery-health-lifestyle",
+      "track": "discovery",
+      "category": "food",
+      "url": "https://www.seriouseats.com/",
+      "notes": "Food/recipe site, useful contrast to ad-heavy recipe publishers."
+    },
+    {
+      "id": "eater",
+      "group": "discovery-health-lifestyle",
+      "track": "discovery",
+      "category": "food",
+      "url": "https://www.eater.com/",
+      "notes": "Food/culture publisher with ad/native modules."
+    },
+    {
+      "id": "google-docs-editor",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "protected-editor",
+      "manualOnly": true,
+      "url": "https://docs.google.com/",
+      "notes": "Manual logged-in test: open/create doc, type, select text, use toolbar and insert menus."
+    },
+    {
+      "id": "gmail-inbox-compose",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "protected-communication",
+      "manualOnly": true,
+      "url": "https://mail.google.com/",
+      "notes": "Manual logged-in test: inbox, search, compose draft, formatting controls. Do not send."
+    },
+    {
+      "id": "google-drive-files",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "protected-files",
+      "manualOnly": true,
+      "url": "https://drive.google.com/",
+      "notes": "Manual logged-in test: file list, search, preview, context menu."
+    },
+    {
+      "id": "figma-editor",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "protected-editor",
+      "manualOnly": true,
+      "url": "https://www.figma.com/files",
+      "notes": "Manual logged-in test: open file, pan/zoom, select layer, inspect right panel, open menus/plugins."
+    },
+    {
+      "id": "canva-editor",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "protected-editor",
+      "manualOnly": true,
+      "url": "https://www.canva.com/",
+      "notes": "Manual logged-in test: create/open design, add text, move element, open share/download menu."
+    },
+    {
+      "id": "notion-workspace",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "protected-editor",
+      "manualOnly": true,
+      "url": "https://www.notion.so/",
+      "notes": "Manual logged-in test: create/open page, slash menu, drag block, sidebar/search."
+    },
+    {
+      "id": "amazon-cart",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "commerce-checkout",
+      "manualOnly": true,
+      "url": "https://www.amazon.com/",
+      "notes": "Manual test: search, product detail, add to cart, stop before checkout/payment."
+    },
+    {
+      "id": "reddit-feed-comments",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "community-feed",
+      "manualOnly": true,
+      "url": "https://www.reddit.com/",
+      "notes": "Manual normal-browser test: feed scroll, post open, comments, promoted posts if visible."
     }
   ]
 }

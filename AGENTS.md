@@ -43,6 +43,8 @@ calm Tide field and an optional user-written intention.
 - `src/replacer.js` - replacement behavior, Tide card rendering, visual presence, and motion observer.
 - `src/init.js` - content-script startup call.
 - `src/content.js` - generated browser content bundle; edit the source partials, then run `npm run build`.
+- `src/youtube-prune-loader.js` - YouTube-only document-start loader that respects extension/site disable before injecting player-response pruning.
+- `src/youtube-prune-main.js` - YouTube-only main-world player-response pruner for `adPlacements`, `adSlots`, and `playerAds`.
 - `src/content.css` - injected replacement card styling.
 - `popup.html`, `popup.css`, `popup.js` - browser action popup.
 - `options.html`, `options.css`, `options.js` - settings UI.
@@ -67,9 +69,10 @@ calm Tide field and an optional user-written intention.
 - `docs/privacy-policy.md` - draft public privacy policy for Chrome Web Store submission.
 - `docs/chrome-web-store.md` - draft store listing, permission explanations, reviewer instructions, and asset checklist.
 - `docs/site-risk-policy.md` - risk-tiered blocking protocol contract for protected, standard, ad-heavy, and hostile pages.
+- `prompts/antigravity-stock-search-affiliate-sweep.md` - reusable Antigravity/Gemini Flash prompt for stock/search affiliate-ad discovery reports.
 - `prototypes/attention-modes.html` - throwaway Ambient motion comparison with Breath, Tide, and Lumen plus Ambient/Editorial Anchor typography.
 - `prototypes/attention-modes-compare.html` - side-by-side Breath/Tide/Lumen review surface with shared mode and palette controls.
-- `evals/live-sites.json` - real-world, controlled, and risk-canary URL cases for the live eval runner, including authored site-policy expectations where useful.
+- `evals/live-sites.json` - regression, discovery, controlled, and manual-only URL cases for the live eval runner, including track/category metadata and authored site-policy expectations where useful.
 - `tests/fixtures/ad-clutter.html` - deterministic clutter/ad fixture page.
 - `tests/fixtures/performance-scroll.html` - long deterministic page for sustained multi-card performance measurement.
 - `package.json`, `package-lock.json` - Node scripts and Playwright dev dependency.

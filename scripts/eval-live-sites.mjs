@@ -22,6 +22,14 @@ if (args.dryRun) {
   process.exit(0);
 }
 
+const manualCases = selectedCases.filter((testCase) => testCase.manualOnly);
+if (manualCases.length > 0) {
+  console.error(
+    `Selected ${manualCases.length} manual-only case${manualCases.length === 1 ? "" : "s"}; use --dry-run to list them and test manually.`
+  );
+  process.exit(1);
+}
+
 if (!selectedCases.length) {
   console.error("No eval cases selected.");
   process.exit(1);
@@ -90,6 +98,7 @@ function parseArgs(argv) {
   const parsed = {
     dryRun: false,
     group: "",
+    track: "",
     caseId: "",
     url: "",
     customId: "",
@@ -107,6 +116,9 @@ function parseArgs(argv) {
       parsed.dryRun = true;
     } else if (arg === "--group") {
       parsed.group = argv[index + 1] || "";
+      index += 1;
+    } else if (arg === "--track") {
+      parsed.track = argv[index + 1] || "";
       index += 1;
     } else if (arg === "--case") {
       parsed.caseId = argv[index + 1] || "";
@@ -151,8 +163,18 @@ function selectCases(cases, options) {
 
   let selected = [...cases];
 
+  if (!options.group && !options.track && !options.caseId) {
+    selected = selected.filter((testCase) => {
+      return testCase.manualOnly !== true && testCase.track !== "discovery";
+    });
+  }
+
   if (options.group) {
     selected = selected.filter((testCase) => testCase.group === options.group);
+  }
+
+  if (options.track) {
+    selected = selected.filter((testCase) => testCase.track === options.track);
   }
 
   if (options.caseId) {
@@ -177,6 +199,7 @@ function slugFromUrl(value) {
 function printDryRun(cases, options) {
   console.log(`Selected ${cases.length} live eval case${cases.length === 1 ? "" : "s"}.`);
   console.log(`group: ${options.group || "all"}`);
+  console.log(`track: ${options.track || "default regression+controlled"}`);
   console.log(`case: ${options.caseId || "all"}`);
   console.log(`url: ${options.url || "none"}`);
   console.log(`limit: ${options.limit || "none"}`);
@@ -184,8 +207,11 @@ function printDryRun(cases, options) {
   cases.forEach((testCase) => {
     const sitePolicy = classifyEvalSitePolicy(testCase, { url: testCase.url });
     const expectation = formatPolicyExpectation(testCase.policy);
+    const track = testCase.track || "untracked";
+    const category = testCase.category || "uncategorized";
+    const manual = testCase.manualOnly ? " manual-only" : "";
     console.log(
-      `[DRY] ${testCase.group}/${testCase.id} policy=${sitePolicy.protocol}${expectation} ${testCase.url}`
+      `[DRY] ${testCase.group}/${testCase.id} track=${track} category=${category}${manual} policy=${sitePolicy.protocol}${expectation} ${testCase.url}`
     );
   });
 }
@@ -238,6 +264,8 @@ async function runCase(context, worker, testCase, options) {
     return {
       id: testCase.id,
       group: testCase.group,
+      track: testCase.track,
+      category: testCase.category,
       url: testCase.url,
       finalUrl: pageMetrics.url,
       title: pageMetrics.title,
@@ -259,6 +287,8 @@ async function runCase(context, worker, testCase, options) {
     return {
       id: testCase.id,
       group: testCase.group,
+      track: testCase.track,
+      category: testCase.category,
       url: testCase.url,
       notes: testCase.notes,
       status: "error",
@@ -453,15 +483,26 @@ function printCaseResult(result) {
   const marker =
     result.status === "pass" ? "[PASS]" : result.status === "fail" ? "[FAIL]" : "[ERROR]";
   if (result.status === "error") {
-    console.log(`${marker} ${result.group}/${result.id} ${result.error}`);
+    console.log(`${marker} ${result.group}/${result.id}${formatResultTags(result)} ${result.error}`);
     return;
   }
 
   const policyText = result.sitePolicy ? ` policy=${result.sitePolicy.protocol}` : "";
   const policyMismatch = result.policyCheck ? " policy-mismatch" : "";
   console.log(
-    `${marker} ${result.group}/${result.id}${policyText}${policyMismatch} cards=${result.metrics.attentionCards} suspects=${result.metrics.visibleAdSuspects.length} ${result.finalUrl}`
+    `${marker} ${result.group}/${result.id}${formatResultTags(result)}${policyText}${policyMismatch} cards=${result.metrics.attentionCards} suspects=${result.metrics.visibleAdSuspects.length} ${result.finalUrl}`
   );
+}
+
+function formatResultTags(result) {
+  const parts = [];
+  if (result.track) {
+    parts.push(`track=${result.track}`);
+  }
+  if (result.category) {
+    parts.push(`category=${result.category}`);
+  }
+  return parts.length ? ` ${parts.join(" ")}` : "";
 }
 
 function summarizeResults(items) {
@@ -530,6 +571,12 @@ function formatMarkdownReport(report) {
   report.results.forEach((result) => {
     lines.push("", `### ${result.group}/${result.id}`, "");
     lines.push(`- Status: ${result.status}`);
+    if (result.track) {
+      lines.push(`- Track: ${result.track}`);
+    }
+    if (result.category) {
+      lines.push(`- Category: ${result.category}`);
+    }
     lines.push(`- URL: ${result.url}`);
     if (result.finalUrl) {
       lines.push(`- Final URL: ${result.finalUrl}`);
