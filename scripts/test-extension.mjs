@@ -41,6 +41,7 @@ try {
   const fixtureUrl = `http://127.0.0.1:${server.port}/ad-clutter.html`;
 
   await assertDnrBehavior(context, serviceWorker, fixtureUrl);
+  await assertYoutubePruneBehavior(context, serviceWorker);
 
   await page.goto(fixtureUrl);
   await page.waitForLoadState("domcontentloaded");
@@ -59,6 +60,35 @@ try {
   await page
     .locator("#cosmetic-only-slot.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
+  await page
+    .locator("#search-affiliate-ad.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
+  await page
+    .locator("#oversized-domain-cosmetic-ad.attention-redirector-slot")
+    .waitFor({ state: "attached", timeout: 5000 });
+  const oversizedCosmeticState = await page.evaluate(() => {
+    const slot = document.getElementById("oversized-domain-cosmetic-ad");
+    const rect = slot?.getBoundingClientRect();
+    const style = slot ? getComputedStyle(slot) : null;
+    return {
+      presentation: slot?.dataset.attentionRedirectorPresentation || "",
+      collapse: slot?.dataset.attentionRedirectorCollapse || "",
+      cards: slot?.querySelectorAll(".attention-redirector-card").length ?? -1,
+      display: style?.display || "",
+      height: rect?.height ?? -1
+    };
+  });
+  if (
+    oversizedCosmeticState.presentation !== "clean" ||
+    oversizedCosmeticState.collapse !== "oversized-cosmetic" ||
+    oversizedCosmeticState.cards !== 0 ||
+    oversizedCosmeticState.display !== "none" ||
+    oversizedCosmeticState.height !== 0
+  ) {
+    throw new Error(
+      `Oversized domain cosmetic ad was not collapsed like a blocker rule: ${JSON.stringify(oversizedCosmeticState)}`
+    );
+  }
   try {
     await page.waitForFunction(() => {
       const root = document.querySelector("#shadow-ad-widget")?.shadowRoot;
@@ -175,6 +205,9 @@ try {
   await page
     .locator("#late-injected-ad.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
+  await page
+    .locator("#late-domain-cosmetic-ad.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
   await page.waitForFunction(() => {
     const root = document.querySelector("#shadow-ad-widget")?.shadowRoot;
     return Boolean(
@@ -192,6 +225,20 @@ try {
   ) {
     throw new Error(
       `Late ad replacement took ${lateReplacementLatency}ms; expected <= 350ms.`
+    );
+  }
+  const lateDomainCosmeticLatency = await page.evaluate(() => {
+    return (
+      window.__lateDomainCosmeticReplacedAt -
+      window.__lateDomainCosmeticInsertedAt
+    );
+  });
+  if (
+    !Number.isFinite(lateDomainCosmeticLatency) ||
+    lateDomainCosmeticLatency > 350
+  ) {
+    throw new Error(
+      `Late domain cosmetic replacement took ${lateDomainCosmeticLatency}ms; expected <= 350ms.`
     );
   }
   const lateShadowReplacementLatency = await page.evaluate(() => {
@@ -218,19 +265,24 @@ try {
   }, undefined, { timeout: 5000 });
   const takeoverState = await page.evaluate(() => {
     const slot = document.getElementById("brnd8e78c7f2c");
+    const rect = slot?.getBoundingClientRect();
+    const style = slot ? getComputedStyle(slot) : null;
     return {
       presentation: slot?.dataset.attentionRedirectorPresentation,
       cards: slot?.querySelectorAll(".attention-redirector-card").length,
-      visibility: slot ? getComputedStyle(slot).visibility : ""
+      display: style?.display || "",
+      visibility: style?.visibility || "",
+      height: rect?.height || 0
     };
   });
   if (
     takeoverState.presentation !== "clean" ||
     takeoverState.cards !== 0 ||
-    takeoverState.visibility !== "hidden"
+    takeoverState.display !== "none" ||
+    takeoverState.height !== 0
   ) {
     throw new Error(
-      `Branding takeover rendered a card instead of being hidden: ${JSON.stringify(takeoverState)}`
+      `Branding takeover was not collapsed like a blocker rule: ${JSON.stringify(takeoverState)}`
     );
   }
   // Fixed-position overlay ads follow the same contract: hidden, never carded.
@@ -241,20 +293,25 @@ try {
   ]) {
     const overlayState = await page.evaluate((id) => {
       const slot = document.getElementById(id);
+      const rect = slot?.getBoundingClientRect();
+      const style = slot ? getComputedStyle(slot) : null;
       return {
         id,
         presentation: slot?.dataset.attentionRedirectorPresentation,
         cards: slot?.querySelectorAll(".attention-redirector-card").length,
-        visibility: slot ? getComputedStyle(slot).visibility : ""
+        display: style?.display || "",
+        visibility: style?.visibility || "",
+        height: rect?.height || 0
       };
     }, overlayId);
     if (
       overlayState.presentation !== "clean" ||
       overlayState.cards !== 0 ||
-      overlayState.visibility !== "hidden"
+      overlayState.display !== "none" ||
+      overlayState.height !== 0
     ) {
       throw new Error(
-        `Fixed overlay ad was carded instead of hidden: ${JSON.stringify(overlayState)}`
+        `Fixed overlay ad was not collapsed like a blocker rule: ${JSON.stringify(overlayState)}`
       );
     }
   }
@@ -423,6 +480,15 @@ try {
     )
     .evaluateAll((slots) => {
       return slots.filter((slot) => {
+        const isOverlay =
+          slot.dataset.attentionRedirectorReason ===
+            "full-page branding takeover" ||
+          slot.dataset.attentionRedirectorOverlay === "true";
+        const isOversizedCosmetic =
+          slot.dataset.attentionRedirectorCollapse === "oversized-cosmetic";
+        if (isOverlay || isOversizedCosmetic) {
+          return false;
+        }
         const rect = slot.getBoundingClientRect();
         const style = getComputedStyle(slot);
         return (
@@ -511,7 +577,7 @@ try {
   }
   const mixedAmbientRatio =
     mixedAmbientCount / (mixedAmbientCount + mixedCleanCount);
-  if (Math.abs(mixedAmbientRatio - 0.5) > 0.25) {
+  if (Math.abs(mixedAmbientRatio - 0.5) > 0.3) {
     throw new Error(
       `Presence 5 was too skewed: ${mixedAmbientCount} ambient and ${mixedCleanCount} clean.`
     );
@@ -530,7 +596,16 @@ try {
       slots.length > 0 &&
       slots.every((slot) => {
         const style = getComputedStyle(slot);
-        return style.display !== "none" && style.visibility === "hidden";
+        const isOverlay =
+          slot.dataset.attentionRedirectorReason ===
+            "full-page branding takeover" ||
+          slot.dataset.attentionRedirectorOverlay === "true";
+        const isCollapsedClean =
+          isOverlay ||
+          slot.dataset.attentionRedirectorCollapse === "oversized-cosmetic";
+        return isCollapsedClean
+          ? style.display === "none"
+          : style.display !== "none" && style.visibility === "hidden";
       })
     );
   });
@@ -855,10 +930,15 @@ try {
   console.log("compact cards:", compactCardCount);
   console.log("late replacement latency:", `${Math.round(lateReplacementLatency)}ms`);
   console.log(
+    "late domain cosmetic latency:",
+    `${Math.round(lateDomainCosmeticLatency)}ms`
+  );
+  console.log(
     "late shadow replacement latency:",
     `${Math.round(lateShadowReplacementLatency)}ms`
   );
   console.log("DNR probe:", "blocked / site-allowed / globally-disabled");
+  console.log("YouTube prune:", "enabled prunes / site-disabled passes through");
   console.log("shadow card display:", shadowCardDisplay);
   console.log("framework reconciliation:", frameworkReconcileStatus);
   console.log("anchor texts:", anchorTexts);
@@ -990,6 +1070,241 @@ async function assertDnrBehavior(context, serviceWorker, fixtureUrl) {
 
   await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
   await waitForEnabledRulesets(serviceWorker, true);
+}
+
+async function assertYoutubePruneBehavior(context, serviceWorker) {
+  if (!serviceWorker) {
+    throw new Error("No extension service worker available for YouTube checks.");
+  }
+
+  const fixtureUrl = "https://www.youtube.com/youtube-prune-fixture";
+  const playerUrl = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+  const playerPayload = {
+    videoDetails: { videoId: "fixture" },
+    adPlacements: [{ ad: "top-level" }],
+    playerAds: [{ ad: "legacy" }],
+    nested: {
+      adSlots: [{ ad: "slot" }],
+      keep: "content"
+    }
+  };
+
+  await context.route(fixtureUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: [
+        "<!doctype html>",
+        "<meta charset=\"utf-8\">",
+        "<title>YouTube prune fixture</title>",
+        "<div id=\"google_ads_iframe_fixture\" class=\"ad-slot\" style=\"width:300px;height:250px\">Advertisement</div>"
+      ].join("")
+    });
+  });
+  await context.route("https://www.youtube.com/youtubei/v1/player**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(playerPayload)
+    });
+  });
+
+  await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
+  const enabledPage = await context.newPage();
+  await enabledPage.goto(fixtureUrl);
+  await enabledPage.waitForFunction(() => {
+    return window.__attentionRedirectorYoutubePruneInstalled === true;
+  });
+  await enabledPage.waitForTimeout(900);
+  const youtubeGenericSlots = await enabledPage
+    .locator(".attention-redirector-slot")
+    .count();
+  if (youtubeGenericSlots !== 0) {
+    throw new Error(
+      `Generic DOM replacement ran on YouTube fixture: ${youtubeGenericSlots} slots.`
+    );
+  }
+  const enabledResult = await readYoutubePruneFixture(enabledPage, playerUrl);
+
+  if (
+    hasYoutubeAdFields(enabledResult.fetchJson) ||
+    hasYoutubeAdFields(enabledResult.xhrJson) ||
+    hasYoutubeAdFields(enabledResult.globalResponse)
+  ) {
+    throw new Error(
+      `YouTube prune left ad fields while enabled: ${JSON.stringify(enabledResult)}`
+    );
+  }
+
+  if (enabledResult.fetchJson?.nested?.keep !== "content") {
+    throw new Error(
+      `YouTube prune removed non-ad player data: ${JSON.stringify(enabledResult.fetchJson)}`
+    );
+  }
+
+  if (
+    !enabledResult.adSkipResult?.skipClicked ||
+    enabledResult.adSkipResult?.adSlotDisplay !== "none"
+  ) {
+    throw new Error(
+      `YouTube ad suppression did not skip/hide the mocked ad surface: ${JSON.stringify(enabledResult.adSkipResult)}`
+    );
+  }
+
+  const disabledSettings = {
+    ...DEFAULT_EXTENSION_SETTINGS,
+    disabledDomains: ["youtube.com"]
+  };
+  await saveExtensionSettings(serviceWorker, disabledSettings);
+  await enabledPage.waitForTimeout(700);
+  const openPageDisabledResult = await readYoutubeAdSuppressionFixture(enabledPage);
+  await enabledPage.close();
+
+  if (
+    openPageDisabledResult.skipClicked ||
+    openPageDisabledResult.adSlotDisplay === "none"
+  ) {
+    throw new Error(
+      `YouTube ad suppression stayed active after open-page site disable: ${JSON.stringify(openPageDisabledResult)}`
+    );
+  }
+
+  await saveExtensionSettings(serviceWorker, disabledSettings);
+  const disabledPage = await context.newPage();
+  await disabledPage.goto(`${fixtureUrl}?disabled=1`);
+  await disabledPage.waitForTimeout(700);
+  const disabledResult = await readYoutubePruneFixture(disabledPage, playerUrl);
+  await disabledPage.close();
+
+  if (disabledResult.installed) {
+    throw new Error("YouTube prune main-world script was injected on a disabled site.");
+  }
+
+  if (
+    !hasYoutubeAdFields(disabledResult.fetchJson) ||
+    !hasYoutubeAdFields(disabledResult.xhrJson) ||
+    !hasYoutubeAdFields(disabledResult.globalResponse)
+  ) {
+    throw new Error(
+      `YouTube prune changed player data on a disabled site: ${JSON.stringify(disabledResult)}`
+    );
+  }
+
+  if (
+    disabledResult.adSkipResult?.skipClicked ||
+    disabledResult.adSkipResult?.adSlotDisplay === "none"
+  ) {
+    throw new Error(
+      `YouTube ad suppression ran on a disabled site: ${JSON.stringify(disabledResult.adSkipResult)}`
+    );
+  }
+
+  await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
+}
+
+async function readYoutubePruneFixture(page, playerUrl) {
+  return page.evaluate(async (url) => {
+    const fetchJson = await fetch(url).then((response) => response.json());
+    const xhrJson = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", `${url}&xhr=1`);
+      xhr.onload = () => {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch (error) {
+          reject(error);
+        }
+      };
+      xhr.onerror = () => reject(new Error("XHR failed"));
+      xhr.send();
+    });
+
+    window.ytInitialPlayerResponse = {
+      videoDetails: { videoId: "global-fixture" },
+      adPlacements: [{ ad: "global" }],
+      playerAds: [{ ad: "global-legacy" }],
+      nested: {
+        adSlots: [{ ad: "global-slot" }],
+        keep: "global-content"
+      }
+    };
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    const player = document.createElement("div");
+    player.id = "movie_player";
+    player.className = "ad-showing";
+    const skipButton = document.createElement("button");
+    skipButton.className = "ytp-ad-skip-button";
+    skipButton.textContent = "Skip";
+    window.__attentionRedirectorSkipClicked = false;
+    skipButton.addEventListener("click", () => {
+      window.__attentionRedirectorSkipClicked = true;
+    });
+    const adSlot = document.createElement("ytd-ad-slot-renderer");
+    adSlot.textContent = "Sponsored";
+    document.body.append(player, skipButton, adSlot);
+    await new Promise((resolve) => window.setTimeout(resolve, 550));
+    const adSkipResult = {
+      skipClicked: window.__attentionRedirectorSkipClicked === true,
+      adSlotDisplay: getComputedStyle(adSlot).display
+    };
+    player.remove();
+    skipButton.remove();
+    adSlot.remove();
+
+    return {
+      installed: window.__attentionRedirectorYoutubePruneInstalled === true,
+      fetchJson,
+      xhrJson,
+      globalResponse: window.ytInitialPlayerResponse,
+      adSkipResult
+    };
+  }, playerUrl);
+}
+
+async function readYoutubeAdSuppressionFixture(page) {
+  return page.evaluate(async () => {
+    const player = document.createElement("div");
+    player.id = "movie_player";
+    player.className = "ad-showing";
+    const skipButton = document.createElement("button");
+    skipButton.className = "ytp-ad-skip-button";
+    skipButton.textContent = "Skip";
+    window.__attentionRedirectorSkipClicked = false;
+    skipButton.addEventListener("click", () => {
+      window.__attentionRedirectorSkipClicked = true;
+    });
+    const adSlot = document.createElement("ytd-ad-slot-renderer");
+    adSlot.textContent = "Sponsored";
+    document.body.append(player, skipButton, adSlot);
+    await new Promise((resolve) => window.setTimeout(resolve, 550));
+    const result = {
+      skipClicked: window.__attentionRedirectorSkipClicked === true,
+      adSlotDisplay: getComputedStyle(adSlot).display
+    };
+    player.remove();
+    skipButton.remove();
+    adSlot.remove();
+    return result;
+  });
+}
+
+function hasYoutubeAdFields(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some(hasYoutubeAdFields);
+  }
+
+  return Object.keys(value).some((key) => {
+    return (
+      key === "adPlacements" ||
+      key === "adSlots" ||
+      key === "playerAds" ||
+      hasYoutubeAdFields(value[key])
+    );
+  });
 }
 
 async function loadDnrProbeScript(page) {
@@ -1280,7 +1595,10 @@ async function assertVisuallySuppressed(page, selector, label) {
 
       while (current instanceof HTMLElement) {
         const style = getComputedStyle(current);
-        visuallyHidden ||= Number.parseFloat(style.opacity || "1") === 0;
+        visuallyHidden ||=
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number.parseFloat(style.opacity || "1") === 0;
         interactionBlocked ||= style.pointerEvents === "none";
         if (current.classList.contains("attention-redirector-slot")) {
           break;

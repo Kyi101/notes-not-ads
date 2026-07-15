@@ -7,7 +7,7 @@ async function runScan({ force, contextNodes = [document] }) {
     state.settings = await loadSettings();
   }
 
-  if (!isPageAllowed(state.settings) || state.isScanning) {
+  if (!isDomReplacementAllowed(state.settings) || state.isScanning) {
     return 0;
   }
 
@@ -18,6 +18,7 @@ async function runScan({ force, contextNodes = [document] }) {
     const candidates = collectCandidates(
       expandScanContexts(force ? [document] : contextNodes)
     );
+    state.lastScanCandidateCount = candidates.length;
 
     for (const candidate of candidates) {
       if (!force && inserted >= 6) {
@@ -28,6 +29,12 @@ async function runScan({ force, contextNodes = [document] }) {
         inserted += 1;
         state.inserted += 1;
       }
+    }
+
+    if (inserted === 0 && candidates.length === 0) {
+      state.zeroScanStreak += 1;
+    } else {
+      state.zeroScanStreak = 0;
     }
   } finally {
     state.isScanning = false;
@@ -90,6 +97,47 @@ function collectCosmeticCandidateNodes(contextNodes = [document]) {
   const nodes = [];
   const seen = new Set();
   const maxMatches = 260;
+  const priorityMatchesPerRule = 20;
+
+  const addCosmeticNode = (element, rule) => {
+    if (!(element instanceof HTMLElement) || seen.has(element)) {
+      return false;
+    }
+
+    state.cosmeticMatches.set(element, rule);
+    nodes.push(element);
+    seen.add(element);
+    return nodes.length >= maxMatches;
+  };
+
+  for (const rule of state.cosmeticRules) {
+    if (!rule.domains || rule.domains.length === 0) {
+      continue;
+    }
+
+    for (const context of contextNodes) {
+      if (!context) continue;
+
+      try {
+        if (
+          context instanceof HTMLElement &&
+          context.matches(rule.selector) &&
+          addCosmeticNode(context, rule)
+        ) {
+          return nodes;
+        }
+
+        if (context.querySelectorAll) {
+          const ruleMatches = Array.from(context.querySelectorAll(rule.selector));
+          for (const element of ruleMatches.slice(0, priorityMatchesPerRule)) {
+            if (addCosmeticNode(element, rule)) {
+              return nodes;
+            }
+          }
+        }
+      } catch (_error) {}
+    }
+  }
 
   if (!state.cosmeticRuleChunks) {
     state.cosmeticRuleChunks = [];
@@ -152,22 +200,12 @@ function collectCosmeticCandidateNodes(contextNodes = [document]) {
     }
 
     for (const element of matches.slice(0, 60)) {
-      if (!(element instanceof HTMLElement) || seen.has(element)) {
-        continue;
-      }
-
       const matchingRule = chunk.find(r => {
         try { return element.matches(r.selector); } catch(e) { return false; }
       });
 
-      if (matchingRule) {
-        state.cosmeticMatches.set(element, matchingRule);
-        nodes.push(element);
-        seen.add(element);
-
-        if (nodes.length >= maxMatches) {
-          return nodes;
-        }
+      if (matchingRule && addCosmeticNode(element, matchingRule)) {
+        return nodes;
       }
     }
   }
@@ -417,7 +455,8 @@ function safeToReplace(element) {
   if (
     isTooLargeForMvp(rect) &&
     !isBrandingTakeover(element) &&
-    !canReplaceExplicitLargeAd(element, rect)
+    !canReplaceExplicitLargeAd(element, rect) &&
+    !canCollapseOversizedDomainCosmetic(element, rect)
   ) {
     return false;
   }
@@ -449,6 +488,10 @@ function isExplicitAdSlot(element) {
   const rect = element.getBoundingClientRect();
 
   if (isBrandingTakeover(element)) {
+    return true;
+  }
+
+  if (hasExplicitAdDataAttribute(element)) {
     return true;
   }
 
@@ -782,7 +825,11 @@ function getSafetyBlocks(element) {
     blocks.push("mixed narrow content rail");
   }
 
-  if (isTooLargeForMvp(rect) && !canReplaceExplicitLargeAd(element, rect)) {
+  if (
+    isTooLargeForMvp(rect) &&
+    !canReplaceExplicitLargeAd(element, rect) &&
+    !canCollapseOversizedDomainCosmetic(element, rect)
+  ) {
     blocks.push("too large for normal replacement");
   }
 
@@ -900,6 +947,14 @@ function isPageAllowed(settings) {
   }
 
   return !isDomainDisabled(location.hostname, settings.disabledDomains);
+}
+
+function isDomReplacementAllowed(settings) {
+  if (!isPageAllowed(settings)) {
+    return false;
+  }
+
+  return !isDomainDisabled(location.hostname, DOM_REPLACEMENT_DISABLED_DOMAINS);
 }
 
 function isSensitivePage() {

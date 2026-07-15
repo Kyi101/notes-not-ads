@@ -51,6 +51,32 @@ assertSelectors(newsRules, [".generic-ad"], "excluded subdomain rules");
 const otherRules = api.getRulesForHost("other.test", sample);
 assertSelectors(otherRules, [".generic-ad"], "generic rules");
 
+const amazonRules = api.getRulesForHost("www.amazon.com");
+if (!amazonRules.some((rule) => rule.selector === ".s-left-ads-item")) {
+  throw new Error("amazon.com left-rail sponsored ad cosmetic rule is missing.");
+}
+
+const pexelsRules = api.getRulesForHost("www.pexels.com");
+assertSelectors(
+  pexelsRules.filter((rule) => rule.source.startsWith("pexels.com##")),
+  [
+    '[class*="AIGCShared_container__"]',
+    '[class*="FullWidth_wrapper__"]',
+    '[class*="Inline_container__"]'
+  ],
+  "pexels.com affiliate/promo cosmetic rules"
+);
+
+const unsplashRules = api.getRulesForHost("unsplash.com");
+if (!unsplashRules.some((rule) => rule.selector === '[data-ad="true"]')) {
+  throw new Error("unsplash.com sponsored affiliate cosmetic rule is missing.");
+}
+
+const localRules = api.getRulesForHost("127.0.0.1");
+if (!localRules.some((rule) => rule.selector === '[data-ad="true"]')) {
+  throw new Error("local data-ad cosmetic fixture rule is missing.");
+}
+
 const { serializeCosmeticFilterDeclaration, COSMETIC_DECLARATION_REGEX } =
   await import("./update-lists.mjs");
 

@@ -8,6 +8,8 @@ function replaceCandidate(element) {
   const slot = createReplacementSlot(element, rect);
   const surfaceKey = createSurfaceKey(element, rect);
   const preservesSiteChildren = slot === element;
+  const isFixedOverlay = window.getComputedStyle(element).position === "fixed";
+  const collapseOversizedCosmetic = canCollapseOversizedDomainCosmetic(element, rect);
 
   ensureReplacementRootStyles(slot);
   slot.dataset.attentionRedirectorReplaced = "true";
@@ -16,8 +18,11 @@ function replaceCandidate(element) {
   slot.dataset.attentionRedirectorHeight = String(Math.round(rect.height));
   // Capture overlay status before slot classes apply position overrides
   // (--preserve-children forces position: relative on the element).
-  if (window.getComputedStyle(element).position === "fixed") {
+  if (isFixedOverlay) {
     slot.dataset.attentionRedirectorOverlay = "true";
+  }
+  if (collapseOversizedCosmetic) {
+    slot.dataset.attentionRedirectorCollapse = "oversized-cosmetic";
   }
   slot.classList.add("attention-redirector-slot");
   slot.classList.toggle(
@@ -69,10 +74,13 @@ function renderReplacementSlot(slot) {
     slot.dataset.attentionRedirectorReason === FULL_PAGE_TAKEOVER_REASON ||
     slot.dataset.attentionRedirectorOverlay === "true" ||
     window.getComputedStyle(slot).position === "fixed";
+  const shouldCollapseSlot =
+    isOverlaySlot ||
+    slot.dataset.attentionRedirectorCollapse === "oversized-cosmetic";
 
   if (
     !isPageAllowed(state.settings) ||
-    isOverlaySlot ||
+    shouldCollapseSlot ||
     !shouldVisualizeSurface(surfaceKey)
   ) {
     if (existingGuard) {
@@ -81,7 +89,7 @@ function renderReplacementSlot(slot) {
     }
     slot.dataset.attentionRedirectorPresentation = "clean";
     removeReplacementCards(slot);
-    hideReplacementSlot(slot);
+    hideReplacementSlot(slot, { collapse: shouldCollapseSlot });
     return;
   }
 
@@ -100,7 +108,18 @@ function renderReplacementSlot(slot) {
   installReplacementGuard(slot, card);
 }
 
-function hideReplacementSlot(slot) {
+function hideReplacementSlot(slot, { collapse = false } = {}) {
+  if (collapse) {
+    slot.style.setProperty("display", "none", "important");
+    slot.style.setProperty("min-height", "0", "important");
+    slot.style.setProperty("height", "0", "important");
+    slot.style.setProperty("padding", "0", "important");
+    slot.style.setProperty("margin", "0", "important");
+    slot.style.setProperty("border", "0", "important");
+    slot.style.setProperty("pointer-events", "none", "important");
+    return;
+  }
+
   slot.style.removeProperty("display");
   slot.style.setProperty("visibility", "hidden", "important");
   slot.style.setProperty("pointer-events", "none", "important");
@@ -564,6 +583,10 @@ function getSourceValues(element) {
   return Array.from(new Set(values)).slice(0, 8);
 }
 
+function hasExplicitAdDataAttribute(element) {
+  return String(element.getAttribute("data-ad") || "").toLowerCase() === "true";
+}
+
 function truncateMiddle(value, maxLength) {
   if (value.length <= maxLength) {
     return value;
@@ -686,6 +709,27 @@ function isTooLargeForMvp(rect) {
 
 function canReplaceExplicitLargeAd(element, rect) {
   return hasStrongAdSignal(element) && !isTooLargeForExplicitAd(rect);
+}
+
+function canCollapseOversizedDomainCosmetic(element, rect) {
+  const cosmeticMatch =
+    typeof getCosmeticMatch === "function" ? getCosmeticMatch(element) : null;
+  if (!cosmeticMatch || !cosmeticMatch.domains || cosmeticMatch.domains.length === 0) {
+    return false;
+  }
+
+  if (!isTooLargeForMvp(rect)) {
+    return false;
+  }
+
+  if (element.matches("html,body,main,article,header,footer,form")) {
+    return false;
+  }
+
+  return (
+    rect.width <= window.innerWidth * 1.05 &&
+    rect.height <= Math.max(1200, window.innerHeight * 1.35)
+  );
 }
 
 function isTooLargeForExplicitAd(rect) {

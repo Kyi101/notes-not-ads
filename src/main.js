@@ -1,18 +1,27 @@
 async function init() {
   registerExtensionListeners();
-  startObserver();
   state.settings = await loadSettings();
   state.settingsReady = true;
   state.cosmeticRules = loadCosmeticRulesForPage();
+  state.domainCosmeticRules = state.cosmeticRules.filter(
+    (rule) => rule.domains && rule.domains.length > 0
+  );
   syncPageDnrAllowRule();
 
   if (!isPageAllowed(state.settings)) {
-    stopObserver();
     return;
   }
 
-  await runScan({ force: true });
-  startWarmupScans();
+  if (!isDomReplacementAllowed(state.settings)) {
+    return;
+  }
+
+  startObserver();
+  const initialInserted = await runScan({ force: true });
+  startWarmupScans({
+    initialInserted,
+    initialCandidates: state.lastScanCandidateCount
+  });
 }
 
 function registerExtensionListeners() {
@@ -50,7 +59,12 @@ function registerExtensionListeners() {
         state.settings = settings;
         syncPageDnrAllowRule();
         applySettingsToReplacedSlots();
-        scheduleScan(80);
+        if (isDomReplacementAllowed(state.settings)) {
+          startObserver();
+          scheduleScan(80);
+        } else {
+          stopObserver();
+        }
         sendResponse(getStatus());
       });
       return true;
@@ -67,7 +81,12 @@ function registerExtensionListeners() {
     state.settings = mergeSettings(changes[STORAGE_KEY].newValue);
     syncPageDnrAllowRule();
     applySettingsToReplacedSlots();
-    scheduleScan(80);
+    if (isDomReplacementAllowed(state.settings)) {
+      startObserver();
+      scheduleScan(80);
+    } else {
+      stopObserver();
+    }
   });
 }
 
@@ -216,7 +235,8 @@ function handlePageMutations(mutations) {
     if (
       mutation.type === "attributes" &&
       target instanceof HTMLElement &&
-      !isExtensionElement(target)
+      !isExtensionElement(target) &&
+      shouldScanMutationTarget(target)
     ) {
       queuedScan = queueScanContext(target) || queuedScan;
     }
@@ -228,6 +248,10 @@ function handlePageMutations(mutations) {
 }
 
 function queueScanContext(node) {
+  if (node instanceof HTMLElement && !shouldScanMutationTarget(node)) {
+    return false;
+  }
+
   const context = normalizeScanContext(node);
   if (!context) {
     return false;
@@ -248,6 +272,107 @@ function queueScanContext(node) {
   });
 
   return true;
+}
+
+function shouldScanMutationTarget(element) {
+  if (!(element instanceof HTMLElement) || isExtensionElement(element)) {
+    return false;
+  }
+
+  if (hasMutationAdSignal(element)) {
+    return true;
+  }
+
+  if (hasDomainCosmeticMutationSignal(element)) {
+    return true;
+  }
+
+  if (isMutationAdTag(element) || element.shadowRoot) {
+    return true;
+  }
+
+  if (typeof element.querySelectorAll !== "function") {
+    return false;
+  }
+
+  let checked = 0;
+  try {
+    const descendants = element.querySelectorAll(MUTATION_SCAN_TRIGGER_SELECTOR);
+    for (const descendant of descendants) {
+      if (!(descendant instanceof HTMLElement)) {
+        continue;
+      }
+      checked += 1;
+      if (isMutationAdTag(descendant) || hasMutationAdSignal(descendant)) {
+        return true;
+      }
+      if (hasDomainCosmeticMutationSignal(descendant, { includeDescendants: false })) {
+        return true;
+      }
+      if (checked >= MUTATION_DESCENDANT_SCAN_LIMIT) {
+        return false;
+      }
+    }
+  } catch (_error) {}
+
+  return false;
+}
+
+function hasDomainCosmeticMutationSignal(
+  element,
+  { includeDescendants = true } = {}
+) {
+  if (!(element instanceof HTMLElement) || isExtensionElement(element)) {
+    return false;
+  }
+
+  const rules = state.domainCosmeticRules || [];
+  if (!rules.length) {
+    return false;
+  }
+
+  for (const rule of rules) {
+    try {
+      if (element.matches(rule.selector)) {
+        return true;
+      }
+      if (includeDescendants && element.querySelector(rule.selector)) {
+        return true;
+      }
+    } catch (_error) {}
+  }
+
+  return false;
+}
+
+function isMutationAdTag(element) {
+  const tagName = element.localName;
+  return (
+    tagName === "iframe" ||
+    tagName === "ins" ||
+    tagName === "amp-ad" ||
+    tagName === "shreddit-ad-post" ||
+    tagName === "ytd-ad-slot-renderer" ||
+    tagName === "ytd-display-ad-renderer" ||
+    tagName === "ytd-promoted-sparkles-web-renderer"
+  );
+}
+
+function hasMutationAdSignal(element) {
+  const value = [
+    element.id,
+    element.className,
+    element.getAttribute("aria-label"),
+    element.getAttribute("title"),
+    element.getAttribute("src"),
+    element.getAttribute("data-src"),
+    element.getAttribute("data-ad-slot"),
+    element.getAttribute("data-ad-client")
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return MUTATION_AD_SIGNAL_RE.test(value);
 }
 
 function observeScanRoot(root) {
@@ -439,7 +564,16 @@ function closestAcrossRoots(element, selector) {
   return null;
 }
 
-function startWarmupScans() {
+function startWarmupScans({ initialInserted = 0, initialCandidates = 0 } = {}) {
+  const elementCount = document.getElementsByTagName("*").length;
+  if (
+    initialInserted === 0 &&
+    initialCandidates === 0 &&
+    elementCount >= LARGE_DOM_ZERO_SCAN_THRESHOLD
+  ) {
+    return;
+  }
+
   [500, 1500, 3500, 7000].forEach((delay) => {
     window.setTimeout(() => {
       runScan({ force: false });
@@ -448,7 +582,12 @@ function startWarmupScans() {
 }
 
 function scheduleScan(delay) {
-  const safeDelay = Math.max(0, Number(delay) || 0);
+  let safeDelay = Math.max(0, Number(delay) || 0);
+  if (state.zeroScanStreak >= 8) {
+    safeDelay = Math.max(safeDelay, 1500);
+  } else if (state.zeroScanStreak >= 3) {
+    safeDelay = Math.max(safeDelay, 500);
+  }
   const dueAt = performance.now() + safeDelay;
 
   if (state.scanTimer && state.scanDueAt <= dueAt) {

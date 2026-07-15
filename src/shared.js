@@ -50,7 +50,9 @@ const SENSITIVE_DOMAINS = [
   "inbox.google.com",
   "calendar.google.com",
   "notion.so",
+  "notion.com",
   "figma.com",
+  "canva.com",
   "paypal.com",
   "stripe.com",
   "venmo.com",
@@ -65,6 +67,13 @@ const SENSITIVE_DOMAINS = [
   "amex.com",
   "citi.com",
   "citibank.com"
+];
+
+const DOM_REPLACEMENT_DISABLED_DOMAINS = [
+  "youtube.com",
+  "m.youtube.com",
+  "music.youtube.com",
+  "translate.google.com"
 ];
 
 const SENSITIVE_HOST_WORDS = [
@@ -133,6 +142,30 @@ const DEBUG_SCAN_SELECTOR = [
   "[data-ad-slot]",
   "[data-ad-client]"
 ].join(",");
+
+const MUTATION_SCAN_TRIGGER_SELECTOR = [
+  "iframe",
+  "ins",
+  "amp-ad",
+  "shreddit-ad-post",
+  "ytd-ad-slot-renderer",
+  "ytd-display-ad-renderer",
+  "ytd-promoted-sparkles-web-renderer",
+  "[data-ad-slot]",
+  "[data-ad-client]",
+  "[src]",
+  "[data-src]",
+  "[id]",
+  "[class]",
+  "[aria-label]",
+  "[title]"
+].join(",");
+
+const MUTATION_AD_SIGNAL_RE =
+  /(^|[\s_.:-])(ad|ads|adslot|ad-slot|advert|advertisement|advertising|sponsor|sponsored|promoted|dfp|gpt|doubleclick|adsbygoogle|taboola|outbrain|mgid|teads|ima|vast|vpaid|banner)([\s_.:-]|$)/i;
+
+const LARGE_DOM_ZERO_SCAN_THRESHOLD = 2500;
+const MUTATION_DESCENDANT_SCAN_LIMIT = 80;
 
 const SHADOW_ROOT_STYLE_TEXT = `
 .attention-redirector-slot {
@@ -369,6 +402,8 @@ const state = {
   inserted: 0,
   scanTimer: 0,
   scanDueAt: 0,
+  zeroScanStreak: 0,
+  lastScanCandidateCount: 0,
   observer: null,
   pendingScanNodes: new Set(),
   observedScanRoots: new WeakSet(),
@@ -380,6 +415,7 @@ const state = {
   isScanning: false,
   cardSequence: 0,
   cosmeticRules: [],
+  domainCosmeticRules: [],
   cosmeticMatches: new WeakMap(),
   replacementGuards: new WeakMap(),
   motionObserver: null,

@@ -284,6 +284,37 @@
         font-weight: 700;
       }
 
+      .search-affiliate-results {
+        width: 300px;
+        margin-top: 18px;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .search-affiliate-unit {
+        min-height: 145px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #6c7e8c;
+        background: #eef4f7;
+        color: #2c4657;
+        font-family: Arial, sans-serif;
+        font-weight: 700;
+      }
+
+      .oversized-domain-cosmetic-unit {
+        width: min(96vw, 1520px);
+        height: 960px;
+        margin: 24px auto;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #6c7e8c;
+        background: #eef4f7;
+        color: #2c4657;
+        font-family: Arial, sans-serif;
+        font-weight: 700;
+      }
+
       shadow-ad-widget {
         display: block;
         width: 300px;
@@ -598,6 +629,22 @@
         <div id="cosmetic-only-slot" class="commercial-unit">
           Cosmetic-rule-only unit
         </div>
+        <div id="search-affiliate-results" class="search-affiliate-results">
+          <div
+            id="search-affiliate-ad"
+            class="search-affiliate-unit"
+            data-ad="true"
+          >
+            Cosmetic data-ad unit inside search results
+          </div>
+        </div>
+        <div
+          id="oversized-domain-cosmetic-ad"
+          class="oversized-domain-cosmetic-unit"
+          data-ad="true"
+        >
+          Oversized domain-scoped cosmetic ad
+        </div>
         <shadow-ad-widget id="shadow-ad-widget"></shadow-ad-widget>
         <div id="portal-rail" class="portal-rail">
           <strong>Useful links</strong>
@@ -865,6 +912,33 @@
         window.__lateAdInsertedAt = performance.now();
         document.body.appendChild(slot);
       }, 450);
+
+      window.setTimeout(() => {
+        const shell = document.createElement("div");
+        shell.id = "late-search-affiliate-results";
+        shell.className = "search-affiliate-results";
+
+        const slot = document.createElement("div");
+        slot.id = "late-domain-cosmetic-ad";
+        slot.className = "search-affiliate-unit";
+        slot.dataset.ad = "true";
+        slot.textContent = "Late cosmetic-only unit inside search results";
+
+        const observer = new MutationObserver(() => {
+          if (slot.classList.contains("attention-redirector-slot")) {
+            window.__lateDomainCosmeticReplacedAt = performance.now();
+            observer.disconnect();
+          }
+        });
+        observer.observe(slot, {
+          attributes: true,
+          attributeFilter: ["class"]
+        });
+
+        shell.appendChild(slot);
+        window.__lateDomainCosmeticInsertedAt = performance.now();
+        document.body.appendChild(shell);
+      }, 520);
 
       window.setTimeout(() => {
         const slot = document.getElementById("framework-owned-ad");

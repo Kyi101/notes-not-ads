@@ -43,6 +43,28 @@ assert.ok(
 );
 
 assertPolicy(
+  { url: "https://www.canva.com/design/DAG/example/edit" },
+  {
+    tier: TIERS.PROTECTED,
+    protocol: PROTOCOLS.PROTECTED_STANDARD,
+    confidence: "high",
+    blockedEscalations: [PROTOCOLS.AD_HEAVY, PROTOCOLS.HOSTILE]
+  },
+  "Canva editor"
+);
+
+assertPolicy(
+  { url: "https://www.notion.com/" },
+  {
+    tier: TIERS.PROTECTED,
+    protocol: PROTOCOLS.PROTECTED_STANDARD,
+    confidence: "high",
+    blockedEscalations: [PROTOCOLS.AD_HEAVY, PROTOCOLS.HOSTILE]
+  },
+  "Notion current domain"
+);
+
+assertPolicy(
   { url: "https://www.ukr.net/", enabled: false },
   {
     tier: TIERS.DISABLED,

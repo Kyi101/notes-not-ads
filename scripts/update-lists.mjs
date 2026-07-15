@@ -125,8 +125,14 @@ const SEED_COSMETIC_LINES = [
   '##[id*="div-gpt-ad"]',
   'merriam-webster.com##.adthrive-ad',
   'pravda.com.ua##.ima-ad-container',
+  'amazon.com##.s-left-ads-item',
+  'pexels.com##[class*="Inline_container__"]',
+  'pexels.com##[class*="FullWidth_wrapper__"]',
+  'pexels.com##[class*="AIGCShared_container__"]',
+  'unsplash.com##[data-ad="true"]',
   'adblock.turtlecute.org##.adbox.banner_ads.adsbox',
   'adblock.turtlecute.org##.textads',
+  '127.0.0.1##[data-ad="true"]',
   '127.0.0.1##.commercial-unit',
   '127.0.0.1###cosmetic-only-slot'
 ];

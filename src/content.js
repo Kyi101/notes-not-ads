@@ -51,7 +51,9 @@
     "inbox.google.com",
     "calendar.google.com",
     "notion.so",
+    "notion.com",
     "figma.com",
+    "canva.com",
     "paypal.com",
     "stripe.com",
     "venmo.com",
@@ -66,6 +68,13 @@
     "amex.com",
     "citi.com",
     "citibank.com"
+  ];
+
+  const DOM_REPLACEMENT_DISABLED_DOMAINS = [
+    "youtube.com",
+    "m.youtube.com",
+    "music.youtube.com",
+    "translate.google.com"
   ];
 
   const SENSITIVE_HOST_WORDS = [
@@ -134,6 +143,30 @@
     "[data-ad-slot]",
     "[data-ad-client]"
   ].join(",");
+
+  const MUTATION_SCAN_TRIGGER_SELECTOR = [
+    "iframe",
+    "ins",
+    "amp-ad",
+    "shreddit-ad-post",
+    "ytd-ad-slot-renderer",
+    "ytd-display-ad-renderer",
+    "ytd-promoted-sparkles-web-renderer",
+    "[data-ad-slot]",
+    "[data-ad-client]",
+    "[src]",
+    "[data-src]",
+    "[id]",
+    "[class]",
+    "[aria-label]",
+    "[title]"
+  ].join(",");
+
+  const MUTATION_AD_SIGNAL_RE =
+    /(^|[\s_.:-])(ad|ads|adslot|ad-slot|advert|advertisement|advertising|sponsor|sponsored|promoted|dfp|gpt|doubleclick|adsbygoogle|taboola|outbrain|mgid|teads|ima|vast|vpaid|banner)([\s_.:-]|$)/i;
+
+  const LARGE_DOM_ZERO_SCAN_THRESHOLD = 2500;
+  const MUTATION_DESCENDANT_SCAN_LIMIT = 80;
 
   const SHADOW_ROOT_STYLE_TEXT = `
   .attention-redirector-slot {
@@ -370,6 +403,8 @@
     inserted: 0,
     scanTimer: 0,
     scanDueAt: 0,
+    zeroScanStreak: 0,
+    lastScanCandidateCount: 0,
     observer: null,
     pendingScanNodes: new Set(),
     observedScanRoots: new WeakSet(),
@@ -381,6 +416,7 @@
     isScanning: false,
     cardSequence: 0,
     cosmeticRules: [],
+    domainCosmeticRules: [],
     cosmeticMatches: new WeakMap(),
     replacementGuards: new WeakMap(),
     motionObserver: null,
@@ -404,19 +440,28 @@
 
   async function init() {
     registerExtensionListeners();
-    startObserver();
     state.settings = await loadSettings();
     state.settingsReady = true;
     state.cosmeticRules = loadCosmeticRulesForPage();
+    state.domainCosmeticRules = state.cosmeticRules.filter(
+      (rule) => rule.domains && rule.domains.length > 0
+    );
     syncPageDnrAllowRule();
 
     if (!isPageAllowed(state.settings)) {
-      stopObserver();
       return;
     }
 
-    await runScan({ force: true });
-    startWarmupScans();
+    if (!isDomReplacementAllowed(state.settings)) {
+      return;
+    }
+
+    startObserver();
+    const initialInserted = await runScan({ force: true });
+    startWarmupScans({
+      initialInserted,
+      initialCandidates: state.lastScanCandidateCount
+    });
   }
 
   function registerExtensionListeners() {
@@ -454,7 +499,12 @@
           state.settings = settings;
           syncPageDnrAllowRule();
           applySettingsToReplacedSlots();
-          scheduleScan(80);
+          if (isDomReplacementAllowed(state.settings)) {
+            startObserver();
+            scheduleScan(80);
+          } else {
+            stopObserver();
+          }
           sendResponse(getStatus());
         });
         return true;
@@ -471,7 +521,12 @@
       state.settings = mergeSettings(changes[STORAGE_KEY].newValue);
       syncPageDnrAllowRule();
       applySettingsToReplacedSlots();
-      scheduleScan(80);
+      if (isDomReplacementAllowed(state.settings)) {
+        startObserver();
+        scheduleScan(80);
+      } else {
+        stopObserver();
+      }
     });
   }
 
@@ -620,7 +675,8 @@
       if (
         mutation.type === "attributes" &&
         target instanceof HTMLElement &&
-        !isExtensionElement(target)
+        !isExtensionElement(target) &&
+        shouldScanMutationTarget(target)
       ) {
         queuedScan = queueScanContext(target) || queuedScan;
       }
@@ -632,6 +688,10 @@
   }
 
   function queueScanContext(node) {
+    if (node instanceof HTMLElement && !shouldScanMutationTarget(node)) {
+      return false;
+    }
+
     const context = normalizeScanContext(node);
     if (!context) {
       return false;
@@ -652,6 +712,107 @@
     });
 
     return true;
+  }
+
+  function shouldScanMutationTarget(element) {
+    if (!(element instanceof HTMLElement) || isExtensionElement(element)) {
+      return false;
+    }
+
+    if (hasMutationAdSignal(element)) {
+      return true;
+    }
+
+    if (hasDomainCosmeticMutationSignal(element)) {
+      return true;
+    }
+
+    if (isMutationAdTag(element) || element.shadowRoot) {
+      return true;
+    }
+
+    if (typeof element.querySelectorAll !== "function") {
+      return false;
+    }
+
+    let checked = 0;
+    try {
+      const descendants = element.querySelectorAll(MUTATION_SCAN_TRIGGER_SELECTOR);
+      for (const descendant of descendants) {
+        if (!(descendant instanceof HTMLElement)) {
+          continue;
+        }
+        checked += 1;
+        if (isMutationAdTag(descendant) || hasMutationAdSignal(descendant)) {
+          return true;
+        }
+        if (hasDomainCosmeticMutationSignal(descendant, { includeDescendants: false })) {
+          return true;
+        }
+        if (checked >= MUTATION_DESCENDANT_SCAN_LIMIT) {
+          return false;
+        }
+      }
+    } catch (_error) {}
+
+    return false;
+  }
+
+  function hasDomainCosmeticMutationSignal(
+    element,
+    { includeDescendants = true } = {}
+  ) {
+    if (!(element instanceof HTMLElement) || isExtensionElement(element)) {
+      return false;
+    }
+
+    const rules = state.domainCosmeticRules || [];
+    if (!rules.length) {
+      return false;
+    }
+
+    for (const rule of rules) {
+      try {
+        if (element.matches(rule.selector)) {
+          return true;
+        }
+        if (includeDescendants && element.querySelector(rule.selector)) {
+          return true;
+        }
+      } catch (_error) {}
+    }
+
+    return false;
+  }
+
+  function isMutationAdTag(element) {
+    const tagName = element.localName;
+    return (
+      tagName === "iframe" ||
+      tagName === "ins" ||
+      tagName === "amp-ad" ||
+      tagName === "shreddit-ad-post" ||
+      tagName === "ytd-ad-slot-renderer" ||
+      tagName === "ytd-display-ad-renderer" ||
+      tagName === "ytd-promoted-sparkles-web-renderer"
+    );
+  }
+
+  function hasMutationAdSignal(element) {
+    const value = [
+      element.id,
+      element.className,
+      element.getAttribute("aria-label"),
+      element.getAttribute("title"),
+      element.getAttribute("src"),
+      element.getAttribute("data-src"),
+      element.getAttribute("data-ad-slot"),
+      element.getAttribute("data-ad-client")
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return MUTATION_AD_SIGNAL_RE.test(value);
   }
 
   function observeScanRoot(root) {
@@ -843,7 +1004,16 @@
     return null;
   }
 
-  function startWarmupScans() {
+  function startWarmupScans({ initialInserted = 0, initialCandidates = 0 } = {}) {
+    const elementCount = document.getElementsByTagName("*").length;
+    if (
+      initialInserted === 0 &&
+      initialCandidates === 0 &&
+      elementCount >= LARGE_DOM_ZERO_SCAN_THRESHOLD
+    ) {
+      return;
+    }
+
     [500, 1500, 3500, 7000].forEach((delay) => {
       window.setTimeout(() => {
         runScan({ force: false });
@@ -852,7 +1022,12 @@
   }
 
   function scheduleScan(delay) {
-    const safeDelay = Math.max(0, Number(delay) || 0);
+    let safeDelay = Math.max(0, Number(delay) || 0);
+    if (state.zeroScanStreak >= 8) {
+      safeDelay = Math.max(safeDelay, 1500);
+    } else if (state.zeroScanStreak >= 3) {
+      safeDelay = Math.max(safeDelay, 500);
+    }
     const dueAt = performance.now() + safeDelay;
 
     if (state.scanTimer && state.scanDueAt <= dueAt) {
@@ -1863,7 +2038,7 @@
       state.settings = await loadSettings();
     }
 
-    if (!isPageAllowed(state.settings) || state.isScanning) {
+    if (!isDomReplacementAllowed(state.settings) || state.isScanning) {
       return 0;
     }
 
@@ -1874,6 +2049,7 @@
       const candidates = collectCandidates(
         expandScanContexts(force ? [document] : contextNodes)
       );
+      state.lastScanCandidateCount = candidates.length;
 
       for (const candidate of candidates) {
         if (!force && inserted >= 6) {
@@ -1884,6 +2060,12 @@
           inserted += 1;
           state.inserted += 1;
         }
+      }
+
+      if (inserted === 0 && candidates.length === 0) {
+        state.zeroScanStreak += 1;
+      } else {
+        state.zeroScanStreak = 0;
       }
     } finally {
       state.isScanning = false;
@@ -1946,6 +2128,47 @@
     const nodes = [];
     const seen = new Set();
     const maxMatches = 260;
+    const priorityMatchesPerRule = 20;
+
+    const addCosmeticNode = (element, rule) => {
+      if (!(element instanceof HTMLElement) || seen.has(element)) {
+        return false;
+      }
+
+      state.cosmeticMatches.set(element, rule);
+      nodes.push(element);
+      seen.add(element);
+      return nodes.length >= maxMatches;
+    };
+
+    for (const rule of state.cosmeticRules) {
+      if (!rule.domains || rule.domains.length === 0) {
+        continue;
+      }
+
+      for (const context of contextNodes) {
+        if (!context) continue;
+
+        try {
+          if (
+            context instanceof HTMLElement &&
+            context.matches(rule.selector) &&
+            addCosmeticNode(context, rule)
+          ) {
+            return nodes;
+          }
+
+          if (context.querySelectorAll) {
+            const ruleMatches = Array.from(context.querySelectorAll(rule.selector));
+            for (const element of ruleMatches.slice(0, priorityMatchesPerRule)) {
+              if (addCosmeticNode(element, rule)) {
+                return nodes;
+              }
+            }
+          }
+        } catch (_error) {}
+      }
+    }
 
     if (!state.cosmeticRuleChunks) {
       state.cosmeticRuleChunks = [];
@@ -2008,22 +2231,12 @@
       }
 
       for (const element of matches.slice(0, 60)) {
-        if (!(element instanceof HTMLElement) || seen.has(element)) {
-          continue;
-        }
-
         const matchingRule = chunk.find(r => {
           try { return element.matches(r.selector); } catch(e) { return false; }
         });
 
-        if (matchingRule) {
-          state.cosmeticMatches.set(element, matchingRule);
-          nodes.push(element);
-          seen.add(element);
-
-          if (nodes.length >= maxMatches) {
-            return nodes;
-          }
+        if (matchingRule && addCosmeticNode(element, matchingRule)) {
+          return nodes;
         }
       }
     }
@@ -2273,7 +2486,8 @@
     if (
       isTooLargeForMvp(rect) &&
       !isBrandingTakeover(element) &&
-      !canReplaceExplicitLargeAd(element, rect)
+      !canReplaceExplicitLargeAd(element, rect) &&
+      !canCollapseOversizedDomainCosmetic(element, rect)
     ) {
       return false;
     }
@@ -2305,6 +2519,10 @@
     const rect = element.getBoundingClientRect();
 
     if (isBrandingTakeover(element)) {
+      return true;
+    }
+
+    if (hasExplicitAdDataAttribute(element)) {
       return true;
     }
 
@@ -2638,7 +2856,11 @@
       blocks.push("mixed narrow content rail");
     }
 
-    if (isTooLargeForMvp(rect) && !canReplaceExplicitLargeAd(element, rect)) {
+    if (
+      isTooLargeForMvp(rect) &&
+      !canReplaceExplicitLargeAd(element, rect) &&
+      !canCollapseOversizedDomainCosmetic(element, rect)
+    ) {
       blocks.push("too large for normal replacement");
     }
 
@@ -2758,6 +2980,14 @@
     return !isDomainDisabled(location.hostname, settings.disabledDomains);
   }
 
+  function isDomReplacementAllowed(settings) {
+    if (!isPageAllowed(settings)) {
+      return false;
+    }
+
+    return !isDomainDisabled(location.hostname, DOM_REPLACEMENT_DISABLED_DOMAINS);
+  }
+
   function isSensitivePage() {
     const host = location.hostname.toLowerCase();
     const normalizedHost = stripWww(host);
@@ -2848,6 +3078,8 @@
     const slot = createReplacementSlot(element, rect);
     const surfaceKey = createSurfaceKey(element, rect);
     const preservesSiteChildren = slot === element;
+    const isFixedOverlay = window.getComputedStyle(element).position === "fixed";
+    const collapseOversizedCosmetic = canCollapseOversizedDomainCosmetic(element, rect);
 
     ensureReplacementRootStyles(slot);
     slot.dataset.attentionRedirectorReplaced = "true";
@@ -2856,8 +3088,11 @@
     slot.dataset.attentionRedirectorHeight = String(Math.round(rect.height));
     // Capture overlay status before slot classes apply position overrides
     // (--preserve-children forces position: relative on the element).
-    if (window.getComputedStyle(element).position === "fixed") {
+    if (isFixedOverlay) {
       slot.dataset.attentionRedirectorOverlay = "true";
+    }
+    if (collapseOversizedCosmetic) {
+      slot.dataset.attentionRedirectorCollapse = "oversized-cosmetic";
     }
     slot.classList.add("attention-redirector-slot");
     slot.classList.toggle(
@@ -2909,10 +3144,13 @@
       slot.dataset.attentionRedirectorReason === FULL_PAGE_TAKEOVER_REASON ||
       slot.dataset.attentionRedirectorOverlay === "true" ||
       window.getComputedStyle(slot).position === "fixed";
+    const shouldCollapseSlot =
+      isOverlaySlot ||
+      slot.dataset.attentionRedirectorCollapse === "oversized-cosmetic";
 
     if (
       !isPageAllowed(state.settings) ||
-      isOverlaySlot ||
+      shouldCollapseSlot ||
       !shouldVisualizeSurface(surfaceKey)
     ) {
       if (existingGuard) {
@@ -2921,7 +3159,7 @@
       }
       slot.dataset.attentionRedirectorPresentation = "clean";
       removeReplacementCards(slot);
-      hideReplacementSlot(slot);
+      hideReplacementSlot(slot, { collapse: shouldCollapseSlot });
       return;
     }
 
@@ -2940,7 +3178,18 @@
     installReplacementGuard(slot, card);
   }
 
-  function hideReplacementSlot(slot) {
+  function hideReplacementSlot(slot, { collapse = false } = {}) {
+    if (collapse) {
+      slot.style.setProperty("display", "none", "important");
+      slot.style.setProperty("min-height", "0", "important");
+      slot.style.setProperty("height", "0", "important");
+      slot.style.setProperty("padding", "0", "important");
+      slot.style.setProperty("margin", "0", "important");
+      slot.style.setProperty("border", "0", "important");
+      slot.style.setProperty("pointer-events", "none", "important");
+      return;
+    }
+
     slot.style.removeProperty("display");
     slot.style.setProperty("visibility", "hidden", "important");
     slot.style.setProperty("pointer-events", "none", "important");
@@ -3404,6 +3653,10 @@
     return Array.from(new Set(values)).slice(0, 8);
   }
 
+  function hasExplicitAdDataAttribute(element) {
+    return String(element.getAttribute("data-ad") || "").toLowerCase() === "true";
+  }
+
   function truncateMiddle(value, maxLength) {
     if (value.length <= maxLength) {
       return value;
@@ -3526,6 +3779,27 @@
 
   function canReplaceExplicitLargeAd(element, rect) {
     return hasStrongAdSignal(element) && !isTooLargeForExplicitAd(rect);
+  }
+
+  function canCollapseOversizedDomainCosmetic(element, rect) {
+    const cosmeticMatch =
+      typeof getCosmeticMatch === "function" ? getCosmeticMatch(element) : null;
+    if (!cosmeticMatch || !cosmeticMatch.domains || cosmeticMatch.domains.length === 0) {
+      return false;
+    }
+
+    if (!isTooLargeForMvp(rect)) {
+      return false;
+    }
+
+    if (element.matches("html,body,main,article,header,footer,form")) {
+      return false;
+    }
+
+    return (
+      rect.width <= window.innerWidth * 1.05 &&
+      rect.height <= Math.max(1200, window.innerHeight * 1.35)
+    );
   }
 
   function isTooLargeForExplicitAd(rect) {
