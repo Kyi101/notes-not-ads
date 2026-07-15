@@ -1022,3 +1022,37 @@ the initial `notion.so` URL classified as protected, but the final
   intentional for these app brands; ad blocking value there is lower than
   avoiding editor breakage.
 - No new ad detection rules, DNR block rules, or broader heuristics were added.
+
+## 2026-07-15 - Un-Park The Public Release; GPLv3; Detection Freeze
+
+**Decision**: Reverse the 2026-07-03 parking of the public product. Target:
+Chrome Web Store release + open-source repo + KYII portfolio piece. The
+~08-02 dogfood window stays as the store-submission gate; release prep (UI/
+brand pass, store compliance, repo hygiene) runs in parallel. License the
+repo GPLv3. Declare a detection freeze: until release, detection changes
+only from field-reported false positives verified with bait-page + FP-hunt
+runs — no new miss-coverage patches.
+
+**Why**: Twelve days of dogfooding as the only ad blocker produced the
+signal the window was armed to collect: daily use held, blocking is
+competitive with the prior ad blocker on Hlib's real sites, and the
+replacement messages deliver the intended value. The parts of the kill
+decision that survived the 2026-07-03 correction (crowd-sourced FP-triage
+moat, maintenance treadmill) are addressed by positioning, not engineering:
+a calm focus tool, conservative by design, no full-adblock-parity claims —
+not "replace uBlock." GPLv3 because packaged artifacts derive from EasyList
+(GPLv3/CC BY-SA dual-licensed); MIT would require segregating the generated
+lists from the code.
+
+**Consequences**:
+- Store submission is gated on the window closing clean (no uBlock
+  reinstall, FP annoyances stay rare). Sequencing after the gate: open
+  source + portfolio first, store submission second.
+- The detection freeze keeps the dogfood signal clean and honors the
+  ukr.net patch-loop lesson; discovery evals become non-gating FP/breakage
+  canaries, not miss-hunting grounds.
+- Before the repo goes public: decide eval-case optics (pirate-streaming
+  references in `evals/live-sites.json`, `rules/rules_1.json`, and project
+  docs) and review README/docs framing for a public audience.
+- A private remote backup should exist before any further multi-day work
+  accumulates; the repo had no remote as of this decision.
