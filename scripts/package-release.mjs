@@ -24,6 +24,8 @@ const requiredReleasePaths = [
   "src/content.css",
   "src/content.js",
   "src/cosmetic-filters.js",
+  "src/youtube-prune-loader.js",
+  "src/youtube-prune-main.js",
   "rules/rules_1.json",
   "rules/easylist_dnr.json"
 ];

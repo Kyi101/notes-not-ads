@@ -65,6 +65,9 @@ for (const resource of ruleResources) {
         "||ads.spotify.com^",
         "||cdn.teads.tv^",
         "||ads.pubmatic.com^",
+        "||youtube.com/pagead/",
+        "||youtube.com/api/stats/ads",
+        "||fwmrm.net^",
         "||metrika.yandex.ru^",
         "||imasdk.googleapis.com^",
         "||revcontent.com^",
@@ -74,7 +77,15 @@ for (const resource of ruleResources) {
         "||bidmatic.io^",
         "||rcvlink.com^",
         "||onetag-sys.com^",
-        "||sdkconfig.ad.xiaomi.com^"
+        "||sdkconfig.ad.xiaomi.com^",
+        "||franecki.net/assets/vendor/",
+        "||franecki.net/assets/pack/",
+        "||franecki.net/js/ma.js",
+        "||franecki.net/content/static/",
+        "||reichelcormier.bid/candy/",
+        "||nogravity4.click^",
+        "||base.ashdi.vip/stats/stats_vast.php",
+        "||video.unocdn.com/*_fix.mp4"
       ],
       "hand-curated DNR seed"
     );
@@ -92,6 +103,19 @@ for (const resource of ruleResources) {
 
 if (!backgroundSource.includes("updateEnabledRulesets")) {
   throw new Error("Release contract violation: background must toggle rulesets.");
+}
+
+const manifestText = JSON.stringify(manifest);
+if (!manifestText.includes("src/youtube-prune-loader.js")) {
+  throw new Error(
+    "Release contract violation: YouTube prune loader must be registered."
+  );
+}
+
+if (!manifestText.includes("src/youtube-prune-main.js")) {
+  throw new Error(
+    "Release contract violation: YouTube prune main-world script must be web-accessible."
+  );
 }
 
 if (!backgroundSource.includes("updateSessionRules")) {

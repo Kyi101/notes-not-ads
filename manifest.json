@@ -36,10 +36,30 @@
       }
     ]
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/youtube-prune-main.js"],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*",
+        "https://music.youtube.com/*"
+      ]
+    }
+  ],
   "background": {
     "service_worker": "src/background.js"
   },
   "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*",
+        "https://music.youtube.com/*"
+      ],
+      "js": ["src/youtube-prune-loader.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
     {
       "matches": ["http://*/*", "https://*/*"],
       "exclude_matches": [
