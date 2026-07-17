@@ -64,6 +64,12 @@ Attention Redirector uses these Chrome permissions:
 - `http://*/*` and `https://*/*`: inspect and replace likely ad/clutter surfaces
   on normal webpages
 
+On YouTube only, the extension additionally runs a dedicated content script and
+injects a page-level (main-world) script, declared as a web-accessible
+resource, that removes ad entries from YouTube's own player data so video ads
+do not play. This script runs entirely locally, sends no data anywhere, and is
+not injected when the extension is disabled globally or for YouTube.
+
 ## Future Changes
 
 If Attention Redirector ever adds optional reporting or telemetry, it must be
