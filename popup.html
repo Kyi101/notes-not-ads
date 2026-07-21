@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Attention Redirector</title>
+    <link rel="stylesheet" href="fonts/fonts.css">
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
@@ -15,8 +16,6 @@
         </div>
         <input id="globalToggle" type="checkbox" role="switch" aria-label="Enable extension">
       </header>
-
-      <div class="tide-preview" aria-hidden="true"></div>
 
       <section class="site-row" aria-label="Current site">
         <span>
@@ -55,13 +54,13 @@
       <section class="control-section presence-section">
         <div class="section-label">
           <span>Visual presence</span>
-          <output id="presenceValue" for="visualPresence">Full Ambient</output>
         </div>
-        <input id="visualPresence" type="range" min="0" max="10" step="1" value="10">
-        <div class="range-labels" aria-hidden="true">
-          <span>Clean</span>
-          <span>Full Ambient</span>
+        <div id="presenceModes" class="segmented segmented--three" aria-label="Visual presence">
+          <button type="button" data-presence="clean" aria-pressed="false">Clean</button>
+          <button type="button" data-presence="balanced" aria-pressed="false">Balanced</button>
+          <button type="button" data-presence="full" aria-pressed="true">Full Ambient</button>
         </div>
+        <p id="presenceDescription" class="presence-note">Every detected surface becomes Tide.</p>
       </section>
 
       <div class="primary-actions">

@@ -474,34 +474,20 @@ try {
       `Clean expected hidden slots and no cards; found ${cleanSlotCount} slots and ${cleanCardCount} cards.`
     );
   }
-  const collapsedCleanSlots = await cleanPage
+  // Clean now collapses detected slots out of flow (display:none) so the page
+  // reflows like an ad blocker, instead of leaving a reserved hidden box.
+  const uncollapsedCleanSlots = await cleanPage
     .locator(
       ".attention-redirector-slot[data-attention-redirector-presentation='clean']"
     )
     .evaluateAll((slots) => {
       return slots.filter((slot) => {
-        const isOverlay =
-          slot.dataset.attentionRedirectorReason ===
-            "full-page branding takeover" ||
-          slot.dataset.attentionRedirectorOverlay === "true";
-        const isOversizedCosmetic =
-          slot.dataset.attentionRedirectorCollapse === "oversized-cosmetic";
-        if (isOverlay || isOversizedCosmetic) {
-          return false;
-        }
-        const rect = slot.getBoundingClientRect();
-        const style = getComputedStyle(slot);
-        return (
-          style.display === "none" ||
-          style.visibility !== "hidden" ||
-          rect.width <= 0 ||
-          rect.height <= 0
-        );
+        return getComputedStyle(slot).display !== "none";
       }).length;
     });
-  if (collapsedCleanSlots !== 0) {
+  if (uncollapsedCleanSlots !== 0) {
     throw new Error(
-      `Clean collapsed or exposed ${collapsedCleanSlots} detected slots.`
+      `Clean left ${uncollapsedCleanSlots} detected slots in flow.`
     );
   }
   await cleanPage.waitForFunction(() => {
@@ -518,24 +504,12 @@ try {
     if (!slot) {
       return null;
     }
-    const rect = slot.getBoundingClientRect();
     const style = getComputedStyle(slot);
-    return {
-      display: style.display,
-      visibility: style.visibility,
-      width: rect.width,
-      height: rect.height
-    };
+    return { display: style.display };
   });
-  if (
-    !cleanShadowState ||
-    cleanShadowState.display === "none" ||
-    cleanShadowState.visibility !== "hidden" ||
-    cleanShadowState.width <= 0 ||
-    cleanShadowState.height <= 0
-  ) {
+  if (!cleanShadowState || cleanShadowState.display !== "none") {
     throw new Error(
-      `Clean shadow slot did not preserve hidden layout: ${JSON.stringify(cleanShadowState)}`
+      `Clean shadow slot did not collapse: ${JSON.stringify(cleanShadowState)}`
     );
   }
   const visibleCleanSlotCount = await cleanPage
@@ -645,19 +619,20 @@ try {
   });
   const popupPage = await context.newPage();
   await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popupPage.locator("#visualPresence").waitFor({ timeout: 5000 });
+  await popupPage.locator("#presenceModes").waitFor({ timeout: 5000 });
   await popupPage.locator("#anchorNote").waitFor({ timeout: 5000 });
   const migratedPopup = await popupPage.evaluate(() => {
     return {
       mode: document.querySelector("[data-mode][aria-pressed='true']")?.dataset.mode,
       anchorNote: document.querySelector("#anchorNote")?.value,
-      visualPresence: document.querySelector("#visualPresence")?.value
+      presence: document.querySelector("[data-presence][aria-pressed='true']")
+        ?.dataset.presence
     };
   });
   if (
     migratedPopup.mode !== "anchor" ||
     migratedPopup.anchorNote !== "Legacy focus" ||
-    migratedPopup.visualPresence !== "6"
+    migratedPopup.presence !== "balanced"
   ) {
     throw new Error(
       `Popup did not migrate legacy settings: ${JSON.stringify(migratedPopup)}`
@@ -677,18 +652,14 @@ try {
       `Popup note input lost text across debounced saves: ${JSON.stringify(popupNoteValue)}`
     );
   }
-  await popupPage.locator("#visualPresence").evaluate((element) => {
-    element.value = "4";
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-    element.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  await popupPage.locator("[data-presence='clean']").click();
   await popupPage.waitForTimeout(350);
   const popupSettings = await loadExtensionSettings(serviceWorker);
   if (
     popupSettings.mode !== "anchor" ||
     popupSettings.anchorNote !== "Protect the next hour." ||
     popupSettings.anchorNotes?.[0] !== "Protect the next hour." ||
-    popupSettings.visualPresence !== 4
+    popupSettings.visualPresence !== 0
   ) {
     throw new Error(
       `Popup did not persist controls: ${JSON.stringify(popupSettings)}`
@@ -731,13 +702,15 @@ try {
       anchorNotes: Array.from(
         document.querySelectorAll(".anchor-message-input")
       ).map((input) => input.value),
-      visualPresence: document.querySelector("#visualPresence")?.value
+      visualPresence: document.querySelector(
+        "input[name='visualPresence']:checked"
+      )?.value
     };
   });
   if (
     renderedOptions.mode !== "anchor" ||
     renderedOptions.anchorNotes[0] !== "Protect the next hour." ||
-    renderedOptions.visualPresence !== "4"
+    renderedOptions.visualPresence !== "0"
   ) {
     throw new Error(
       `Options did not render saved controls: ${JSON.stringify(renderedOptions)}`

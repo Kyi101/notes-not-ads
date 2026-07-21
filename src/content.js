@@ -3110,6 +3110,10 @@
       slot.classList.add("attention-redirector-slot--short");
     }
 
+    if (rect.height >= 320 && rect.height > rect.width * 1.8) {
+      slot.classList.add("attention-redirector-slot--tall");
+    }
+
     renderReplacementSlot(slot);
     return true;
   }
@@ -3148,18 +3152,22 @@
       isOverlaySlot ||
       slot.dataset.attentionRedirectorCollapse === "oversized-cosmetic";
 
-    if (
-      !isPageAllowed(state.settings) ||
-      shouldCollapseSlot ||
-      !shouldVisualizeSurface(surfaceKey)
-    ) {
+    const pageAllowed = isPageAllowed(state.settings);
+    const visualizeSurface = shouldVisualizeSurface(surfaceKey);
+    if (!pageAllowed || shouldCollapseSlot || !visualizeSurface) {
       if (existingGuard) {
         existingGuard.disconnect();
         state.replacementGuards.delete(slot);
       }
       slot.dataset.attentionRedirectorPresentation = "clean";
       removeReplacementCards(slot);
-      hideReplacementSlot(slot, { collapse: shouldCollapseSlot });
+      // Collapse the slot out of flow — so the page reflows like an ad blocker —
+      // when the user has actively cleaned this surface (Clean, or the hidden
+      // share at partial presence) or it is an overlay/oversized cosmetic. When
+      // the extension or site is simply turned off we only hide, so a refresh
+      // restores the original layout without us having removed boxes first.
+      const collapse = shouldCollapseSlot || (pageAllowed && !visualizeSurface);
+      hideReplacementSlot(slot, { collapse });
       return;
     }
 
@@ -3359,6 +3367,21 @@
 
     if (rect.width < 260 || rect.height < 110) {
       card.classList.add("attention-redirector-card--compact");
+    }
+
+    // Default-tier cards size padding/text from the slot's own box rather than
+    // the viewport, so short/wide ad slots don't crop oversized text. Tall narrow
+    // slots (skyscrapers) size text from width so it doesn't overflow sideways.
+    const w = rect.width || 0;
+    const h = rect.height || 0;
+    if (w && h) {
+      const isTall = h >= 320 && h > w * 1.8;
+      const pad = Math.round(Math.min(Math.max(Math.min(w, h) * 0.1, 10), 48));
+      const font = isTall
+        ? Math.round(Math.min(Math.max(w * 0.13, 18), 30))
+        : Math.round(Math.min(Math.max(h * 0.22, 18), 44));
+      card.style.setProperty("--ar-card-pad", `${pad}px`);
+      card.style.setProperty("--ar-card-font", `${font}px`);
     }
 
     const hideButton = document.createElement("button");

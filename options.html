@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Attention Redirector Options</title>
+    <link rel="stylesheet" href="fonts/fonts.css">
     <link rel="stylesheet" href="options.css">
   </head>
   <body>
@@ -17,18 +18,15 @@
             Saved changes apply to open pages immediately.
           </p>
         </div>
-        <div class="tide-mark" aria-hidden="true">
-          <span></span>
+        <div class="tide-specimen" aria-hidden="true">
+          <p>Finish what deserves your attention.</p>
         </div>
       </header>
 
       <form id="optionsForm">
         <section class="settings-section">
           <div class="section-heading">
-            <div>
-              <p class="section-number">01</p>
-              <h2>Default behavior</h2>
-            </div>
+            <h2>Default behavior</h2>
             <p>These defaults apply everywhere except disabled sites.</p>
           </div>
 
@@ -80,33 +78,36 @@
 
         <section class="settings-section">
           <div class="section-heading">
-            <div>
-              <p class="section-number">02</p>
-              <h2>Visual presence</h2>
-            </div>
+            <h2>Visual presence</h2>
             <p>Choose how much detected ad surface becomes Tide.</p>
           </div>
 
-          <div class="presence-control">
-            <div class="presence-readout">
-              <span id="presenceValue">Full Ambient</span>
-              <strong id="presenceNumber">10</strong>
-            </div>
-            <input
-              id="visualPresence"
-              type="range"
-              min="0"
-              max="10"
-              step="1"
-              aria-describedby="presenceDescription"
-            >
-            <div class="range-labels" aria-hidden="true">
-              <span>0 · Clean</span>
-              <span>10 · Full Ambient</span>
-            </div>
-            <p id="presenceDescription" class="control-note">
-              All detected surfaces become Tide.
-            </p>
+          <div
+            class="mode-grid presence-grid"
+            role="radiogroup"
+            aria-label="Visual presence"
+          >
+            <label class="mode-option">
+              <input type="radio" name="visualPresence" value="0">
+              <span>
+                <strong>Clean</strong>
+                <small>Detected surfaces are removed; the page reflows.</small>
+              </span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="visualPresence" value="5">
+              <span>
+                <strong>Balanced</strong>
+                <small>About half become Tide; the rest are removed.</small>
+              </span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="visualPresence" value="10">
+              <span>
+                <strong>Full Ambient</strong>
+                <small>Every detected surface becomes Tide.</small>
+              </span>
+            </label>
           </div>
 
           <label class="field-label" for="reducedMotion">
@@ -114,6 +115,18 @@
             <select id="reducedMotion">
               <option value="system">Follow system preference</option>
               <option value="still">Always still</option>
+            </select>
+          </label>
+
+          <label class="field-label" for="themePreference">
+            <span class="field-header">
+              Appearance
+              <small>Theme for this extension's popup and settings.</small>
+            </span>
+            <select id="themePreference">
+              <option value="system">Follow system theme</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
             </select>
           </label>
 
@@ -129,10 +142,7 @@
 
         <section class="settings-section">
           <div class="section-heading">
-            <div>
-              <p class="section-number">03</p>
-              <h2>Disabled sites</h2>
-            </div>
+            <h2>Disabled sites</h2>
             <p>One domain per line. Subdomains are included automatically.</p>
           </div>
 

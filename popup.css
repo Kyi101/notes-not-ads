@@ -1,27 +1,121 @@
 :root {
   color-scheme: light;
-  --ink: #1d2823;
-  --muted: #69736d;
-  --paper: #f6f4ee;
-  --panel: #fffdf8;
-  --line: #d8d7ce;
-  --sage-a: #d9e4d8;
-  --sage-b: #adc2ae;
-  --sage-c: #496555;
-  --accent: #315f4e;
-  --accent-dark: #24493c;
+  /* Shallows — the daylight Tide card, mirror of the in-page replacement */
+  --page-base: #c7d6c7;
+  --grad:
+    radial-gradient(70% 40% at 22% 0%, rgba(255, 255, 255, 0.55), transparent 75%),
+    radial-gradient(60% 34% at 90% 100%, rgba(63, 102, 83, 0.18), transparent 70%),
+    linear-gradient(160deg, #dde7dc, #b7cab8);
+  --drift: radial-gradient(44% 36% at 26% 12%, rgba(255, 255, 255, 0.55), transparent 72%);
+  --drift-opacity: 0.6;
+  --heading: #183027;
+  --text: #183027;
+  --muted: #3c5548;
+  --hairline: rgba(24, 48, 39, 0.18);
+  --hairline-strong: rgba(24, 48, 39, 0.34);
+  --knob: #3c5548;
+  --knob-on: #f3f7f1;
+  --fill: #183027;
+  --on-fill: #f3f7f1;
+  --track: rgba(243, 247, 241, 0.4);
+  --sea: #3f6653;
+  --focus: rgba(24, 48, 39, 0.5);
+}
+
+/* Deep Water — the dark side of the same Tide palette. Applied when the OS is
+   dark (unless the user forced light in Options), and duplicated for an explicit
+   dark override. Keep the two token blocks in sync. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page-base: #0c1a15;
+    --grad: linear-gradient(180deg, #1c332a 0%, #132620 34%, #0c1a15 100%);
+    --drift:
+      radial-gradient(42% 34% at 28% 18%, rgba(173, 194, 174, 0.34), transparent 70%),
+      radial-gradient(36% 30% at 78% 8%, rgba(217, 228, 216, 0.16), transparent 70%),
+      radial-gradient(30% 26% at 82% 86%, rgba(214, 120, 74, 0.1), transparent 70%);
+    --drift-opacity: 1;
+    --heading: #eef3ec;
+    --text: #cfdccf;
+    --muted: #8fa697;
+    --hairline: rgba(207, 220, 207, 0.16);
+    --hairline-strong: rgba(207, 220, 207, 0.3);
+    --knob: #8fa697;
+    --knob-on: #eef3ec;
+    --fill: #eef3ec;
+    --on-fill: #0c1a15;
+    --track: rgba(12, 26, 21, 0.4);
+    --focus: rgba(238, 243, 236, 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page-base: #0c1a15;
+  --grad: linear-gradient(180deg, #1c332a 0%, #132620 34%, #0c1a15 100%);
+  --drift:
+    radial-gradient(42% 34% at 28% 18%, rgba(173, 194, 174, 0.34), transparent 70%),
+    radial-gradient(36% 30% at 78% 8%, rgba(217, 228, 216, 0.16), transparent 70%),
+    radial-gradient(30% 26% at 82% 86%, rgba(214, 120, 74, 0.1), transparent 70%);
+  --drift-opacity: 1;
+  --heading: #eef3ec;
+  --text: #cfdccf;
+  --muted: #8fa697;
+  --hairline: rgba(207, 220, 207, 0.16);
+  --hairline-strong: rgba(207, 220, 207, 0.3);
+  --knob: #8fa697;
+  --knob-on: #eef3ec;
+  --fill: #eef3ec;
+  --on-fill: #0c1a15;
+  --track: rgba(12, 26, 21, 0.4);
+  --focus: rgba(238, 243, 236, 0.55);
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  background: var(--page-base);
+}
+
 body {
+  position: relative;
   width: 368px;
   margin: 0;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+  overflow-x: hidden;
+  background: var(--grad);
+  color: var(--text);
+  font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+/* Light moving through water: one slow transform-only layer */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -45% -35%;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--drift);
+  opacity: var(--drift-opacity);
+  filter: blur(34px);
+  animation: tide-drift 45s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes tide-drift {
+  from {
+    transform: translate3d(-3%, -2%, 0) rotate(-2deg) scale(1);
+  }
+  to {
+    transform: translate3d(3%, 3%, 0) rotate(2deg) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
 }
 
 button,
@@ -30,7 +124,9 @@ input {
 }
 
 .popup-shell {
-  padding: 18px;
+  position: relative;
+  z-index: 1;
+  padding: 0 20px 14px;
 }
 
 .popup-header {
@@ -38,73 +134,27 @@ input {
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  padding: 22px 0 20px;
   margin-bottom: 14px;
+  border-bottom: 1px solid var(--hairline-strong);
 }
 
 .kicker {
-  margin: 0 0 4px;
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
 h1 {
   margin: 0;
-  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  font-size: 23px;
+  color: var(--heading);
+  font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.05;
-}
-
-.tide-preview {
-  position: relative;
-  height: 72px;
-  margin-bottom: 12px;
-  overflow: hidden;
-  border-radius: 12px;
-  background: linear-gradient(145deg, var(--sage-a), var(--sage-b));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
-}
-
-.tide-preview::before,
-.tide-preview::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.tide-preview::before {
-  inset: -90% -20%;
-  border-radius: 44%;
-  background:
-    linear-gradient(
-      115deg,
-      rgba(255, 255, 255, 0.3),
-      rgba(217, 228, 216, 0.08) 42%,
-      rgba(73, 101, 85, 0.2) 72%,
-      rgba(255, 255, 255, 0.18)
-    );
-  filter: blur(16px);
-  transform: rotate(-5deg);
-}
-
-.tide-preview::after {
-  right: -10%;
-  bottom: -110%;
-  width: 56%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: rgba(217, 104, 58, 0.14);
-  filter: blur(24px);
-}
-
-.site-row,
-.control-section {
-  border: 1px solid var(--line);
-  background: var(--panel);
+  letter-spacing: -0.02em;
+  line-height: 1.08;
 }
 
 .site-row {
@@ -112,8 +162,8 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 11px 12px;
-  border-radius: 9px;
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .site-row strong,
@@ -122,8 +172,10 @@ h1 {
 }
 
 .site-row strong {
-  margin-bottom: 1px;
+  margin-bottom: 2px;
+  color: var(--text);
   font-size: 12px;
+  font-weight: 600;
 }
 
 .site-row small {
@@ -142,10 +194,11 @@ input[role="switch"] {
   height: 24px;
   margin: 0;
   appearance: none;
-  border: 1px solid #c8cec9;
+  border: 1px solid var(--hairline-strong);
   border-radius: 999px;
-  background: #e5e8e4;
+  background: transparent;
   cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
 }
 
 input[role="switch"]::after {
@@ -153,33 +206,32 @@ input[role="switch"]::after {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(29, 40, 35, 0.22);
-  transition: transform 120ms ease;
+  background: var(--knob);
+  transition: transform 140ms ease, background 140ms ease;
 }
 
 input[role="switch"]:checked {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--sea);
+  background: var(--sea);
 }
 
 input[role="switch"]:checked::after {
+  background: var(--knob-on);
   transform: translateX(18px);
 }
 
 input:disabled,
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .control-section {
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 9px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .section-label {
@@ -187,16 +239,21 @@ button:disabled {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 9px;
-  font-size: 11px;
-  font-weight: 780;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .section-label small,
 .section-label output {
-  color: var(--muted);
+  color: var(--text);
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .segmented {
@@ -204,32 +261,43 @@ button:disabled {
   grid-template-columns: 1fr 1fr;
   gap: 3px;
   padding: 3px;
+  border: 1px solid var(--hairline);
   border-radius: 999px;
-  background: #e9ebe6;
+  background: var(--track);
 }
 
 .segmented button {
-  height: 32px;
+  height: 30px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 600;
+  transition: background 140ms ease, color 140ms ease;
 }
 
 .segmented button[aria-pressed="true"] {
-  background: #202823;
-  color: #fbfaf5;
-  box-shadow: 0 2px 7px rgba(29, 40, 35, 0.16);
+  background: var(--fill);
+  color: var(--on-fill);
+}
+
+.segmented--three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.segmented--three button {
+  font-size: 10px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .anchor-field {
   display: grid;
-  gap: 5px;
-  margin-top: 10px;
-  transition: opacity 120ms ease;
+  gap: 6px;
+  margin-top: 14px;
+  transition: opacity 140ms ease;
 }
 
 .anchor-field[data-active="false"] {
@@ -243,68 +311,74 @@ button:disabled {
   gap: 8px;
 }
 
-.anchor-field label,
-.anchor-field small {
-  color: var(--muted);
-}
-
 .anchor-field label {
+  color: var(--muted);
   font-size: 9px;
-  font-weight: 760;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .anchor-field small {
+  color: var(--muted);
   font-size: 10px;
   line-height: 1.25;
 }
 
 .anchor-notes {
   display: grid;
-  gap: 5px;
+  gap: 2px;
 }
 
 .anchor-field input {
   width: 100%;
-  height: 36px;
-  padding: 0 10px;
-  border: 1px solid #ccd2cc;
-  border-radius: 7px;
-  background: #fff;
-  color: var(--ink);
-  font-size: 12px;
+  height: 38px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  background: transparent;
+  color: var(--heading);
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color 140ms ease;
+}
+
+.anchor-field input::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.anchor-field input:focus {
+  border-bottom-color: var(--heading);
+  outline: none;
 }
 
 .anchor-field__add {
-  min-width: 28px;
-  min-height: 28px;
+  min-width: 26px;
+  min-height: 26px;
   padding: 0;
-  border: 1px solid var(--line);
+  border: 1px solid var(--hairline-strong);
   border-radius: 999px;
-  background: #fff;
-  color: var(--accent-dark);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
   line-height: 1;
 }
 
-.presence-section input[type="range"] {
-  width: 100%;
-  accent-color: var(--accent);
-}
-
-.range-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2px;
+.presence-note {
+  margin: 10px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .primary-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
 button {
@@ -312,50 +386,50 @@ button {
   border-radius: 8px;
   cursor: pointer;
   font-size: 12px;
-  font-weight: 740;
+  font-weight: 600;
 }
 
 .primary-button {
-  border: 1px solid var(--accent-dark);
-  background: var(--accent);
-  color: #fff;
+  border: 1px solid var(--fill);
+  background: var(--fill);
+  color: var(--on-fill);
 }
 
 .secondary-button {
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
+  background: transparent;
+  color: var(--text);
 }
 
 .advanced {
-  margin-top: 10px;
+  margin-top: 12px;
   color: var(--muted);
   font-size: 11px;
 }
 
 .advanced summary {
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .advanced-actions {
   display: grid;
   gap: 7px;
-  margin-top: 7px;
+  margin-top: 8px;
 }
 
 .text-button {
   width: 100%;
-  border: 1px dashed #c6ccc6;
+  border: 1px solid var(--hairline);
   background: transparent;
-  color: var(--ink);
+  color: var(--muted);
 }
 
 .status-text {
   min-height: 28px;
-  margin: 10px 0 0;
-  padding-top: 9px;
-  border-top: 1px solid var(--line);
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
   color: var(--muted);
   font-size: 10px;
   line-height: 1.35;
@@ -364,6 +438,6 @@ button {
 button:focus-visible,
 input:focus-visible,
 summary:focus-visible {
-  outline: 2px solid rgba(49, 95, 78, 0.34);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }

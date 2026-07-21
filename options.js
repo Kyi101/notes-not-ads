@@ -9,8 +9,18 @@ const DEFAULT_SETTINGS = {
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
   visualPresence: 10,
   reducedMotion: "system",
+  themePreference: "system",
   disabledDomains: []
 };
+
+const THEME_PREFERENCES = ["system", "light", "dark"];
+
+function presenceRadioValue(value) {
+  const n = Number(value);
+  if (n <= 0) return 0;
+  if (n >= 10) return 10;
+  return 5;
+}
 
 const form = document.getElementById("optionsForm");
 const enabledInput = document.getElementById("enabled");
@@ -18,11 +28,8 @@ const anchorField = document.getElementById("anchorField");
 const anchorMessagesContainer = document.getElementById("anchorMessages");
 const addAnchorMessageButton = document.getElementById("addAnchorMessage");
 const anchorCount = document.getElementById("anchorCount");
-const visualPresenceInput = document.getElementById("visualPresence");
-const presenceValue = document.getElementById("presenceValue");
-const presenceNumber = document.getElementById("presenceNumber");
-const presenceDescription = document.getElementById("presenceDescription");
 const reducedMotionInput = document.getElementById("reducedMotion");
+const themePreferenceInput = document.getElementById("themePreference");
 const disabledDomainsInput = document.getElementById("disabledDomains");
 const resetButton = document.getElementById("resetButton");
 const saveStatus = document.getElementById("saveStatus");
@@ -47,6 +54,10 @@ function bindEvents() {
     renderConditionalControls();
   });
 
+  themePreferenceInput.addEventListener("change", () => {
+    applyTheme(themePreferenceInput.value);
+  });
+
   addAnchorMessageButton.addEventListener("click", () => {
     const messages = readAnchorMessageInputs({ includeEmpty: true });
     if (messages.length >= MAX_ANCHOR_NOTES) {
@@ -55,8 +66,6 @@ function bindEvents() {
     renderAnchorMessages([...messages, ""], { focusIndex: messages.length });
     renderConditionalControls();
   });
-
-  visualPresenceInput.addEventListener("input", renderPresence);
 
   resetButton.addEventListener("click", async () => {
     await saveSettings(DEFAULT_SETTINGS);
@@ -75,11 +84,23 @@ function renderSettings(value) {
     modeInput.checked = true;
   }
   renderAnchorMessages(settings.anchorNotes);
-  visualPresenceInput.value = String(settings.visualPresence);
+  const presenceInput = form.querySelector(
+    `input[name="visualPresence"][value="${presenceRadioValue(settings.visualPresence)}"]`
+  );
+  if (presenceInput) {
+    presenceInput.checked = true;
+  }
   reducedMotionInput.value = settings.reducedMotion;
+  themePreferenceInput.value = settings.themePreference;
+  applyTheme(settings.themePreference);
   disabledDomainsInput.value = settings.disabledDomains.join("\n");
   renderConditionalControls();
-  renderPresence();
+}
+
+function applyTheme(preference) {
+  document.documentElement.dataset.theme = THEME_PREFERENCES.includes(preference)
+    ? preference
+    : "system";
 }
 
 function renderConditionalControls() {
@@ -168,33 +189,6 @@ function updateAnchorMessageControls(anchorActive) {
     });
 }
 
-function renderPresence() {
-  const value = Number(visualPresenceInput.value);
-  presenceNumber.textContent = String(value);
-  visualPresenceInput.style.setProperty(
-    "--range-progress",
-    `${value * 10}%`
-  );
-
-  if (value === 0) {
-    presenceValue.textContent = "Clean";
-    presenceDescription.textContent =
-      "All detected surfaces are hidden and collapsed.";
-    return;
-  }
-
-  if (value === 10) {
-    presenceValue.textContent = "Full Ambient";
-    presenceDescription.textContent =
-      "All detected surfaces become Tide.";
-    return;
-  }
-
-  presenceValue.textContent = `${value} / 10`;
-  presenceDescription.textContent =
-    `${value * 10}% of detected surfaces become Tide; the rest are hidden.`;
-}
-
 function readSettingsFromForm() {
   const anchorNotes = normalizeAnchorNotes(readAnchorMessageInputs());
   return mergeSettings({
@@ -204,8 +198,12 @@ function readSettingsFromForm() {
       DEFAULT_SETTINGS.mode,
     anchorNote: anchorNotes[0],
     anchorNotes,
-    visualPresence: Number(visualPresenceInput.value),
+    visualPresence: Number(
+      form.querySelector("input[name='visualPresence']:checked")?.value ??
+        DEFAULT_SETTINGS.visualPresence
+    ),
     reducedMotion: reducedMotionInput.value,
+    themePreference: themePreferenceInput.value,
     disabledDomains: splitLines(disabledDomainsInput.value).map(normalizeDomain)
   });
 }
@@ -308,6 +306,9 @@ function mergeSettings(value) {
       ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
       : legacyPresence,
     reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
+    themePreference: ["system", "light", "dark"].includes(stored.themePreference)
+      ? stored.themePreference
+      : "system",
     disabledDomains: Array.isArray(stored.disabledDomains)
       ? Array.from(new Set(stored.disabledDomains.map(normalizeDomain))).filter(Boolean)
       : []

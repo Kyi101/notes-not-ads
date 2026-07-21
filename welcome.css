@@ -1,0 +1,484 @@
+:root {
+  color-scheme: light;
+  /* Shallows — the daylight Tide palette, shared with popup + in-page card */
+  --page-base: #c7d6c7;
+  --grad:
+    radial-gradient(60% 40% at 18% 0%, rgba(255, 255, 255, 0.6), transparent 72%),
+    radial-gradient(58% 40% at 92% 100%, rgba(63, 102, 83, 0.2), transparent 72%),
+    linear-gradient(158deg, #dde7dc, #b7cab8);
+  --drift:
+    radial-gradient(40% 34% at 24% 14%, rgba(255, 255, 255, 0.55), transparent 72%),
+    radial-gradient(34% 30% at 82% 78%, rgba(214, 120, 74, 0.12), transparent 72%);
+  --drift-opacity: 0.6;
+  --heading: #183027;
+  --text: #234034;
+  --muted: #46614f;
+  --hairline: rgba(24, 48, 39, 0.16);
+  --hairline-strong: rgba(24, 48, 39, 0.32);
+  --panel: rgba(255, 255, 255, 0.4);
+  --panel-border: rgba(24, 48, 39, 0.12);
+  --fill: #183027;
+  --on-fill: #f3f7f1;
+  --sea: #3f6653;
+  --focus: rgba(24, 48, 39, 0.5);
+}
+
+/* Deep Water — the dark side of the same palette. System-dark by default
+   (unless Options forced light), plus an explicit override. Keep in sync. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page-base: #0c1a15;
+    --grad:
+      radial-gradient(58% 30% at 16% 0%, rgba(63, 102, 83, 0.4), transparent 70%),
+      linear-gradient(180deg, #1c332a 0%, #122420 40%, #0c1a15 100%);
+    --drift:
+      radial-gradient(42% 34% at 26% 16%, rgba(173, 194, 174, 0.32), transparent 70%),
+      radial-gradient(34% 28% at 84% 82%, rgba(214, 120, 74, 0.14), transparent 70%);
+    --drift-opacity: 1;
+    --heading: #eef3ec;
+    --text: #cfdccf;
+    --muted: #8fa697;
+    --hairline: rgba(207, 220, 207, 0.16);
+    --hairline-strong: rgba(207, 220, 207, 0.3);
+    --panel: rgba(238, 243, 236, 0.05);
+    --panel-border: rgba(207, 220, 207, 0.16);
+    --fill: #eef3ec;
+    --on-fill: #0c1a15;
+    --sea: #6f9682;
+    --focus: rgba(238, 243, 236, 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page-base: #0c1a15;
+  --grad:
+    radial-gradient(58% 30% at 16% 0%, rgba(63, 102, 83, 0.4), transparent 70%),
+    linear-gradient(180deg, #1c332a 0%, #122420 40%, #0c1a15 100%);
+  --drift:
+    radial-gradient(42% 34% at 26% 16%, rgba(173, 194, 174, 0.32), transparent 70%),
+    radial-gradient(34% 28% at 84% 82%, rgba(214, 120, 74, 0.14), transparent 70%);
+  --drift-opacity: 1;
+  --heading: #eef3ec;
+  --text: #cfdccf;
+  --muted: #8fa697;
+  --hairline: rgba(207, 220, 207, 0.16);
+  --hairline-strong: rgba(207, 220, 207, 0.3);
+  --panel: rgba(238, 243, 236, 0.05);
+  --panel-border: rgba(207, 220, 207, 0.16);
+  --fill: #eef3ec;
+  --on-fill: #0c1a15;
+  --sea: #6f9682;
+  --focus: rgba(238, 243, 236, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--page-base);
+}
+
+body {
+  position: relative;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background: var(--grad);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Light moving through water: one slow transform-only layer */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -40% -30%;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--drift);
+  opacity: var(--drift-opacity);
+  filter: blur(46px);
+  animation: tide-drift 48s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes tide-drift {
+  from { transform: translate3d(-3%, -2%, 0) rotate(-2deg) scale(1); }
+  to { transform: translate3d(3%, 3%, 0) rotate(2deg) scale(1.07); }
+}
+
+button {
+  font: inherit;
+}
+
+.welcome-shell {
+  position: relative;
+  z-index: 1;
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: 40px 28px 88px;
+}
+
+.welcome-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: clamp(48px, 9vh, 96px);
+}
+
+.brand-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, #d9e4d8, #3f6653 78%);
+  box-shadow: 0 0 0 4px rgba(63, 102, 83, 0.14);
+}
+
+.brand-name {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.kicker {
+  margin: 0 0 18px;
+  color: var(--sea);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.hero {
+  max-width: 720px;
+  animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.hero h1 {
+  margin: 0 0 22px;
+  color: var(--heading);
+  font-size: clamp(44px, 8vw, 82px);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.lede {
+  max-width: 54ch;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(17px, 1.6vw, 21px);
+  line-height: 1.5;
+}
+
+.demo {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: clamp(14px, 3vw, 40px);
+  margin: clamp(52px, 9vh, 104px) 0;
+  animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: 120ms;
+}
+
+.demo-panel {
+  margin: 0;
+}
+
+.demo-panel figcaption {
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.demo-arrow {
+  color: var(--muted);
+  font-size: 28px;
+  line-height: 1;
+}
+
+/* The "before": a loud ad, deliberately static and airless. */
+.clutter-ad {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  aspect-ratio: 6 / 5;
+  padding: 20px;
+  border-radius: 16px;
+  background:
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.06) 0 10px, transparent 10px 20px),
+    linear-gradient(135deg, #ff2d78 0%, #ff8a3d 100%);
+  color: #fff;
+  text-align: center;
+  overflow: hidden;
+  box-shadow: 0 12px 30px rgba(207, 45, 96, 0.28);
+}
+
+.clutter-ad__close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 15px;
+  opacity: 0.8;
+}
+
+.clutter-ad__flash {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ffe14d;
+  color: #b4231f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  animation: blink 900ms steps(1) infinite;
+}
+
+.clutter-ad__shout {
+  font-size: clamp(26px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.clutter-ad__cta {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@keyframes blink {
+  50% { opacity: 0.25; }
+}
+
+/* The "after": the real in-page Tide card, alive and calm. */
+.tide-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 6 / 5;
+  padding: 26px;
+  border-radius: 16px;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(145deg, #d9e4d8, #adc2ae);
+  color: #183027;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 14px 36px rgba(73, 101, 85, 0.22);
+}
+
+.tide-card::before {
+  content: "";
+  position: absolute;
+  inset: -55% -20%;
+  z-index: 0;
+  border-radius: 44%;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.26) 0%,
+    rgba(217, 228, 216, 0.08) 42%,
+    rgba(73, 101, 85, 0.22) 72%,
+    rgba(255, 255, 255, 0.2) 100%
+  );
+  animation: tide-swell 30s ease-in-out infinite alternate;
+}
+
+.tide-card::after {
+  content: "";
+  position: absolute;
+  right: -18%;
+  bottom: -52%;
+  z-index: 0;
+  width: 66%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(217, 104, 58, 0.2) 0%,
+    rgba(217, 104, 58, 0.12) 42%,
+    rgba(217, 104, 58, 0) 72%
+  );
+  animation: tide-orb 26s ease-in-out infinite alternate;
+}
+
+.tide-card__body {
+  position: relative;
+  z-index: 1;
+  max-width: 15ch;
+  font-size: clamp(19px, 2.4vw, 26px);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  text-align: center;
+}
+
+@keyframes tide-swell {
+  from { transform: translate3d(-4%, -2%, 0) rotate(-6deg); }
+  to { transform: translate3d(4%, 3%, 0) rotate(6deg); }
+}
+
+@keyframes tide-orb {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-8%, -6%, 0) scale(1.12); }
+}
+
+.points {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: clamp(40px, 7vh, 80px) 0;
+}
+
+.point {
+  padding: 22px 22px 26px;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: var(--panel);
+  backdrop-filter: blur(6px);
+}
+
+.point__mark {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--sea);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.point__lead {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.start {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: center;
+  gap: clamp(18px, 4vw, 44px);
+  padding-top: clamp(28px, 5vh, 52px);
+  border-top: 1px solid var(--hairline);
+}
+
+.start-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.primary-button {
+  align-self: flex-start;
+  padding: 15px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--on-fill);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 140ms ease, opacity 140ms ease;
+}
+
+.primary-button:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.start-hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pin-tip {
+  padding: 18px 20px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.pin-tip strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pin-tip p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pin-tip em {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.glyph {
+  font-style: normal;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 720px) {
+  .demo {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .demo-panel {
+    width: min(320px, 100%);
+  }
+
+  .demo-arrow {
+    transform: rotate(90deg);
+  }
+
+  .points {
+    grid-template-columns: 1fr;
+  }
+
+  .start {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  .hero,
+  .demo,
+  .clutter-ad__flash,
+  .tide-card::before,
+  .tide-card::after {
+    animation: none;
+  }
+}

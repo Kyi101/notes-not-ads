@@ -44,7 +44,7 @@
   width: 100% !important;
   min-height: inherit !important;
   height: 100% !important;
-  padding: clamp(22px, 6vw, 64px) !important;
+  padding: var(--ar-card-pad, clamp(22px, 6vw, 64px)) !important;
   overflow: hidden !important;
   border: 0 !important;
   border-radius: 16px !important;
@@ -142,7 +142,7 @@
   margin: 0 !important;
   color: var(--ar-ink) !important;
   font: inherit !important;
-  font-size: clamp(22px, 3.7vw, 46px) !important;
+  font-size: var(--ar-card-font, clamp(22px, 3.7vw, 46px)) !important;
   font-weight: 500 !important;
   letter-spacing: -0.035em !important;
   line-height: 1.08 !important;
@@ -181,6 +181,21 @@
 .attention-redirector-slot--narrow .attention-redirector-card__body {
   width: 100% !important;
   font-size: 20px !important;
+}
+
+/* Tall skyscrapers: text centered in the full column, width-driven size, and
+   more lines allowed so the message settles in the middle instead of the top. */
+.attention-redirector-slot--tall .attention-redirector-card {
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.attention-redirector-slot--tall .attention-redirector-card__body {
+  width: 100% !important;
+  font-size: var(--ar-card-font, 22px) !important;
+  line-height: 1.14 !important;
+  -webkit-line-clamp: 8 !important;
 }
 
 .attention-redirector-inspector,

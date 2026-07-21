@@ -1056,3 +1056,44 @@ lists from the code.
   docs) and review README/docs framing for a public audience.
 - A private remote backup should exist before any further multi-day work
   accumulates; the repo had no remote as of this decision.
+
+## 2026-07-18 - Named Presence Modes; Slot-Collapse Removal; First-Run Page
+
+**Decision**: Three UI/brand decisions during the Lane B pass.
+
+1. Replace the 0–10 "visual presence" slider with three named modes —
+   **Clean / Balanced / Full Ambient** — mapping to the existing stored
+   `visualPresence` values 0 / 5 / 10. No data-model change: the probabilistic
+   `hashString(surfaceKey) % 10 < presence` logic is untouched; only the UI and
+   the written value snap to those three points.
+2. On the Clean end (and the removed share of partial presence), collapse
+   in-flow slots **out of flow** (`display:none`, zero box) so the page reflows
+   like an ad blocker, instead of `visibility:hidden` which left an empty gap.
+   Overlay/takeover and oversized-cosmetic slots already collapsed; this extends
+   the same treatment to actively-cleaned in-flow slots. When the extension or a
+   site is simply turned off we still only hide, so a refresh restores the
+   original layout.
+3. Add a first-run onboarding page (`welcome.html`) opened by the service worker
+   on `onInstalled` reason `install`, rather than a multi-step setup wizard.
+
+**Why**: Eleven slider steps asked the user to reason about a fraction they
+can't predict; named modes state the three real intents plainly (Jobs-minimal
+house preference: one smart default + a few buttons, no exposed config).
+Slot-collapse closes the most common "empty space where the ad was" complaint
+without a filter-list treadmill. Onboarding leads with feel (a themed Tide field
++ a before→after transformation demo) instead of a configuration gate, matching
+the "lead creative work with feel, not process" preference.
+
+**Consequences**:
+- `visualPresence` stays the storage key and the engine contract; any legacy
+  non-{0,5,10} value renders as the nearest mode and rewrites to 0/5/10 on save.
+- **Balanced** is the only mixed-output mode (some slots Tide, some removed on
+  the same page); if it reads as inconsistent in dogfood, drop to Clean /
+  Full Ambient only.
+- Reserved-height ancestor wrappers still leave a gap after slot-collapse — the
+  remaining uBlock-parity case. Deferred until after release; the choice there
+  is a bounded reversible ancestor-collapse heuristic (moderate risk of
+  over-collapsing real layout) vs. curated per-site cosmetic filter lists (large
+  ongoing content-ops effort). Needs live-site dogfood before enabling either.
+- Onboarding is an extension page opened in a tab; no `web_accessible_resources`
+  entry is needed since the extension opens it itself via `getURL`.

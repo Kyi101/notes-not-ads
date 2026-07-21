@@ -211,5 +211,10 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   });
 });
 
-chrome.runtime.onInstalled.addListener(syncFromStorage);
+chrome.runtime.onInstalled.addListener((details) => {
+  syncFromStorage();
+  if (details && details.reason === "install") {
+    chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+  }
+});
 chrome.runtime.onStartup.addListener(syncFromStorage);

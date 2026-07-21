@@ -4,6 +4,38 @@ const CONTENT_STYLE_FILES = ["src/content.css"];
 const DEFAULT_ANCHOR_NOTE = "Finish what deserves your attention.";
 const MAX_ANCHOR_NOTES = 5;
 
+const PRESENCE_MODES = [
+  {
+    id: "clean",
+    value: 0,
+    label: "Clean",
+    description: "Detected surfaces are removed and the page reflows."
+  },
+  {
+    id: "balanced",
+    value: 5,
+    label: "Balanced",
+    description: "About half become Tide; the rest are removed."
+  },
+  {
+    id: "full",
+    value: 10,
+    label: "Full Ambient",
+    description: "Every detected surface becomes Tide."
+  }
+];
+
+function presenceModeFromValue(value) {
+  const n = Number(value);
+  if (n <= 0) return PRESENCE_MODES[0];
+  if (n >= 10) return PRESENCE_MODES[2];
+  return PRESENCE_MODES[1];
+}
+
+function presenceModeById(id) {
+  return PRESENCE_MODES.find((mode) => mode.id === id) || PRESENCE_MODES[2];
+}
+
 const DEFAULT_SETTINGS = {
   enabled: true,
   mode: "quiet",
@@ -11,6 +43,7 @@ const DEFAULT_SETTINGS = {
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
   visualPresence: 10,
   reducedMotion: "system",
+  themePreference: "system",
   disabledDomains: []
 };
 
@@ -21,8 +54,8 @@ const anchorField = document.getElementById("anchorField");
 const anchorNotesContainer = document.getElementById("anchorNotes");
 const addAnchorMessageButton = document.getElementById("addAnchorMessage");
 const anchorCount = document.getElementById("anchorCount");
-const visualPresenceInput = document.getElementById("visualPresence");
-const presenceValue = document.getElementById("presenceValue");
+const presenceModeButtons = document.querySelectorAll("[data-presence]");
+const presenceDescription = document.getElementById("presenceDescription");
 const reportMissedAdButton = document.getElementById("reportMissedAd");
 const replaceNowButton = document.getElementById("replaceNow");
 const inspectClutterButton = document.getElementById("inspectClutter");
@@ -41,6 +74,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   settings = await loadSettings();
+  applyTheme(settings.themePreference);
   activeTab = await getActiveTab();
   activeDomain = getDomainFromTab(activeTab);
   noteDrafts = normalizeAnchorNotes(settings.anchorNotes, settings.anchorNote);
@@ -91,10 +125,13 @@ function bindEvents() {
     renderControls();
   });
 
-  visualPresenceInput.addEventListener("input", () => {
-    settings.visualPresence = Number(visualPresenceInput.value);
-    renderPresence();
-    scheduleSave();
+  presenceModeButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      settings.visualPresence = presenceModeById(button.dataset.presence).value;
+      renderPresence();
+      await saveAndApply();
+      refreshStatus();
+    });
   });
 
   reportMissedAdButton.addEventListener("click", async () => {
@@ -174,7 +211,6 @@ function renderControls() {
   anchorCount.textContent =
     `${noteDrafts.length}/${MAX_ANCHOR_NOTES} local messages`;
   anchorField.dataset.active = String(anchorActive);
-  visualPresenceInput.value = String(settings.visualPresence);
   renderPresence();
 
   replaceNowButton.disabled = !activeDomain;
@@ -227,9 +263,14 @@ function createNoteInput(note, index) {
 }
 
 function renderPresence() {
-  const value = Number(settings.visualPresence);
-  presenceValue.textContent =
-    value === 0 ? "Clean" : value === 10 ? "Full Ambient" : `${value} / 10`;
+  const active = presenceModeFromValue(settings.visualPresence);
+  presenceModeButtons.forEach((button) => {
+    button.setAttribute(
+      "aria-pressed",
+      String(button.dataset.presence === active.id)
+    );
+  });
+  presenceDescription.textContent = active.description;
 }
 
 function scheduleSave() {
@@ -292,12 +333,7 @@ function renderStatusResponse(response) {
 
   const count = Number(response.inserted || 0);
   const modeLabel = settings.mode === "anchor" ? "Anchor" : "Quiet";
-  const presenceLabel =
-    settings.visualPresence === 0
-      ? "Clean"
-      : settings.visualPresence === 10
-        ? "Full Ambient"
-        : `${settings.visualPresence}/10 presence`;
+  const presenceLabel = presenceModeFromValue(settings.visualPresence).label;
   const inspectorText = inspectorActive
     ? inspectorReportMode
       ? " Report flow is open."
@@ -310,6 +346,14 @@ function renderStatusResponse(response) {
 
 function setStatus(message) {
   statusText.textContent = message;
+}
+
+function applyTheme(preference) {
+  document.documentElement.dataset.theme = ["system", "light", "dark"].includes(
+    preference
+  )
+    ? preference
+    : "system";
 }
 
 function loadSettings() {
@@ -358,6 +402,9 @@ function mergeSettings(value) {
       ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
       : legacyPresence,
     reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
+    themePreference: ["system", "light", "dark"].includes(stored.themePreference)
+      ? stored.themePreference
+      : "system",
     disabledDomains: Array.isArray(stored.disabledDomains)
       ? Array.from(new Set(stored.disabledDomains.map(normalizeDomain))).filter(Boolean)
       : []

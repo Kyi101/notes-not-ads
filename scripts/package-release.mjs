@@ -20,6 +20,9 @@ const requiredReleasePaths = [
   "options.html",
   "options.css",
   "options.js",
+  "welcome.html",
+  "welcome.css",
+  "welcome.js",
   "src/background.js",
   "src/content.css",
   "src/content.js",
@@ -29,7 +32,7 @@ const requiredReleasePaths = [
   "rules/rules_1.json",
   "rules/easylist_dnr.json"
 ];
-const optionalReleaseDirs = ["icons", "_locales"];
+const optionalReleaseDirs = ["fonts", "icons", "_locales"];
 const CRC_TABLE = Array.from({ length: 256 }, (_value, index) => {
   let crc = index;
   for (let bit = 0; bit < 8; bit += 1) {
