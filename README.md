@@ -16,18 +16,19 @@ This product overlaps with ad blockers, but its unique value is still the attent
 - Handles common DOM ad patterns such as safeframe/footer ads and Google IMA-style video ad overlays.
 - Starts at `document_end` and reacts to newly inserted slots on a short
   leading-edge schedule to reduce visible ad flash.
-- Replaces matched slots with the Tide Ambient Field or visually hides them.
+- Replaces matched slots with the Tide Ambient Field or collapses them out of layout.
 - Preserves site-owned children inside container slots and renders Tide above
   them, so React/Next-style reconciliation can continue safely.
-- Preserves the original slot height where possible to reduce layout jumps.
+- Preserves the original slot height on Tide cards where possible to reduce layout jumps.
 - Lets each inserted card be hidden.
 - Supports Quiet mode without text and Anchor mode with one user-written intention.
 - Supports global enable/disable, current-site control, disabled domains, and reduced motion.
 - Current-site disable and sensitive-page skips install high-priority DNR `allow` rules for requests initiated by those domains.
-- Provides Visual presence from `0 · Clean` to `10 · Full Ambient`:
-  - `0` hides all detected surfaces while preserving their measured slot geometry.
-  - `1–9` deterministically renders Tide on that share and hides the rest.
-  - `10` renders Tide on every detected surface.
+- Provides three Visual presence modes:
+  - **Clean** removes every detected surface and lets the page reflow.
+  - **Balanced** deterministically renders Tide on about half of them and removes the rest.
+  - **Full Ambient** renders Tide on every detected surface.
+- Opens a welcome page on first install that explains the two modes and links to Options.
 
 ## What It Avoids
 
@@ -38,6 +39,13 @@ The content script skips sensitive or risky contexts:
 - Checkout, cart, billing, payment, login, and password pages
 - Pages with visible password fields
 - Navigation, headers, footers, forms, comments, article bodies, and text editors
+- Portaled dropdowns, menus, and listboxes, which can sit outside their header and inherit ad evidence from a child
+
+A second, narrower tier keeps network blocking but turns off generic DOM
+replacement entirely, because these sites run virtualized app UIs that break
+when their containers are replaced: `linkedin.com`, YouTube, and
+`translate.google.com`. YouTube keeps a dedicated, purpose-built pruning layer
+instead.
 
 The selector strategy is deliberately conservative. Missing some ads is preferable to breaking a page.
 
@@ -79,9 +87,12 @@ This project includes a Playwright smoke test for the extension:
 ```bash
 npm run check
 npm run test:extension
+npm run test:onboarding
 ```
 
 `npm run check` also runs a small parser test for cosmetic rules.
+
+`test:onboarding` uses a fresh browser profile so `onInstalled` fires, then verifies that the welcome page auto-opens, that its CTA opens Options, and that a saved theme preference is applied.
 
 `test:extension` launches Chromium with the unpacked extension, serves `tests/fixtures/ad-clutter.html` from a local server, and verifies DNR blocking, site/global DNR allow behavior, replacement patterns, latency, Tide-only rendering, framework-owned DOM reconciliation, Quiet/Anchor with multiple local messages, Clean, mixed Visual presence, reduced motion, popup/options persistence, settings migration, user-facing missed-ad reporting, and inspector behavior.
 
@@ -259,7 +270,7 @@ The options page lets you:
 - Enable or disable the extension globally.
 - Choose Quiet or Anchor as the default mode.
 - Set up to five local Anchor messages.
-- Set Visual presence from Clean to Full Ambient.
+- Set Visual presence to Clean, Balanced, or Full Ambient.
 - Follow the system reduced-motion preference or keep Tide always still.
 - Add disabled domains.
 - Reset to defaults.

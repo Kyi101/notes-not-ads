@@ -98,18 +98,6 @@
       }
     },
     {
-      "id": "canary-portal-ua",
-      "group": "real",
-      "track": "regression",
-      "category": "video-hostile",
-      "url": "https://canary-portal.example/ua/",
-      "notes": "Full-page cross-origin branding takeover and Ukrainian streaming/preroll canary.",
-      "policy": {
-        "expectedTier": "hostile",
-        "expectedProtocol": "hostile"
-      }
-    },
-    {
       "id": "tmz",
       "group": "real",
       "track": "regression",

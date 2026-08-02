@@ -146,16 +146,6 @@ assertPolicy(
 );
 
 assertPolicy(
-  { url: "https://canary-portal.example/ua/" },
-  {
-    tier: TIERS.HOSTILE,
-    protocol: PROTOCOLS.HOSTILE,
-    confidence: "medium"
-  },
-  "known hostile site"
-);
-
-assertPolicy(
   {
     url: "https://example.com/download",
     pageSignals: { takeoverIframes: 1, popupTabs: 2 }

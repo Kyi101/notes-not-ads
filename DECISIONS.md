@@ -240,7 +240,7 @@
 
 **Decision**: Treat size-constrained iframes with `javascript:` / `document.write(script)` source payloads as ad-slot candidates.
 
-**Why**: Some sites use script-injected iframes for banner-like ad placements. A canary-portal report showed a `600x200` iframe inside article layout with a `javascript:void(...document.write(script)...)` payload, no accessible text, and no standard ad-network URL.
+**Why**: Some sites use script-injected iframes for banner-like ad placements. A streaming-canary report showed a `600x200` iframe inside article layout with a `javascript:void(...document.write(script)...)` payload, no accessible text, and no standard ad-network URL.
 
 **Consequences**:
 - The rule is restricted to iframe sources with script/document-write patterns and banner-like dimensions.
@@ -268,7 +268,7 @@
 `/iframeHS/` iframe as explicit ad takeovers that may bypass the normal large
 element cap.
 
-**Why**: canary-portal used a cross-origin full-page betting skin from
+**Why**: A streaming canary used a cross-origin full-page betting skin from
 `s.schulist.link` behind the site content. The iframe occupied the viewport and
 opened a Beton registration popup on click, but generic identifier-based evals
 reported no suspect because the wrapper and source were obfuscated.
@@ -605,7 +605,7 @@ for a product whose adoption ask is "replace uBlock."
 
 **Decision**: Amend the same-day kill record. The "first real dogfooding
 session" framing was false. Hlib manually tested on real sites continuously
-from early June (ukr.net, uafix, canary-portal, Forbes reports; the 06-13 dogfooding
+from early June (ukr.net, Forbes, and streaming-canary reports; the 06-13 dogfooding
 week), and those reports drove tuning throughout. His corrected assessment:
 blocking was roughly 90% right on most sites, remaining misses were largely
 shared with uBlock, and false positives appeared when detection was pushed
@@ -673,7 +673,7 @@ conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
 - Real-site FP set (nypost house promos ×4, social widget, weather editorial
   cards ×2, nv.ua rights legend, ukr.net mixed rail, dailymail promo banner):
   all gone; dailymail/pravda/yahoo/espn/weather/nv.ua true positives intact.
-- Full battery 25/27 pass (same two pre-existing exceptions: canary-portal policy
+- Full battery 25/27 pass (same two pre-existing exceptions: streaming-canary policy
   mismatch, msn bot-block). Cards 202→123; the drop is dominated by the
   killed FP classes. Controlled testers score via DNR, unaffected.
 - Fixture gained an editorial bait gauntlet (`#fp-*`, `#cite_note-*`) asserted
@@ -684,14 +684,14 @@ conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
 ## 2026-07-04 - Overlay Ads Are Hidden, Never Carded; aria-label Is Safety-Only
 
 **Decision**: Two dogfooding-day-1 rules, from Hlib's first two field reports
-(canary-portal.example full-screen block; his own localhost:4321 tool condemned).
+(streaming-canary full-screen block; his own localhost:4321 tool condemned).
 
 1. **Treatment contract: Tide cards only for in-flow slots.** A detected
    full-page branding takeover (`FULL_PAGE_TAKEOVER_REASON`) or any slot whose
    element is `position: fixed` at marking time takes the clean/hide path
    (`visibility: hidden` + `pointer-events: none`), never an ambient card.
    Rationale: a card inside a fixed overlay or viewport takeover occupies the
-   screen exactly like the ad did — on canary-portal the "replacement" was itself a
+   screen exactly like the ad did — on the streaming canary the "replacement" was itself a
    full-screen block. Cards exist to preserve layout; overlays have no layout
    to preserve. Sticky elements stay carded (they occupy real flow space).
    Implementation note: overlay status must be captured into
@@ -709,7 +709,7 @@ conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
    remain caught by the full-match `hasAdLabel` rung.
 
 **Consequences**:
-- canary-portal.example: takeover still detected (`div#brnd…`, 1270x720) but hidden;
+- Streaming canary: takeover still detected (`div#brnd…`, 1270x720) but hidden;
   page renders normally (before/after: `runs/fp-hunt/2026-07-04T08-19*` vs
   `…14-24-43*`).
 - localhost:4321 (offer-triage): 1→0 replaced slots
@@ -727,7 +727,7 @@ clean path (`display: none`, zero height/padding/margin/border) instead of the
 normal Clean-mode layout-preserving path.
 
 **Why**: The first overlay fix removed the Tide card but reused
-`visibility: hidden` with preserved geometry. On canary-portal, the replaced fixed
+`visibility: hidden` with preserved geometry. On the streaming canary, the replaced fixed
 branding container also received the preserved-children slot class, which
 forces `position: relative !important`; that turned a fixed 1270x720 takeover
 into a hidden in-flow block and pushed the page down. Overlay ads have no
@@ -744,16 +744,17 @@ framework layout thrash.
   display-none/zero-height, while non-overlay Clean slots remain hidden but
   noncollapsed.
 
-## 2026-07-05 - Block canary-portal/Ashdi Pre-Roll Ad Stack With Path-Scoped DNR
+## 2026-07-05 - Block An Embedded-Player Pre-Roll Ad Stack With Path-Scoped DNR
 
-**Decision**: Add hand-curated DNR rules for the canary-portal embedded-player
-pre-roll stack, scoped to observed ad paths rather than whole content hosts:
+**Decision**: Add hand-curated DNR rules for a streaming canary's
+embedded-player pre-roll stack, scoped to observed ad paths rather than whole
+content hosts:
 `franecki.net/assets/vendor/`, `franecki.net/assets/pack/`,
 `franecki.net/js/ma.js`, `franecki.net/content/static/`,
 `reichelcormier.bid/candy/`, `base.ashdi.vip/stats/stats_vast.php`,
 `nogravity4.click`, and `video.unocdn.com/*_fix.mp4`.
 
-**Why**: canary-portal embeds the player through `ashdi.vip/vod/...`. The actual
+**Why**: The canary embeds the player through `ashdi.vip/vod/...`. The actual
 movie HLS stream comes from `ashdi.vip`/`*.ashdi.vip` segment URLs, so broad
 blocking `ashdi.vip` would break playback. The visible pre-roll came from a
 separate ad chain: VAST/vendor XML and scripts on `franecki.net`, identity
@@ -770,7 +771,7 @@ The top-page DOM cannot safely replace this because the ad is inside a
 cross-origin player frame and rendered as a video source.
 
 **Consequences**:
-- canary-portal movie playback remains allowed through `ashdi.vip` HLS manifests and
+- Movie playback remains allowed through `ashdi.vip` HLS manifests and
   segment requests.
 - The observed player frame no longer exposes `Реклама` / `Пропустити`
   pre-roll UI after play.
@@ -1097,3 +1098,73 @@ the "lead creative work with feel, not process" preference.
   ongoing content-ops effort). Needs live-site dogfood before enabling either.
 - Onboarding is an extension page opened in a tab; no `web_accessible_resources`
   entry is needed since the extension opens it itself via `getURL`.
+
+## 2026-08-01 - Bypass Generic DOM Replacement on LinkedIn
+
+**Decision**: Add `linkedin.com` to the runtime's DOM-replacement-disabled
+domain list. Keep static DNR network rules active on LinkedIn; do not add it to
+the sensitive-domain/DNR allow lists.
+
+**Why**: Two authenticated dogfood reports exposed app-UI risk: an occasional
+header-dropdown false positive and a repeatable My Network infinite-scroll
+error that disappeared when the extension was disabled for the site. The DNR
+rules target explicit LinkedIn ad/analytics paths, not normal My Network
+pagination. Generic replacement, however, mutates candidate nodes and guards
+those mutations against framework reconciliation, which is unsafe on a
+virtualized authenticated app surface. A host bypass is more reliable than
+chasing LinkedIn's changing component classes.
+
+**Consequences**:
+- LinkedIn receives DNR-only blocking: no Tide cards, Clean DOM removal,
+  cosmetic replacement, mutation scans, or inspector candidates from the
+  generic engine.
+- The narrow LinkedIn ad/analytics request rules remain active.
+- This deliberately accepts visible first-party promoted modules that DNR
+  cannot remove in exchange for protecting navigation, pagination, messaging,
+  and other app workflows.
+- Browser coverage asserts both initial and late LinkedIn-like ad nodes remain
+  untouched while the DNR probe is still blocked. Authenticated My Network
+  scrolling remains a manual verification because the test profile has no
+  LinkedIn session.
+
+## 2026-08-02 - Remove Named Pirate-Streaming References From Public Artifacts
+
+**Decision**: Resolve the eval-case optics gate the 2026-07-15 un-park decision
+required "before the repo goes public". No pirate-streaming site is named in
+any tracked file; the engineering lessons learned from it are kept in full.
+Specifically:
+
+- `HOSTILE_DOMAINS` in `src/site-policy.js` is now empty. The hostile tier is
+  unchanged and still reached through observed page signals (takeover iframes,
+  popup tabs, redirect traps, fake download buttons).
+- The named live eval case was removed. The default regression + controlled
+  track is now 26 cases (was 27).
+- The named site-policy unit case was removed; hostile-tier coverage is carried
+  by the pre-existing signal-driven case.
+- `docs/site-risk-policy.md`, `STATUS.md`, and `DECISIONS.md` prose now refer to
+  "the streaming canary" instead of the site.
+- The curated ad-chain DNR rules are **kept** (`franecki.net` paths,
+  `reichelcormier.bid/candy/`, `base.ashdi.vip/stats/stats_vast.php`,
+  `nogravity4.click`, `video.unocdn.com/*_fix.mp4`), as is the release-contract
+  assertion that they stay packaged.
+
+**Why**: Hlib's call was that pirate streaming must not be mentioned in public
+references while the lessons are preserved. A blocklist entry is coverage, not
+a mention: those hostnames are ad/VAST endpoints indistinguishable from the
+thousands of ad hosts already in the packaged rulesets, and dropping them would
+discard real pre-roll coverage — the lesson itself. What reads as an
+endorsement or a target is the *site name* in docs, evals, tests, and a shipped
+hostile-domain list, so that is what was removed. Emptying `HOSTILE_DOMAINS`
+cost nothing because the tier was always reachable from behavior; arguably the
+signal-driven path is the better design and the hardcoded name was the
+shortcut.
+
+**Consequences**:
+- The regression track loses its only live hostile-tier case. Hostile
+  classification is still unit-tested from signals, but no live site exercises
+  it end to end.
+- The site is no longer pre-classified hostile before signals appear; it would
+  escalate on observed takeover/popup behavior instead.
+- `ashdi.vip` still appears as a CDN hostname in the kept DNR rule and in the
+  decision rationale explaining why content CDNs must not be blocked wholesale.
+  Open to reversal if Hlib wants zero trace.

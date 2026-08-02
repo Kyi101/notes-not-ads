@@ -41,6 +41,7 @@ try {
   const fixtureUrl = `http://127.0.0.1:${server.port}/ad-clutter.html`;
 
   await assertDnrBehavior(context, serviceWorker, fixtureUrl);
+  await assertLinkedinAppBypass(context, serviceWorker);
   await assertYoutubePruneBehavior(context, serviceWorker);
 
   await page.goto(fixtureUrl);
@@ -911,6 +912,7 @@ try {
     `${Math.round(lateShadowReplacementLatency)}ms`
   );
   console.log("DNR probe:", "blocked / site-allowed / globally-disabled");
+  console.log("LinkedIn app:", "DOM bypass / DNR active");
   console.log("YouTube prune:", "enabled prunes / site-disabled passes through");
   console.log("shadow card display:", shadowCardDisplay);
   console.log("framework reconciliation:", frameworkReconcileStatus);
@@ -1043,6 +1045,76 @@ async function assertDnrBehavior(context, serviceWorker, fixtureUrl) {
 
   await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
   await waitForEnabledRulesets(serviceWorker, true);
+}
+
+async function assertLinkedinAppBypass(context, serviceWorker) {
+  if (!serviceWorker) {
+    throw new Error("No extension service worker available for LinkedIn checks.");
+  }
+
+  const fixtureUrl = "https://www.linkedin.com/mynetwork/attention-redirector-fixture";
+  const probeUrl = "https://www.linkedin.com/attention-redirector-dnr-probe.js";
+
+  await context.route(fixtureUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: [
+        "<!doctype html>",
+        "<meta charset=\"utf-8\">",
+        "<title>LinkedIn My Network fixture</title>",
+        "<div id=\"linkedin-static-ad\" class=\"ad-slot\" data-ad-slot=\"network-feed\" style=\"width:300px;height:250px\">Sponsored</div>",
+        "<script>",
+        "setTimeout(() => {",
+        "  const slot = document.createElement('div');",
+        "  slot.id = 'linkedin-late-ad';",
+        "  slot.className = 'sponsored';",
+        "  slot.style.cssText = 'width:300px;height:250px';",
+        "  slot.textContent = 'Sponsored';",
+        "  document.body.append(slot);",
+        "}, 120);",
+        "</script>"
+      ].join("")
+    });
+  });
+  await context.route(`${probeUrl}**`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: "window.__attentionRedirectorDnrProbeLoaded = true;"
+    });
+  });
+
+  await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
+  await waitForEnabledRulesets(serviceWorker, true);
+  const page = await context.newPage();
+  await page.goto(fixtureUrl);
+  await page.waitForTimeout(900);
+
+  const replacementState = await page.evaluate(() => {
+    return {
+      slots: document.querySelectorAll(".attention-redirector-slot").length,
+      staticText: document.getElementById("linkedin-static-ad")?.textContent || "",
+      lateText: document.getElementById("linkedin-late-ad")?.textContent || ""
+    };
+  });
+  if (
+    replacementState.slots !== 0 ||
+    replacementState.staticText !== "Sponsored" ||
+    replacementState.lateText !== "Sponsored"
+  ) {
+    throw new Error(
+      `LinkedIn app fixture received generic DOM replacements: ${JSON.stringify(replacementState)}`
+    );
+  }
+
+  const dnrProbe = await loadDnrProbeScript(page);
+  await page.close();
+  if (dnrProbe.loaded) {
+    throw new Error(
+      `LinkedIn DOM bypass also disabled DNR: ${JSON.stringify(dnrProbe)}`
+    );
+  }
 }
 
 async function assertYoutubePruneBehavior(context, serviceWorker) {

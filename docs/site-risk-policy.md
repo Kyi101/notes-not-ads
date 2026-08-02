@@ -216,8 +216,10 @@ Delete any future input that cannot change protocol, evidence, or eval outcome.
 4. `ukr.net` canary: expected ad-heavy, page must render, no white screen, no
    portal rail replacement, visible ad slots counted separately from page
    health.
-5. `canary-portal.example` canary: expected hostile due prior observed takeover/popup
-   behavior; this is classifier-only until runtime wiring exists.
+5. Hostile-signal canary: a page reporting takeover iframes, popup tabs, or
+   redirect traps is expected to classify hostile from those observed signals
+   rather than from a shipped list of named sites; this is classifier-only
+   until runtime wiring exists.
 6. Near-neighbor false positive: a useful sidebar or portal rail containing one
    ad child must not promote the whole rail.
 

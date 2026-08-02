@@ -71,6 +71,7 @@
   ];
 
   const DOM_REPLACEMENT_DISABLED_DOMAINS = [
+    "linkedin.com",
     "youtube.com",
     "m.youtube.com",
     "music.youtube.com",
@@ -93,8 +94,13 @@
     "nav",
     "form",
     "[role='navigation']",
+    // Dropdowns may be portaled outside header/nav and inherit ad evidence from a child.
+    "[role='menu']",
+    "[role='menubar']",
+    "[role='listbox']",
     "[role='search']",
     "[role='form']",
+    "[class*='dropdown']",
     "[contenteditable='true']",
     ".attention-redirector-slot",
     ".attention-redirector-card",

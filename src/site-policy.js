@@ -74,9 +74,10 @@
     "espn.com"
   ]);
 
-  const HOSTILE_DOMAINS = Object.freeze([
-    "canary-portal.example"
-  ]);
+  // Intentionally empty: the hostile tier is reached from observed page
+  // signals (takeover iframes, popup tabs, redirect traps) rather than a
+  // shipped list of named sites.
+  const HOSTILE_DOMAINS = Object.freeze([]);
 
   const SENSITIVE_PATH_RE =
     /\/(checkout|cart|basket|payment|payments|billing|invoice|invoices|pay|order|orders|purchase|subscribe|subscription|login|signin|sign-in|password|account\/security)(\/|$)/i;
