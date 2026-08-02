@@ -213,9 +213,9 @@ Delete any future input that cannot change protocol, evidence, or eval outcome.
    sensitive handling.
 3. Normal article fixture: expected standard, obvious ad slots replaced, main
    content untouched.
-4. `ukr.net` canary: expected ad-heavy, page must render, no white screen, no
-   portal rail replacement, visible ad slots counted separately from page
-   health.
+4. Ad-heavy publisher canary: expected ad-heavy, page must render, no white
+   screen, no whole-rail replacement, visible ad slots counted separately from
+   page health.
 5. Hostile-signal canary: a page reporting takeover iframes, popup tabs, or
    redirect traps is expected to classify hostile from those observed signals
    rather than from a shipped list of named sites; this is classifier-only
@@ -230,7 +230,7 @@ Delete any future input that cannot change protocol, evidence, or eval outcome.
 2. Keep runtime behavior unchanged while tests prove routing and precedence.
 3. Add eval reporting that records tier, protocol, page health, cards, suspects,
    and blocked escalation reason. Done in `scripts/eval-live-sites.mjs`.
-4. Run live-browser canaries for `risk-canary` and `controlled` groups.
+4. Run live-browser canaries for the `real` and `controlled` groups.
 5. Wire content-script scan thresholds to protocol.
 6. Wire background DNR allow/escalation behavior to protocol.
 7. Only then consider a separate aggressive ruleset or curated ad-heavy path.

@@ -1168,3 +1168,43 @@ shortcut.
 - `ashdi.vip` still appears as a CDN hostname in the kept DNR rule and in the
   decision rationale explaining why content CDNs must not be blocked wholesale.
   Open to reversal if Hlib wants zero trace.
+
+## 2026-08-02 - Scope The First Release To Large Global Ad-Heavy Sites
+
+**Decision**: the initial public release targets big global ad-heavy
+publishers. Regional portals are out of scope as *seeded* targets and as
+release gates. Concretely: `ukr.net` and `censor.net` were removed from the
+`AD_HEAVY_DOMAINS` seed in `src/site-policy.js`; the `ukr-net` case and the
+now-empty `risk-canary` group were removed from `evals/live-sites.json`,
+taking the gating track from 26 to 25 cases (21 regression + 4 controlled);
+`docs/site-risk-policy.md` canary 4 became a generic ad-heavy publisher
+canary; the `ukrnet-*` fixture ids in `tests/fixtures/ad-clutter.html` were
+renamed `portal-*`. Coverage beyond the seeded set is reached two ways that
+already exist: observed page signals, and the user-facing missed-ad report
+flow.
+
+**Why**: Hlib's call. Two reasons, and the second is the stronger one. First,
+a focused initial release is a cleaner claim — 21 major publishers we actually
+test is more honest than a long tail nobody re-runs. Second, `ukr.net` was
+never a fair gate: Hlib confirmed on 2026-08-02 that it still shows ads with a
+conventional adblocker too, so failing our release on it measured the site's
+difficulty rather than our regression. It was also the origin of the June
+white-screen patch loop, which is exactly the dynamic a permanent gate on a
+hard regional site invites.
+
+**What was kept**: all of it, as history and as generic safety. The
+`DECISIONS.md` and `STATUS.md` records of the patch-loop regression stay
+verbatim — that lesson is the most expensive one in this repo. The mixed
+fixed-rail fixture test stays and still passes; it was only ever a *pattern*
+test (do not replace a rail that mixes ads with real site content), and the
+rename makes that explicit instead of tying it to one site.
+
+**Consequences**:
+- Regional ad-heavy sites classify `standard` until signals or a user report
+  say otherwise. For Hlib personally this is a small live downgrade on a site
+  he browses.
+- The release no longer has a designated "known fragile site" gate. Fragility
+  regressions must be caught by the fixture suite and the 21-publisher
+  regression track instead.
+- Reversible: re-seeding a domain is a one-line change, and the eval case is
+  recoverable from git history.

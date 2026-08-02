@@ -347,7 +347,7 @@
         border: 0;
       }
 
-      .ukrnet-fixed-block {
+      .portal-fixed-block {
         position: fixed;
         top: -701px;
         left: 298px;
@@ -361,34 +361,34 @@
         font-size: 13px;
       }
 
-      .ukrnet-fixed-block a,
-      .ukrnet-fixed-block strong,
-      .ukrnet-fixed-block span {
+      .portal-fixed-block a,
+      .portal-fixed-block strong,
+      .portal-fixed-block span {
         display: block;
         margin: 0 0 8px;
       }
 
-      .ukrnet-mail-widget {
+      .portal-mail-widget {
         height: 120px;
         padding: 12px;
         background: #eef6ff;
       }
 
-      .ukrnet-fixed-media-child {
+      .portal-fixed-media-child {
         width: 200px;
         height: 300px;
         margin-top: 16px;
         overflow: hidden;
       }
 
-      .ukrnet-fixed-media-child iframe {
+      .portal-fixed-media-child iframe {
         display: block;
         width: 200px;
         height: 250px;
         border: 0;
       }
 
-      .ukrnet-fixed-media-child img {
+      .portal-fixed-media-child img {
         display: block;
         width: 200px;
         height: 50px;
@@ -661,8 +661,8 @@
             <iframe src="https://go.rcvlink.com/ifr/test-portal-rail"></iframe>
           </div>
         </div>
-        <div id="ukrnet-fixed-block" class="ukrnet-fixed-block fixed-block">
-          <div class="ukrnet-mail-widget">
+        <div id="portal-fixed-block" class="portal-fixed-block fixed-block">
+          <div class="portal-mail-widget">
             <strong>Mail widget</strong>
             <a href="#mail">Inbox</a>
             <span>Weather and account links</span>
@@ -671,10 +671,10 @@
           <a href="#finance">Finance</a>
           <a href="#sport">Sport</a>
           <p>
-            $.ajax({type:'GET',url:'https://accounts.ukr.net/public/access/test?_='+
+            $.ajax({type:'GET',url:'https://accounts.example-portal.com/public/access/test?_='+
             Date.now(),dataType:'text',success:function(data){if(data!=='ok'){}});
           </p>
-          <div id="ukrnet-fixed-media-child" class="ukrnet-fixed-media-child">
+          <div id="portal-fixed-media-child" class="portal-fixed-media-child">
             <iframe src="https://go.rcvlink.com/ifr/5ysrIfrF92"></iframe>
             <img
               src="https://upst.fwdcdn.com/temp/blocks/3/5068/81/5c/ad1f1a72158030a529cfca8af52f.jpg"
@@ -684,7 +684,7 @@
           <a href="#shopping">Shopping links</a>
           <a href="#jobs">Jobs and education</a>
         </div>
-        <div id="ukrnet-gpt-placeholder" class="generic-placeholder">
+        <div id="portal-gpt-placeholder" class="generic-placeholder">
           Реклама
           <script>
             googletag.cmd.push(function(){

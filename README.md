@@ -186,7 +186,6 @@ npm run eval:live:dry
 npm run eval:live:discovery:dry
 npm run eval:live -- --limit 5
 npm run eval:live -- --group controlled
-npm run eval:live -- --group risk-canary
 npm run eval:live -- --group discovery-stock-search
 npm run eval:live -- --case tomsguide
 npm run eval:live -- --url https://example.com/page --id one-off

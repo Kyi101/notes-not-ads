@@ -65,7 +65,7 @@ assertPolicy(
 );
 
 assertPolicy(
-  { url: "https://www.ukr.net/", enabled: false },
+  { url: "https://www.dailymail.co.uk/", enabled: false },
   {
     tier: TIERS.DISABLED,
     protocol: PROTOCOLS.DISABLED,
@@ -76,8 +76,8 @@ assertPolicy(
 
 assertPolicy(
   {
-    url: "https://www.ukr.net/",
-    disabledDomains: ["ukr.net"]
+    url: "https://www.dailymail.co.uk/",
+    disabledDomains: ["dailymail.co.uk"]
   },
   {
     tier: TIERS.DISABLED,
@@ -88,7 +88,7 @@ assertPolicy(
 );
 
 assertPolicy(
-  { url: "https://www.ukr.net/login" },
+  { url: "https://www.dailymail.co.uk/login" },
   {
     tier: TIERS.SENSITIVE,
     protocol: PROTOCOLS.PROTECTED_STANDARD,
@@ -99,7 +99,7 @@ assertPolicy(
 );
 
 assertPolicy(
-  { url: "https://www.ukr.net/" },
+  { url: "https://www.dailymail.co.uk/" },
   {
     tier: TIERS.AD_HEAVY,
     protocol: PROTOCOLS.AD_HEAVY,
@@ -110,7 +110,7 @@ assertPolicy(
 
 assertPolicy(
   {
-    url: "https://www.ukr.net/",
+    url: "https://www.dailymail.co.uk/",
     domSignals: { passwordFields: 1 }
   },
   {
@@ -118,7 +118,7 @@ assertPolicy(
     protocol: PROTOCOLS.AD_HEAVY,
     confidence: "high"
   },
-  "single login widget does not soften known ad-heavy portal"
+  "single login widget does not soften known ad-heavy publisher"
 );
 
 assertPolicy(

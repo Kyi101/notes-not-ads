@@ -149,7 +149,7 @@ try {
     throw new Error(`Shadow DOM replacement card was not styled: ${shadowCardDisplay}.`);
   }
   await page
-    .locator("#ukrnet-gpt-placeholder.attention-redirector-slot")
+    .locator("#portal-gpt-placeholder.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
   const initialFixtureTabId = await findFixtureTabId(serviceWorker, fixtureUrl);
   await sendExtensionMessage(serviceWorker, initialFixtureTabId, {
@@ -158,8 +158,8 @@ try {
   if (await page.locator("#portal-rail.attention-redirector-slot").count()) {
     throw new Error("Portal rail was replaced instead of its child ad slot.");
   }
-  if (await page.locator("#ukrnet-fixed-block.attention-redirector-slot").count()) {
-    throw new Error("Mixed fixed ukr.net rail was replaced instead of its child ad.");
+  if (await page.locator("#portal-fixed-block.attention-redirector-slot").count()) {
+    throw new Error("Mixed fixed portal rail was replaced instead of its child ad.");
   }
   await page
     .locator("#partner-story-card.attention-redirector-slot")
@@ -180,7 +180,7 @@ try {
     );
   }
   await page
-    .locator("#ukrnet-fixed-media-child.attention-redirector-slot")
+    .locator("#portal-fixed-media-child.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
   await page
     .locator("[data-fixture='linked-media-ad'].attention-redirector-slot")

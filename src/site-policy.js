@@ -46,9 +46,10 @@
     "citibank.com"
   ]);
 
+  // Seeded with large global ad-heavy publishers only. Regional portals are
+  // out of scope for the first release; they reach ad-heavy through observed
+  // signals or a user report, not a shipped seed.
   const AD_HEAVY_DOMAINS = Object.freeze([
-    "ukr.net",
-    "censor.net",
     "forbes.com",
     "dailymail.co.uk",
     "dailymail.com",

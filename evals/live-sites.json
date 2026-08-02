@@ -9,7 +9,6 @@
   },
   "groups": {
     "real": "Legacy real-site regression set from the release-candidate phase.",
-    "risk-canary": "Known fragile site where blank pages or aggressive patching are release risks.",
     "controlled": "External adblock test pages.",
     "discovery-news": "Broad publisher/news discovery sweep.",
     "discovery-sports": "Sports publisher and league discovery sweep.",
@@ -80,18 +79,6 @@
       "category": "news",
       "url": "https://www.mirror.co.uk/",
       "notes": "Ad-heavy tabloid homepage.",
-      "policy": {
-        "expectedTier": "ad-heavy",
-        "expectedProtocol": "ad-heavy"
-      }
-    },
-    {
-      "id": "ukr-net",
-      "group": "risk-canary",
-      "track": "regression",
-      "category": "portal",
-      "url": "https://www.ukr.net/",
-      "notes": "Release-blocker canary: ad-heavy Ukrainian portal that must render normally and must not be patched ad hoc.",
       "policy": {
         "expectedTier": "ad-heavy",
         "expectedProtocol": "ad-heavy"
