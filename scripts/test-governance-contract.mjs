@@ -12,9 +12,12 @@ const CLOSED_PATHS = [
   "src/shared.js",
   "src/init.js",
   "src/background.js",
+  "src/inspector.js",
+  "src/site-policy.js",
   "src/youtube-prune-main.js",
   "src/youtube-prune-loader.js",
-  "manifest.json"
+  "manifest.json",
+  ".github/"
 ];
 
 const OPEN_PATHS = [

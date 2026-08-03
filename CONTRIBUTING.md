@@ -21,8 +21,11 @@ every page on the web. So they are handled differently.
 
 - `src/main.js`, `src/scanner.js`, `src/replacer.js`, `src/shared.js`, `src/init.js` — the scanner, the replacer, and the safety skips
 - `src/background.js` — the service worker
+- `src/inspector.js` — content-script introspection and element scoring
+- `src/site-policy.js` — risk tier classifier (login, checkout, payment context detection)
 - `src/youtube-prune-main.js`, `src/youtube-prune-loader.js` — main-world injection
 - `manifest.json` — anything touching permissions
+- `.github/` — workflows, branch protection rules, issue templates
 
 This split is not about trust. It is about what a solo maintainer can review
 honestly. An engine proposal filed as an issue gets read carefully; an engine
