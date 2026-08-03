@@ -59,6 +59,7 @@ calm Tide field and an optional user-written intention.
 - `scripts/test-lint-dnr-rules.mjs` - fixture-driven checks for the DNR rule lint.
 - `scripts/check-paired-change.mjs` - fails a change that edits filter data without adding a fixture or eval case.
 - `scripts/test-paired-change.mjs` - synthetic diff cases for the paired-change check.
+- `scripts/test-governance-contract.mjs` - keeps CONTRIBUTING.md, CODEOWNERS, and the issue templates in sync with the open/closed contribution split.
 - `scripts/live-eval-health.mjs` - pure page-health classification for live eval validity.
 - `scripts/test-live-eval-health.mjs` - deterministic page-health regression checks.
 - `scripts/test-adblock-tester.mjs` - optional live benchmark against adblock-tester.com.
@@ -87,6 +88,9 @@ calm Tide field and an optional user-written intention.
 - `STATUS.md` - current project state.
 - `DECISIONS.md` - durable implementation decisions.
 - `CLAUDE.md` - Claude Code operating notes.
+- `CONTRIBUTING.md` - the open/closed contribution split and the rules for a filter pull request.
+- `SECURITY.md` - private vulnerability reporting and what counts as a vulnerability here.
+- `.github/CODEOWNERS` - ownership flags on the closed engine paths only.
 
 ## Conventions
 

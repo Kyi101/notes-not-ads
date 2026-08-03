@@ -1,0 +1,17 @@
+# Only the closed surface is listed here, on purpose.
+#
+# A * catch-all would flag every pull request identically and the signal would be
+# worthless. Listing the engine alone means the ownership flag appears in the diff
+# view exactly when someone is editing something that will not be accepted as an
+# outside pull request. See CONTRIBUTING.md.
+
+/src/main.js                  @Kyi101
+/src/scanner.js               @Kyi101
+/src/replacer.js              @Kyi101
+/src/shared.js                @Kyi101
+/src/init.js                  @Kyi101
+/src/background.js            @Kyi101
+/src/youtube-prune-main.js    @Kyi101
+/src/youtube-prune-loader.js  @Kyi101
+/manifest.json                @Kyi101
+/.github/                     @Kyi101
