@@ -54,6 +54,8 @@ calm Tide field and an optional user-written intention.
 - `scripts/test-release-contract.mjs` - guardrail that keeps packaged DNR and per-site allow behavior in the release runtime.
 - `scripts/lint-cosmetic-seed.mjs` - rejects any cosmetic seed entry that is not a plain quoted string, so contributed filter text cannot become executable code.
 - `scripts/test-lint-cosmetic-seed.mjs` - fixture-driven checks for the cosmetic seed lint.
+- `scripts/lint-dnr-rules.mjs` - structural lint for packaged DNR rule files: unique ids, block/allow only, no degenerate filter, no unscoped allow.
+- `scripts/test-lint-dnr-rules.mjs` - fixture-driven checks for the DNR rule lint.
 - `scripts/live-eval-health.mjs` - pure page-health classification for live eval validity.
 - `scripts/test-live-eval-health.mjs` - deterministic page-health regression checks.
 - `scripts/test-adblock-tester.mjs` - optional live benchmark against adblock-tester.com.
