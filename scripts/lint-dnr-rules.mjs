@@ -52,7 +52,18 @@ for (const target of targets) {
       );
     }
 
-    const filter = String(rule.condition?.urlFilter ?? rule.condition?.regexFilter ?? "");
+    if (rule.condition?.regexFilter !== undefined) {
+      throw new Error(
+        `DNR lint violation: ${where} uses regexFilter, which makes breadth validation meaningless — length is not correlated with how many URLs it matches. Packaged rules use urlFilter only.`
+      );
+    }
+
+    const filter = rule.condition?.urlFilter;
+    if (typeof filter !== "string" || filter.length < 1) {
+      throw new Error(
+        `DNR lint violation: ${where} has no urlFilter. A rule must carry a non-empty urlFilter string.`
+      );
+    }
     const core = filter.replace(/[|^*]/g, "");
     if (core.length < MIN_FILTER_LENGTH) {
       throw new Error(

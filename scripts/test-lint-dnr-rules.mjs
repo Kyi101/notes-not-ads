@@ -92,6 +92,54 @@ try {
     ],
     "unscoped allow"
   );
+  await expectReject(
+    "regexFilter on block rule",
+    [
+      {
+        id: 1,
+        priority: 1,
+        action: { type: "block" },
+        condition: { regexFilter: ".+.+.+.+" }
+      }
+    ],
+    "regexFilter"
+  );
+  await expectReject(
+    "regexFilter on scoped allow rule",
+    [
+      {
+        id: 1,
+        priority: 1,
+        action: { type: "allow" },
+        condition: { regexFilter: "^https?://.*", requestDomains: ["ads.example"] }
+      }
+    ],
+    "regexFilter"
+  );
+  await expectReject(
+    "both urlFilter and regexFilter",
+    [
+      {
+        id: 1,
+        priority: 1,
+        action: { type: "block" },
+        condition: { urlFilter: "||doubleclick.net^", regexFilter: ".+.+.+.+" }
+      }
+    ],
+    "regexFilter"
+  );
+  await expectReject(
+    "no filter field",
+    [
+      {
+        id: 1,
+        priority: 1,
+        action: { type: "block" },
+        condition: { resourceTypes: ["script"] }
+      }
+    ],
+    "no urlFilter"
+  );
 
   console.log("PASS DNR rule lint tests");
 } finally {
