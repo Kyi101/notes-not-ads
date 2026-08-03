@@ -28,6 +28,7 @@ calm Tide field and an optional user-written intention.
 - Multi-card scroll benchmark: `npm run benchmark:performance`
 - Quiet/Anchor UI prototype: `npm run prototype:modes`
 - Validate manifest JSON: `node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"`
+- Paired-change check against a base ref: `node scripts/check-paired-change.mjs --base origin/main`
 - Manual test: load unpacked from `chrome://extensions`
 
 ## Map
@@ -56,6 +57,8 @@ calm Tide field and an optional user-written intention.
 - `scripts/test-lint-cosmetic-seed.mjs` - fixture-driven checks for the cosmetic seed lint.
 - `scripts/lint-dnr-rules.mjs` - structural lint for packaged DNR rule files: unique ids, block/allow only, no degenerate filter, no unscoped allow.
 - `scripts/test-lint-dnr-rules.mjs` - fixture-driven checks for the DNR rule lint.
+- `scripts/check-paired-change.mjs` - fails a change that edits filter data without adding a fixture or eval case.
+- `scripts/test-paired-change.mjs` - synthetic diff cases for the paired-change check.
 - `scripts/live-eval-health.mjs` - pure page-health classification for live eval validity.
 - `scripts/test-live-eval-health.mjs` - deterministic page-health regression checks.
 - `scripts/test-adblock-tester.mjs` - optional live benchmark against adblock-tester.com.
