@@ -7,3 +7,4 @@ build/
 _metadata/
 .DS_Store
 *.log
+.superpowers/
