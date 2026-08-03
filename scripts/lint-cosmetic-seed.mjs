@@ -6,7 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
 const ARRAY_START = /^\s*const DEFAULT_COSMETIC_FILTER_TEXT = \[\s*$/;
-const ARRAY_END = /^\s*\]\.join\(/;
+const ARRAY_TERMINATOR = /^\s*\]\.join\("\\n"\);\s*$/;
 const STRING_LITERAL = /^\s*"(?:[^"\\]|\\.)*",?$/;
 
 const target = process.argv[2]
@@ -23,31 +23,39 @@ if (startIndex === -1) {
   );
 }
 
-const endIndex = lines.findIndex((line, index) => index > startIndex && ARRAY_END.test(line));
+const entries = [];
+let endIndex = -1;
+
+for (let index = startIndex + 1; index < lines.length; index += 1) {
+  const line = lines[index];
+
+  if (ARRAY_TERMINATOR.test(line)) {
+    endIndex = index;
+    break;
+  }
+
+  if (!STRING_LITERAL.test(line)) {
+    throw new Error(
+      [
+        `Cosmetic seed violation: ${label}:${index + 1} is neither a plain double-quoted string literal nor the array terminator.`,
+        `  ${line.trim()}`,
+        "Every seed entry must be a literal string. Backticks, ${...}, concatenation, and bare",
+        "identifiers would let filter text become executable code in the shipped content script."
+      ].join("\n")
+    );
+  }
+
+  entries.push(line);
+}
+
 if (endIndex === -1) {
   throw new Error(
-    `Cosmetic seed violation: the seed array in ${label} is never closed with "].join(".`
+    `Cosmetic seed violation: the seed array in ${label} is never closed with '].join("\\n");'.`
   );
 }
 
-const entries = lines.slice(startIndex + 1, endIndex);
 if (entries.length < 1) {
   throw new Error(`Cosmetic seed violation: the seed array in ${label} is empty.`);
 }
-
-entries.forEach((line, offset) => {
-  if (STRING_LITERAL.test(line)) {
-    return;
-  }
-  const lineNumber = startIndex + 2 + offset;
-  throw new Error(
-    [
-      `Cosmetic seed violation: ${label}:${lineNumber} is not a plain double-quoted string literal.`,
-      `  ${line.trim()}`,
-      "Every seed entry must be a literal string. Backticks, ${...}, concatenation, and bare",
-      "identifiers would let filter text become executable code in the shipped content script."
-    ].join("\n")
-  );
-});
 
 console.log(`PASS cosmetic seed lint (${entries.length} entries in ${label})`);

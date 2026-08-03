@@ -79,6 +79,38 @@ try {
     }
   }
 
+  const bypass = await lint("bypass", [
+    '"##.adsbygoogle",',
+    '].join("\\n") + [',
+    "`##.ad-${host}`,"
+  ]);
+  if (bypass === null) {
+    throw new Error("A line that imitates the array terminator must be rejected, but the lint passed.");
+  }
+  if (!bypass.includes("Cosmetic seed violation")) {
+    throw new Error(`The terminator-bypass rejection did not explain itself: ${bypass}`);
+  }
+
+  const empty = await lint("empty", []);
+  if (empty === null || !empty.includes("is empty")) {
+    throw new Error(`An empty seed array must be rejected as empty, got: ${empty}`);
+  }
+
+  const unclosed = path.join(tempDir, "unclosed.js");
+  await writeFile(
+    unclosed,
+    '(() => {\n  const DEFAULT_COSMETIC_FILTER_TEXT = [\n    "##.adsbygoogle",',
+    "utf8"
+  );
+  try {
+    await run(process.execPath, [linter, unclosed]);
+    throw new Error("An unclosed seed array must be rejected, but the lint passed.");
+  } catch (error) {
+    if (!String(error.stderr || error.message).includes("never closed")) {
+      throw error;
+    }
+  }
+
   console.log("PASS cosmetic seed lint tests");
 } finally {
   await rm(tempDir, { recursive: true, force: true });
