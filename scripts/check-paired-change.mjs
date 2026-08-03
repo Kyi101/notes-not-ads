@@ -1,11 +1,7 @@
 import { execFile } from "node:child_process";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(__dirname, "..");
 
 const FILTER_DATA = /^(rules\/|src\/cosmetic-[^/]*\.js$)/;
 const SUPPORTING_CASE = /^(tests\/fixtures\/|evals\/)/;
@@ -29,7 +25,6 @@ if (filesIndex > -1) {
     throw new Error("Usage: check-paired-change.mjs --base <ref> | --files <path...>");
   }
   const { stdout } = await run("git", ["diff", "--name-only", "--diff-filter=d", `${base}...HEAD`], {
-    cwd: projectRoot,
     maxBuffer: 16 * 1024 * 1024
   });
   changed = stdout.split("\n").map((line) => line.trim()).filter(Boolean);
