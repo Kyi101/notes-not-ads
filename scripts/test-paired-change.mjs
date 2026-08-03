@@ -33,7 +33,15 @@ async function expectFail(label, files) {
   }
 }
 
-await expectPass("an empty diff", []);
+async function checkWithArgs(args) {
+  try {
+    await run(process.execPath, [checker, ...args]);
+    return null;
+  } catch (error) {
+    return String(error.stderr || error.message);
+  }
+}
+
 await expectPass("a docs-only diff", ["README.md", "docs/chrome-web-store.md"]);
 await expectPass("an engine-only diff", ["src/replacer.js", "src/content.js"]);
 await expectPass("a rules change with a fixture", [
@@ -63,6 +71,30 @@ const usage = await (async () => {
 })();
 if (usage === null || !usage.includes("Usage:")) {
   throw new Error(`Calling the check with no mode should print usage, got: ${usage}`);
+}
+
+// Test Fix 3: --base --files with no value should throw usage
+const result1 = await checkWithArgs(["--base", "--files"]);
+if (result1 === null || !result1.includes("Usage:")) {
+  throw new Error(
+    `--base --files should throw usage, but got: ${result1}`
+  );
+}
+
+// Test Fix 3: --files with no paths should throw usage
+const result2 = await checkWithArgs(["--files"]);
+if (result2 === null || !result2.includes("Usage:")) {
+  throw new Error(
+    `--files with no paths should throw usage, but got: ${result2}`
+  );
+}
+
+// Test Fix 2: dash-prefixed ref should not silently pass
+const result3 = await checkWithArgs(["--base", "-p"]);
+if (result3 === null || result3.includes("PASS")) {
+  throw new Error(
+    `--base -p should throw error, not pass. Got: ${result3}`
+  );
 }
 
 console.log("PASS paired-change tests");

@@ -17,13 +17,18 @@ const baseIndex = args.indexOf("--base");
 let changed;
 
 if (filesIndex > -1) {
-  changed = args.slice(filesIndex + 1).filter((value) => !value.startsWith("--"));
-} else if (baseIndex > -1) {
-  const base = args[baseIndex + 1];
-  if (!base) {
+  const afterFiles = args.slice(filesIndex + 1);
+  const nextArgIsFlag = afterFiles.length === 0 || afterFiles[0].startsWith("--");
+  if (nextArgIsFlag) {
     throw new Error("Usage: check-paired-change.mjs --base <ref> | --files <path...>");
   }
-  const { stdout } = await run("git", ["diff", "--name-only", `${base}...HEAD`], {
+  changed = afterFiles.filter((value) => !value.startsWith("--"));
+} else if (baseIndex > -1) {
+  const base = args[baseIndex + 1];
+  if (!base || base.startsWith("-")) {
+    throw new Error("Usage: check-paired-change.mjs --base <ref> | --files <path...>");
+  }
+  const { stdout } = await run("git", ["diff", "--name-only", "--diff-filter=d", `${base}...HEAD`], {
     cwd: projectRoot,
     maxBuffer: 16 * 1024 * 1024
   });
@@ -45,7 +50,7 @@ if (filterChanges.length < 1) {
         "Paired-change violation: this change edits filter data but adds no case that proves it.",
         `  Filter files changed: ${filterChanges.join(", ")}`,
         "",
-        "Add a fixture under tests/fixtures/ or a case in evals/live-sites.json in the same change.",
+        "Add a fixture under tests/fixtures/ or a case under evals/ in the same change.",
         "AGENTS.md already requires deterministic coverage alongside a rule change; this check makes",
         "it mechanical. The case is also what a reviewer reads to judge whether the rule is correct."
       ].join("\n")
