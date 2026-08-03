@@ -16,8 +16,20 @@ const CLOSED_PATHS = [
   "src/site-policy.js",
   "src/youtube-prune-main.js",
   "src/youtube-prune-loader.js",
+  "src/content.css",
   "manifest.json",
-  ".github/"
+  "package.json",
+  ".github/",
+  "scripts/",
+  "popup.js",
+  "popup.html",
+  "popup.css",
+  "options.js",
+  "options.html",
+  "options.css",
+  "welcome.js",
+  "welcome.html",
+  "welcome.css",
 ];
 
 const OPEN_PATHS = [

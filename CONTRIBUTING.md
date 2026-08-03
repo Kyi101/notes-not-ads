@@ -24,8 +24,14 @@ every page on the web. So they are handled differently.
 - `src/inspector.js` — content-script introspection and element scoring
 - `src/site-policy.js` — risk tier classifier (login, checkout, payment context detection)
 - `src/youtube-prune-main.js`, `src/youtube-prune-loader.js` — main-world injection
+- `src/content.css` — extension-injected stylesheet bundled with the content script
 - `manifest.json` — anything touching permissions
+- `package.json` — CI check chain and zero-dependency constraint
 - `.github/` — workflows, branch protection rules, issue templates
+- `scripts/` — all deterministic guards (lints, contract test, build, packaging)
+- `popup.js`, `popup.html`, `popup.css` — popup UI
+- `options.js`, `options.html`, `options.css` — options page
+- `welcome.js`, `welcome.html`, `welcome.css` — onboarding page
 
 This split is not about trust. It is about what a solo maintainer can review
 honestly. An engine proposal filed as an issue gets read carefully; an engine
