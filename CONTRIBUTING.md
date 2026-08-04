@@ -25,13 +25,19 @@ every page on the web. So they are handled differently.
 - `src/site-policy.js` — risk tier classifier (login, checkout, payment context detection)
 - `src/youtube-prune-main.js`, `src/youtube-prune-loader.js` — main-world injection
 - `src/content.css` — extension-injected stylesheet bundled with the content script
+- `src/content.js` — the built content-script bundle; generated from the partials above, and packaged as-is
 - `manifest.json` — anything touching permissions
 - `package.json` — CI check chain and zero-dependency constraint
+- `package-lock.json` — what CI actually installs
+- `LICENSE` — the GPLv3 grant this project is published under
 - `.github/` — workflows, branch protection rules, issue templates
 - `scripts/` — all deterministic guards (lints, contract test, build, packaging)
 - `popup.js`, `popup.html`, `popup.css` — popup UI
 - `options.js`, `options.html`, `options.css` — options page
 - `welcome.js`, `welcome.html`, `welcome.css` — onboarding page
+
+Anything not named as open above is closed, including files added after this was
+written. The open list is the exhaustive one.
 
 This split is not about trust. It is about what a solo maintainer can review
 honestly. An engine proposal filed as an issue gets read carefully; an engine
@@ -61,8 +67,10 @@ clipboard, with the query string and fragment dropped and their removal labeled.
 2. **Cosmetic entries are plain quoted strings.** No backticks, no `${...}`, no
    concatenation. Filter text must never be able to become executable code.
 3. **DNR rules block or allow, nothing else.** No `redirect`, no
-   `modifyHeaders`. An `allow` rule must be scoped with `initiatorDomains` or
-   `requestDomains`.
+   `modifyHeaders`. An `allow` rule must be scoped, either with
+   `initiatorDomains`/`requestDomains` or by a path specific enough to name one
+   resource. `||host^` alone unblocks that host on every site; `||host/js/x.js`
+   only ever unblocks that file.
 4. **Under-replace rather than break a page.** A missed ad is a worse product; a
    broken checkout is a worse outcome. When in doubt, propose the narrower rule.
 5. **Keep selectors readable.** A selector nobody can audit is a selector nobody
