@@ -281,7 +281,13 @@ The popup is the everyday control surface for global state, the current site, mo
 - Network blocking is intentionally static and bounded:
   - packaged DNR rules block common ad-network requests
   - current-site disable and sensitive pages use high-priority DNR allow rules
-  - no request interception, request-body access, analytics, or remote rule service
+  - the blocking layer is declarative: no `webRequest` interception, no analytics,
+    no remote rule service, and no access to any request body
+- One exception, on YouTube only: `src/youtube-prune-main.js` wraps `fetch` and
+  `XMLHttpRequest` in the page to delete `adPlacements`, `adSlots`, and
+  `playerAds` from the player endpoint's *response* before the player reads it.
+  Requests still leave the browser unmodified, request bodies are never read, and
+  nothing is sent anywhere. It is inert on every other host.
 - Cosmetic filtering is a compatibility subset:
   - supports generic and domain-scoped `##` CSS selectors
   - supports simple `#@#` selector exceptions
