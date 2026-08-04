@@ -67,5 +67,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: git fetch --no-tags origin ${{ github.base_ref }}
+      # checkout fetches refs/pull/N/merge, not the base branch, so origin/<base>
+      # has to be created here. Spelled as an explicit refspec rather than relying
+      # on the remote's default wildcard, which is a side effect of how checkout
+      # happens to configure the remote.
+      - run: >
+          git fetch --no-tags origin
+          +refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
       - run: node scripts/check-paired-change.mjs --base origin/${{ github.base_ref }}
