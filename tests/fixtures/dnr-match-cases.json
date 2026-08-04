@@ -76,6 +76,38 @@
     },
 
     {
+      "id": "vast-tag-rotating-host-a",
+      "url": "https://r6.adstag0102.xyz/code/video-steam/?id=99&vast=3&channel1=example.com",
+      "type": "xmlhttprequest",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Preroll VAST tag. The network rotates hostnames, so this must be caught by the request path, not the host. A host rule here goes stale within weeks."
+    },
+    {
+      "id": "vast-tag-rotating-host-b",
+      "url": "https://res31.traffer.net/code/video-steam/?id=1125&vast=3&channel1=example.com",
+      "type": "xmlhttprequest",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Same VAST endpoint shape on an unrelated host. If only one of the two rotating-host cases fails, the path rule was narrowed to a host by mistake."
+    },
+    {
+      "id": "ad-creative-cdn-a",
+      "url": "https://scdn4.sem-vosem.com/video/16/16011.mp4",
+      "type": "media",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "The preroll video itself, served from the ad network's CDN once the VAST tag resolves."
+    },
+    {
+      "id": "ad-creative-cdn-b",
+      "url": "https://vcdn.traffer.biz/video/16/16012.mp4",
+      "type": "media",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Second creative CDN in the same chain."
+    },
+    {
       "id": "streaming-canary-film-manifest",
       "url": "https://ashdi.vip/video04/2/films/x/hls/index.m3u8",
       "type": "xmlhttprequest",

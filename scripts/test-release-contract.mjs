@@ -87,7 +87,8 @@ for (const resource of ruleResources) {
         "||reichelcormier.bid/candy/",
         "||nogravity4.click^",
         "||base.ashdi.vip/stats/stats_vast.php",
-        "||video.unocdn.com/*_fix.mp4"
+        "||video.unocdn.com/*_fix.mp4",
+        "/code/video-steam/"
       ],
       "hand-curated DNR seed"
     );

@@ -1429,5 +1429,41 @@
       "urlFilter": "||video.unocdn.com/*_fix.mp4",
       "resourceTypes": ["media", "xmlhttprequest", "other"]
     }
+  },
+  {
+    "id": 160,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "/code/video-steam/",
+      "resourceTypes": ["xmlhttprequest", "sub_frame", "script", "other"]
+    }
+  },
+  {
+    "id": 161,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||traffer.net^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 162,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||traffer.biz^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 163,
+    "priority": 1,
+    "action": { "type": "block" },
+    "condition": {
+      "urlFilter": "||sem-vosem.com^",
+      "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
   }
 ]
