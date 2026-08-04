@@ -778,7 +778,7 @@ function createInspectorReportRecord(info) {
   const record = {
     id: `${Date.now()}-${hashString(`${location.href}:${info.signature}`)}`,
     createdAt,
-    url: location.href,
+    url: formatReportUrl(location.href),
     hostname: location.hostname,
     title: document.title,
     inferredType,
@@ -824,7 +824,7 @@ function formatSelectedInspectorReport(info, context) {
   return [
     "Attention Redirector Missed Clutter Report",
     `Generated: ${context.createdAt}`,
-    `Page: ${location.href}`,
+    `Page: ${formatReportUrl(location.href)}`,
     `Host: ${location.hostname}`,
     `Title: ${document.title}`,
     `Inferred type: ${context.inferredType}`,
@@ -932,7 +932,7 @@ function formatInspectorReport() {
   const lines = [
     "Attention Redirector Inspector Report",
     `Generated: ${new Date().toISOString()}`,
-    `Page: ${location.href}`,
+    `Page: ${formatReportUrl(location.href)}`,
     `Title: ${document.title}`,
     "",
     state.inspector.selectedInfo

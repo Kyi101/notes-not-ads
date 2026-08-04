@@ -1,0 +1,50 @@
+name: False positive
+description: The extension replaced something that was not an ad.
+title: "[false-positive] "
+labels: ["false-positive", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Replacing something that was not an ad is worse than missing an ad, so
+        these are read first. There is no one-click report for a dismissal yet;
+        the questions below are the ones the inspector would have answered.
+
+  - type: input
+    id: site
+    attributes:
+      label: Site
+      description: Origin plus path. No query string.
+      placeholder: https://example.com/news/article
+    validations:
+      required: true
+
+  - type: textarea
+    id: replaced
+    attributes:
+      label: What got replaced
+      description: What was in that spot before the card appeared, and where on the
+        page it sat.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How bad was it?
+      options:
+        - Cosmetic — the page still worked
+        - Lost content I wanted to read
+        - Lost a control I needed to use
+    validations:
+      required: true
+
+  - type: textarea
+    id: report
+    attributes:
+      label: Inspector report, if you could capture one
+      description: Optional. Open the inspector and select the element if it is
+        still reachable.
+      render: text
+    validations:
+      required: false

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -82,6 +82,33 @@ if (!security.includes("/security/advisories/new")) {
 if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(security)) {
   throw new Error(
     "Governance contract violation: SECURITY.md contains an email address, but no support address exists yet. Link private vulnerability reporting instead."
+  );
+}
+
+// scripts/report-contract.mjs is what triage parses against. A form it does not
+// name still renders in the issue chooser, so a reporter can be sent down a route
+// nothing reads. Derived from the directory rather than a second list, so adding a
+// form is what trips this, not remembering to update a list.
+const reportContract = await readFile(path.join(projectRoot, "scripts/report-contract.mjs"), "utf8");
+const templateFiles = await readdir(path.join(projectRoot, ".github/ISSUE_TEMPLATE"));
+for (const file of templateFiles) {
+  if (file === "config.yml" || !file.endsWith(".yml")) continue;
+  if (!reportContract.includes(file)) {
+    throw new Error(
+      `Governance contract violation: .github/ISSUE_TEMPLATE/${file} is offered to reporters but scripts/report-contract.mjs does not know about it, so nothing checks the fields triage would need.`
+    );
+  }
+}
+
+// The closed list only works if "open an issue instead" leads somewhere that says
+// the same thing the moment someone arrives.
+const engineForm = await readFile(
+  path.join(projectRoot, ".github/ISSUE_TEMPLATE/engine-proposal.yml"),
+  "utf8"
+);
+if (!engineForm.includes("closed to pull requests")) {
+  throw new Error(
+    "Governance contract violation: the engine proposal form must repeat that the engine is closed to pull requests. CONTRIBUTING.md is the only other place that says so, and nobody reads it after clicking New issue."
   );
 }
 

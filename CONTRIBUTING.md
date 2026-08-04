@@ -51,12 +51,18 @@ Most useful contributions are not code.
   survived, and copy the report. It contains the element signature, the reasons
   the scanner passed on it, the safety blocks that fired, and the ancestry.
 - **A false positive.** When the extension replaces something that was not an ad,
-  the card's hide button offers to turn that dismissal into a report.
+  the card's × hides it. There is no one-click report for that dismissal yet, so
+  the false-positive issue form asks for the site and what disappeared instead.
+- **A broken page.** Something that stopped working, rather than something that
+  merely looked wrong. This is the most serious class and has its own form.
 
-Both reports are generated locally and copied to your clipboard. The extension
-never sends anything anywhere — you paste the report into an issue yourself,
-after reading it. The URL is reduced to origin plus path before it reaches the
-clipboard, with the query string and fragment dropped and their removal labeled.
+The report is generated locally and copied to your clipboard. The extension never
+sends anything anywhere — you paste it into an issue yourself, after reading it.
+The page URL is reduced to origin plus path before it reaches the clipboard, with
+the query string and fragment dropped and their removal labelled. Resource URLs
+found on the element are kept whole, because an ad tag's query string is usually
+the thing that names the network. Read the report before you paste it: element
+text is included verbatim, and on a signed-in page that text can be yours.
 
 ## Rules for a filter pull request
 

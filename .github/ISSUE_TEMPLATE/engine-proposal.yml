@@ -1,0 +1,47 @@
+name: Engine proposal
+description: A change to the scanner, replacer, service worker, or any other closed file.
+title: "[engine] "
+labels: ["engine", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The engine runs on every page of every user, so it is closed to pull requests.
+        That is not about trust — it is about what one maintainer can review
+        honestly. A proposal filed here gets read carefully. A pull request gets
+        declined regardless of quality, so filing one wastes your time. See
+        CONTRIBUTING.md for the file list.
+
+  - type: input
+    id: files
+    attributes:
+      label: Which closed files this would touch
+      placeholder: src/scanner.js, src/shared.js
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What goes wrong today, on which pages, and how often. Link the
+        issues that motivated this if any exist.
+    validations:
+      required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: The proposed change
+    validations:
+      required: true
+
+  - type: textarea
+    id: blast_radius
+    attributes:
+      label: What this could break
+      description: Every engine change is a change to every page on the web. Name
+        the pages where you would expect it to go wrong first, and how it would be
+        caught — a fixture, an eval case, a deterministic test.
+    validations:
+      required: true

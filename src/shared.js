@@ -324,6 +324,33 @@ const INSPECTOR_MAX_HIGHLIGHTS = 35;
 const INSPECTOR_MAX_REPORT_CANDIDATES = 20;
 const INSPECTOR_MAX_SAVED_REPORTS = 75;
 
+const REPORT_URL_WITHHELD = "(unparseable page URL withheld)";
+
+// A report is written to be pasted into a public issue, so the page URL is cut
+// back to origin plus path first. A query string carries session tokens, search
+// terms and order numbers far more often than it carries anything a triager
+// needs, and the reporter cannot un-publish it afterwards. The removal is
+// labelled rather than silent so they can paste back the part that mattered.
+function formatReportUrl(href) {
+  let parsed;
+  try {
+    parsed = new URL(href);
+  } catch (error) {
+    return REPORT_URL_WITHHELD;
+  }
+
+  const dropped = [];
+  if (parsed.search) {
+    dropped.push("query");
+  }
+  if (parsed.hash) {
+    dropped.push("fragment");
+  }
+
+  const base = `${parsed.origin}${parsed.pathname}`;
+  return dropped.length ? `${base} (${dropped.join(" and ")} removed)` : base;
+}
+
 const AD_IDENTIFIER_RE =
   /(^|[\s_.:-])(ad|ads|adslot|ad-slot|ad_unit|ad-unit|advert|advertisement|advertising|sponsor|sponsored|promoted|dfp|gpt|doubleclick|adsbygoogle|native-ad|paid-placement|taboola|outbrain|mgid)([\s_.:-]|$)/i;
 

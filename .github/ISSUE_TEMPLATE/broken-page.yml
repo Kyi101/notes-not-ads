@@ -1,0 +1,54 @@
+name: Broken page
+description: A page stopped working with the extension enabled.
+title: "[broken] "
+labels: ["breakage", "needs-triage", "priority"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Breakage outranks everything else in this tracker. A missed ad is a worse
+        product; a checkout that will not complete is a worse outcome. If money,
+        a login, or a form is involved, say so — that routes it to the top.
+
+  - type: input
+    id: site
+    attributes:
+      label: Site
+      description: Origin plus path. No query string.
+      placeholder: https://example.com/checkout
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: What broke
+      options:
+        - Sign-in or account access
+        - Checkout or payment
+        - A form I could not submit
+        - Video or audio would not play
+        - Page did not finish loading
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did, and what happened instead
+    validations:
+      required: true
+
+  - type: dropdown
+    id: disabled
+    attributes:
+      label: Does it work with the extension turned off?
+      description: This is the single most useful line in the report. It separates
+        our bug from the site's.
+      options:
+        - Yes, turning it off fixes it
+        - "No, it is broken either way"
+        - Have not tried
+    validations:
+      required: true

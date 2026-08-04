@@ -1373,3 +1373,36 @@ dropped character was a false-positive vector on every generated host rule.
   missing again silently.
 - This narrows 52k rules. The subdomain and exact-host cases are asserted
   alongside, so the fix cannot quietly under-block instead.
+
+## 2026-08-04 - Redact The Page URL Before A Report Reaches The Clipboard
+
+**Decision**: Cut the page URL back to origin plus path in every generated report, label the removal, and keep resource URLs whole.
+
+**Why**: `CONTRIBUTING.md` already told contributors this happened. It did not. Both report formatters wrote `location.href` verbatim, so a reporter on a signed-in page was invited to paste a session token or a search query into a public issue and told it had been stripped. A false privacy claim is worse than no claim, because it removes the reason to read before pasting. Resource URLs are treated differently on purpose: an ad tag's query string is usually the only thing that names the network, and that is the part triage needs.
+
+**Consequences**:
+- `formatReportUrl` lives in `src/shared.js` and is exercised directly by `scripts/report-contract.mjs`, which loads the real file rather than a copy.
+- `scripts/test-extension.mjs` proves the wiring in a real browser: it gives the live page a query string and a fragment via `history.replaceState`, then fails if either survives into the saved report.
+- Saved reports dedupe slightly more coarsely, since two pages differing only by query string now share a URL.
+- The report still contains verbatim element text, which `CONTRIBUTING.md` now says out loud instead of implying the report is sanitised.
+
+## 2026-08-04 - The Report Shape Is A Contract, Not A Convention
+
+**Decision**: Put the report's line labels, headings, and the issue-form fields triage depends on in one module, `scripts/report-contract.mjs`, and run it as a gate.
+
+**Why**: Three things have to agree or triage silently degrades — the formatter in `src/inspector.js`, the form a reporter fills in, and the script that reads the result. Nothing connected them, so renaming a label was a free action with a delayed cost. The gate's checks run only on direct execution, so the triage script can import the constants without inheriting unrelated governance failures.
+
+**Consequences**:
+- Renaming a report line, dropping a form field, or re-enabling blank issues fails `npm run check`.
+- Adding an issue form that the contract does not know about fails the governance test, so a reporter cannot be routed somewhere nothing reads.
+- `scripts/test-governance-contract.mjs` now derives the open and closed lists from `CONTRIBUTING.md` instead of restating them, after mutation testing showed the restated copy could not catch a file added to the prose without an owner.
+
+## 2026-08-04 - The Built Bundle Is Owned Like Source
+
+**Decision**: Add `src/content.js`, `package-lock.json`, and `LICENSE` to `.github/CODEOWNERS` and to the closed list.
+
+**Why**: The old CODEOWNERS comment excused the bundle on the grounds that hand-edits are overwritten on the next build. `scripts/package-release.mjs` zips the tracked file and never invokes the builder, so an edit to `src/content.js` ships exactly as written. The other two decide what CI installs and what licence the work is published under.
+
+**Consequences**:
+- A pull request touching the bundle now shows an ownership flag rather than passing as generated output.
+- `CONTRIBUTING.md` states that anything not named as open is closed, including files added later, so the open list is the exhaustive one.

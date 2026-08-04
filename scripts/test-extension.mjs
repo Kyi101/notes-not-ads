@@ -869,6 +869,14 @@ try {
     );
   }
 
+  // Give the live page a query string and a fragment without navigating, so the
+  // next report is generated on a URL that carries something a reporter must not
+  // publish. replaceState keeps the content script and its state alive.
+  const secret = "SECRET-TOKEN-9421";
+  await page.evaluate((token) => {
+    history.replaceState(null, "", `${location.pathname}?session=${token}#private-fragment`);
+  }, secret);
+
   const reportPopupPage = await context.newPage();
   await reportPopupPage.goto(`chrome-extension://${extensionId}/popup.html`);
   await reportPopupPage.locator("#reportMissedAd").click();
@@ -894,6 +902,23 @@ try {
     throw new Error(
       `Expected user report flow to save a second report, found ${userReports.length}.`
     );
+  }
+
+  const latestReport = userReports[0];
+  if (latestReport.url !== `${fixtureUrl} (query and fragment removed)`) {
+    throw new Error(
+      `Report URL was not reduced to origin plus path. Got: ${latestReport.url}`
+    );
+  }
+  for (const [field, value] of [
+    ["url", latestReport.url],
+    ["text", latestReport.text]
+  ]) {
+    if (value.includes(secret) || value.includes("private-fragment")) {
+      throw new Error(
+        `Report ${field} leaked the page query string or fragment, which a reporter pastes into a public issue.`
+      );
+    }
   }
   await reportPopupPage.close();
 

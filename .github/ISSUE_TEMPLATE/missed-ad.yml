@@ -1,0 +1,50 @@
+name: Missed ad
+description: An ad survived on a page.
+title: "[missed] "
+labels: ["missed-ad", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open the inspector from the extension popup, press **Report missed ad**,
+        and click the ad that survived. The report is copied to your clipboard.
+        Read it before pasting: the page URL is already cut back to origin plus
+        path, but element text is included verbatim.
+
+  - type: input
+    id: site
+    attributes:
+      label: Site
+      description: Origin plus path. No query string.
+      placeholder: https://example.com/news/article
+    validations:
+      required: true
+
+  - type: textarea
+    id: report
+    attributes:
+      label: Inspector report
+      description: Paste the whole report. Triage reads the reasons and safety blocks.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducible
+    attributes:
+      label: Does it come back on reload?
+      options:
+        - Every time
+        - Sometimes
+        - Only saw it once
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Whether you were signed in, which country you are in, whether a
+        consent banner was involved. Ad delivery varies by all three.
+    validations:
+      required: false
