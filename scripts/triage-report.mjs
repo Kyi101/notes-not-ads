@@ -30,15 +30,27 @@ const FORMS = Object.values(ISSUE_FORMS);
 
 // GitHub renders a form response as "### <label>" blocks. Anything else in the
 // body is the reporter writing freely, which triage does not parse.
+// A rendered body is ambiguous by construction: every form has a free-text
+// field, and "### What broke" typed into one is indistinguishable from the
+// heading the form emitted. Position does not settle it either — a forged
+// heading sits between two genuine ones. So a heading that appears twice is
+// reported as ambiguous rather than resolved, and triage declines to route on
+// it. Guessing here would let a reporter set their own severity and labels.
 export function parseIssueBody(body) {
   const sections = new Map();
+  const duplicated = new Set();
   const parts = body.split(/^###[ \t]+(.+?)[ \t]*$/m);
 
   for (let index = 1; index < parts.length; index += 2) {
-    sections.set(parts[index].trim(), parts[index + 1].trim());
+    const heading = parts[index].trim();
+    if (sections.has(heading)) {
+      duplicated.add(heading);
+      continue;
+    }
+    sections.set(heading, parts[index + 1].trim());
   }
 
-  return sections;
+  return { sections, duplicated };
 }
 
 function answered(value) {
@@ -96,17 +108,18 @@ export function triage({ title = "", body = "" } = {}) {
     };
   }
 
-  const sections = parseIssueBody(body);
+  const { sections, duplicated } = parseIssueBody(body);
   const values = {};
   const missing = [];
+  const flags = [];
 
   for (const [field, heading] of Object.entries(form.fields)) {
-    const value = sections.get(heading);
+    const value = duplicated.has(heading) ? null : sections.get(heading);
     values[field] = answered(value) ? value : null;
     if (!answered(value)) missing.push(field);
   }
 
-  const flags = [];
+  if (duplicated.size) flags.push("duplicate-headings");
   if (carriesUnredactedPageUrl(values.site, values.report)) flags.push("url-not-redacted");
 
   let severity = "normal";
@@ -208,6 +221,11 @@ export function formatTriageComment(result) {
   if (result.flags.includes("url-not-redacted")) {
     asks.push(
       "- The page URL still carries a query string or fragment. Please edit the issue and cut it back to origin plus path — a query string can carry a session token, and an edit does not remove it from the issue's history."
+    );
+  }
+  if (result.flags.includes("duplicate-headings")) {
+    asks.push(
+      "- One of the form's headings appears more than once, so it is not possible to tell which answer is the form's and which was typed into a text box. Please edit the issue and change the extra `###` lines to plain text."
     );
   }
   if (result.kind === "unknown") {

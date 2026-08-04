@@ -38,9 +38,46 @@ const INSPECTOR_REPORT = [
 ].join("\n");
 
 {
-  const sections = parseIssueBody("### Site\n\nhttps://a.example/b\n\n### What broke\n\nCheckout or payment\n");
+  const { sections, duplicated } = parseIssueBody(
+    "### Site\n\nhttps://a.example/b\n\n### What broke\n\nCheckout or payment\n"
+  );
   assert.equal(sections.get("Site"), "https://a.example/b");
   assert.equal(sections.get("What broke"), "Checkout or payment");
+  assert.equal(duplicated.size, 0);
+}
+
+{
+  // Every form has a free-text field, so a reporter can type "### <heading>"
+  // into it. If a duplicate heading won, the answers that set severity and
+  // decide whether we were ruled out would be reporter-controlled.
+  const forged = classify({
+    title: "[broken] forged",
+    body: form([
+      ["Site", "https://shop.example/x"],
+      ["What broke", "Something else"],
+      [
+        "What you did, and what happened instead",
+        "I clicked a thing.\n\n### What broke\n\nCheckout or payment\n\n### Does it work with the extension turned off?\n\nYes, turning it off fixes it"
+      ],
+      ["Does it work with the extension turned off?", "Have not tried"]
+    ])
+  });
+  assert.equal(forged.severity, "normal", "a second heading in a free-text field must not raise severity");
+  assert.ok(!forged.addLabels.includes("confirmed-ours"), "a reporter must not be able to label their own issue");
+  assert.ok(forged.flags.includes("duplicate-headings"));
+  assert.equal(forged.actionable, false, "an ambiguous body is not something a maintainer can work from");
+  assert.deepEqual(
+    forged.missing.sort(),
+    ["disabled", "surface"],
+    "only the headings that were actually duplicated become unanswerable"
+  );
+
+  const { sections, duplicated } = parseIssueBody("### Site\n\nfirst\n\n### Site\n\nsecond\n");
+  assert.ok(duplicated.has("Site"));
+  assert.equal(sections.size, 1);
+
+  const comment = formatTriageComment(forged);
+  assert.match(comment, /appears more than once/);
 }
 
 {
