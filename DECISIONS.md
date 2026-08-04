@@ -1208,3 +1208,100 @@ rename makes that explicit instead of tying it to one site.
   regression track instead.
 - Reversible: re-seeding a domain is a one-line change, and the eval case is
   recoverable from git history.
+
+## 2026-08-04 - Ship The Whole EasyList Domain Set, With Its Exceptions
+
+**Decision**: the generated ruleset now carries every bare-domain rule EasyList
+publishes (52,094 blocks at time of writing) plus the `@@` exceptions that
+narrow them (61 initiator-scoped allow rules). The old `GENERATED_DNR_RULE_LIMIT
+= 5000` is gone, replaced by a `STATIC_RULE_CEILING` of 60,000 that exists only
+to catch unbounded upstream growth. `scripts/package-release.mjs` now deflates.
+
+**Why**: the 5,000 cap looked like a reasonable budget and was not. EasyList's
+domain section is alphabetically sorted, so `break` at 5,000 truncated the list
+at the letter "b" — every ad domain from `basement...` to `z` was unblocked,
+about 90% of the list. This was never a ranking; it was an accident of file
+order that nobody had reason to look at.
+
+The 30,000 figure the code treated as a hard per-ruleset cap is Chrome's
+*guaranteed minimum*, not a ceiling. Probed directly with
+`getAvailableStaticRuleCount()`: the packaged build loads 52,169 static rules
+and leaves 277,648 pool slots free.
+
+**Why exceptions had to land in the same change**: raising the cap alone would
+have been a net regression. Past the letter "b" sit `g.doubleclick.net`,
+`imasdk.googleapis.com`, `googletagservices.com` and
+`pagead2.googlesyndication.com`. EasyList carves those out on roughly 150 sites
+— bbc.com, wsj.com, crunchyroll, bloomberg.com, weather.com — because blocking
+them there stops the feature video from starting or breaks page layout, rather
+than just removing the ad. The parser discarded every exception line. Shipping
+the cap raise without exception support would have traded missed ads for broken
+sites, which is the worse failure.
+
+**What is deliberately not converted**: an exception that cannot be scoped to an
+initiator is dropped rather than widened. `parseException` returns null for
+`$domain=` lists containing a negation, for exceptions carrying no `$domain=` at
+all, and for options with no DNR equivalent (`$popup`). An unscoped allow rule
+would unblock a tracker on every site, which `scripts/lint-dnr-rules.mjs`
+already refuses to package. Five hosts keep a residual gap this way; only
+`g.doubleclick.net` and `imasdk.googleapis.com` are newly blocked, and their
+main script paths are covered by convertible exceptions.
+
+**Consequences**:
+- Package went 1.7MB stored to 803KB deflated, at 10x the rule count. The
+  packager had been writing compression method 0 the whole time; invisible at
+  1.7MB, an 18MB download at this rule count.
+- `rules/easylist_dnr.json` is written minified. At 52k rules the indented form
+  cost ~12MB of repo and package weight for a file no human reads line by line.
+- `scripts/test-release-contract.mjs` now bounds the *total* across rulesets
+  rather than each ruleset, because that is what Chrome actually budgets.
+- Regenerating the list is now a materially bigger diff. The lint and the match
+  fixture are the review mechanism, not the diff.
+
+## 2026-08-04 - Verify DNR Rules Against Chrome's Matcher, Not Live Page Loads
+
+**Decision**: `tests/fixtures/dnr-match-cases.json` plus
+`scripts/test-dnr-match.mjs` (`npm run test:dnr-match`) assert rule behaviour by
+asking `chrome.declarativeNetRequest.testMatchOutcome` directly. Every filter
+change is expected to land with a case here.
+
+**Why**: the preroll regression could not be diagnosed by browsing. Ad serving
+is probabilistic — only 3 of 6 loads on the canary served an ad at all — so a
+passing page load could not be distinguished from a lucky one, and two
+successive hypotheses survived longer than they should have because the evidence
+was noisy. Asking the matching engine removes the coin flip entirely.
+
+**Consequences**:
+- The fixture doubles as false-positive coverage: ordinary first-party assets
+  and the canary's film manifest, segments and player bootstrap are asserted to
+  stay allowed.
+- `testMatchOutcome` reports the winning rule id but not its action, so a
+  matched allow rule is indistinguishable from a matched block rule without
+  resolving the id against the packaged rulesets. Any future probe that skips
+  that step will read allow rules as blocks — the first version of this one did.
+- It needs a real Chrome, so it sits alongside `test:extension` rather than in
+  `npm run check`.
+
+## 2026-08-04 - Defend The Preroll Chain By Path, Not By Host
+
+**Decision**: rule 160 blocks the host-agnostic path `/code/video-steam/`.
+Rules 161-163 block the creative CDNs (`traffer.net`, `traffer.biz`,
+`sem-vosem.com`). Rule 155, on the `stats_vast.php` endpoint, stays.
+
+**Why**: the network rotates hostnames. Every VAST tag observed on 2026-08-04
+arrived on a host no rule had seen (`r6.adstag0102.xyz`, `res31.traffer.net`),
+so any host-pinned rule is stale on arrival. The upstream regional filter list
+that beats this chain does it the same way, with a path pattern. Rule 155 was
+found to still match and still block; it simply guards a stats endpoint that was
+never the ad source, so it is kept but is not the defence.
+
+**Consequences**:
+- Two regression cases assert *different* rotating hosts hitting the same path.
+  A future edit that narrows the path rule back to a host fails loudly rather
+  than silently going stale.
+- The film manifest, its HLS segments and the player bootstrap are asserted to
+  remain allowed. Breaking playback is a worse outcome than showing the ad, and
+  an earlier broad attempt at this chain did exactly that.
+- Refuted on the way, recorded so it is not revived: "rule 155 went stale" (it
+  did not) and "our own block of `stats_vast.php` triggers a fallback ad chain"
+  (a three-arm test showed prerolls with no extension installed at all).
