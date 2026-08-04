@@ -1,0 +1,78 @@
+# Issue text is attacker-controlled. It reaches this workflow only through env
+# vars, never through ${{ }} inside a run: block — that form splices the text into
+# the shell script before it runs, so an issue body containing a quote and a
+# semicolon would execute on the runner with this job's token.
+name: Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    name: Tier-1 classification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Classify
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          node scripts/triage-report.mjs > "$RUNNER_TEMP/triage.json"
+          node scripts/triage-report.mjs --comment > "$RUNNER_TEMP/triage-comment.md"
+          cat "$RUNNER_TEMP/triage.json"
+
+      - name: Apply labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # gh fails on a label that does not exist yet, so create the closed set
+          # first. --force makes this idempotent.
+          node scripts/triage-report.mjs --labels | while read -r label; do
+            gh label create "$label" --repo "$REPO" --force >/dev/null
+          done
+          # The label set is a closed list inside scripts/triage-report.mjs, so
+          # nothing a reporter writes can become a label.
+          labels=$(node -p 'JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP + "/triage.json", "utf8")).addLabels.join(",")')
+          if [ -n "$labels" ]; then
+            gh issue edit "$ISSUE" --repo "$REPO" --add-label "$labels"
+          fi
+          severity=$(node -p 'JSON.parse(require("fs").readFileSync(process.env.RUNNER_TEMP + "/triage.json", "utf8")).severity')
+          if [ "$severity" != "normal" ]; then
+            gh issue edit "$ISSUE" --repo "$REPO" --add-label "severity:$severity"
+          fi
+
+      - name: Ask for what is missing, once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ ! -s "$RUNNER_TEMP/triage-comment.md" ]; then
+            echo "Nothing missing; staying quiet."
+            exit 0
+          fi
+          # The issue fires this workflow again on every edit. One comment per
+          # issue: a bot that repeats itself gets muted, and then it is useless
+          # for the report that actually needed a follow-up.
+          if gh issue view "$ISSUE" --repo "$REPO" --json comments \
+              --jq '.comments[].body' | grep -qF 'attention-redirector-triage'; then
+            echo "Already asked; not repeating."
+            exit 0
+          fi
+          gh issue comment "$ISSUE" --repo "$REPO" --body-file "$RUNNER_TEMP/triage-comment.md"

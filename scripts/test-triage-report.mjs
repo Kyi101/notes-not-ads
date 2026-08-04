@@ -1,5 +1,21 @@
 import assert from "node:assert/strict";
-import { triage, parseIssueBody } from "./triage-report.mjs";
+import {
+  triage,
+  parseIssueBody,
+  formatTriageComment,
+  TRIAGE_COMMENT_MARKER,
+  TRIAGE_LABELS
+} from "./triage-report.mjs";
+
+// Every label triage emits anywhere in this file must be one the workflow creates
+// up front, because gh fails on a label that does not exist.
+const emitted = new Set();
+const classify = (input) => {
+  const result = triage(input);
+  for (const label of result.addLabels) emitted.add(label);
+  if (result.severity !== "normal") emitted.add(`severity:${result.severity}`);
+  return result;
+};
 
 // Bodies below are in GitHub's rendered issue-form shape: one "### <label>"
 // block per answered field, "_No response_" for a skipped optional one.
@@ -28,14 +44,14 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({ title: "the ads are back", body: "please fix" });
+  const result = classify({ title: "the ads are back", body: "please fix" });
   assert.equal(result.kind, "unknown", "an issue with no form prefix cannot be routed");
   assert.equal(result.actionable, false);
   assert.deepEqual(result.addLabels, ["needs-form"]);
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[broken] cannot sign in",
     body: form([
       ["Site", "https://shop.example/login"],
@@ -53,7 +69,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[broken] checkout dead",
     body: form([
       ["Site", "https://shop.example/checkout"],
@@ -71,7 +87,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[broken] video will not play",
     body: form([
       ["Site", "https://video.example/watch"],
@@ -88,7 +104,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[missed] banner survived",
     body: form([
       ["Site", "https://example.com/news/article"],
@@ -106,7 +122,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[missed] banner survived",
     body: form([
       ["Site", "https://example.com/news/article"],
@@ -122,7 +138,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[missed] banner survived",
     body: form([
       ["Site", "https://example.com/news/article"],
@@ -137,7 +153,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[false-positive] ate the comments",
     body: form([
       ["Site", "https://example.com/thread"],
@@ -152,7 +168,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[false-positive] ate the comments",
     body: form([
       ["Site", "https://example.com/thread"],
@@ -166,7 +182,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[engine] score iframes by area",
     body: form([
       ["Which closed files this would touch", "src/scanner.js"],
@@ -181,7 +197,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const result = triage({
+  const result = classify({
     title: "[missed] search page",
     body: form([
       ["Site", "https://example.com/search?q=private+thing"],
@@ -197,7 +213,7 @@ const INSPECTOR_REPORT = [
 }
 
 {
-  const clean = triage({
+  const clean = classify({
     title: "[missed] banner",
     body: form([
       ["Site", "https://example.com/news/article"],
@@ -219,7 +235,7 @@ const INSPECTOR_REPORT = [
     "Sources: https://ads.example.net/vast?id=99&slot=top | https://cdn.example/c.gif?u=1"
   ].join("\n");
 
-  const result = triage({
+  const result = classify({
     title: "[missed] preroll",
     body: form([
       ["Site", "https://example.com/search (query removed)"],
@@ -236,4 +252,70 @@ const INSPECTOR_REPORT = [
   assert.ok(result.addLabels.includes("scanner-miss"));
 }
 
-console.log("PASS triage report");
+{
+  const complete = classify({
+    title: "[broken] cannot sign in",
+    body: form([
+      ["Site", "https://shop.example/login"],
+      ["What broke", "Sign-in or account access"],
+      ["What you did, and what happened instead", "Pressed sign in, nothing happened."],
+      ["Does it work with the extension turned off?", "Yes, turning it off fixes it"]
+    ])
+  });
+  assert.equal(
+    formatTriageComment(complete),
+    null,
+    "a complete report gets no comment; a bot that always speaks trains people to ignore it"
+  );
+}
+
+{
+  const comment = formatTriageComment(
+    classify({
+      title: "[broken] video",
+      body: form([
+        ["Site", "https://video.example/watch"],
+        ["What broke", "Video or audio would not play"],
+        ["What you did, and what happened instead", "_No response_"],
+        ["Does it work with the extension turned off?", "Have not tried"]
+      ])
+    })
+  );
+  assert.ok(comment.startsWith(TRIAGE_COMMENT_MARKER), "the marker is how the workflow avoids commenting twice");
+  assert.match(comment, /what you did and what happened instead/);
+  assert.match(comment, /with the extension turned off/);
+}
+
+{
+  // The whole point of the redaction flag is to stop a secret spreading. A comment
+  // that quotes the URL back would publish it a second time.
+  const leaked = "https://example.com/search?session=SECRET-TOKEN-9421";
+  const comment = formatTriageComment(
+    classify({
+      title: "[missed] search page",
+      body: form([
+        ["Site", leaked],
+        ["Inspector report", INSPECTOR_REPORT],
+        ["Does it come back on reload?", "Every time"]
+      ])
+    })
+  );
+  assert.ok(!comment.includes("SECRET-TOKEN-9421"), "the comment must not repeat the thing it is warning about");
+  assert.ok(!comment.includes(leaked));
+  assert.match(comment, /origin plus path/);
+}
+
+{
+  const comment = formatTriageComment(classify({ title: "ads are back", body: "please fix" }));
+  assert.match(comment, /not filed through one of the forms/);
+}
+
+for (const label of emitted) {
+  assert.ok(
+    TRIAGE_LABELS.includes(label),
+    `triage emits "${label}" but the workflow never creates it, so gh would fail on the first report that needs it`
+  );
+}
+assert.ok(emitted.size >= 6, `only ${emitted.size} labels exercised; the corpus stopped covering the label set`);
+
+console.log(`PASS triage report (${emitted.size} of ${TRIAGE_LABELS.length} labels exercised)`);

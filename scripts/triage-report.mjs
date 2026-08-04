@@ -153,10 +153,94 @@ export function triage({ title = "", body = "" } = {}) {
   };
 }
 
+export const TRIAGE_COMMENT_MARKER = "<!-- attention-redirector-triage -->";
+
+// Every label this system can ever apply, forms included. The workflow creates
+// them idempotently before it labels anything: gh fails on a label that does not
+// exist yet, and the first real report is a bad time to discover that.
+export const TRIAGE_LABELS = [
+  ...new Set([
+    ...FORMS.flatMap((form) => form.labels),
+    "needs-form",
+    "confirmed-ours",
+    "not-ours",
+    "scanner-miss",
+    "safety-block",
+    "severity:urgent",
+    "severity:high"
+  ])
+];
+
+const FIELD_PROMPTS = {
+  site: "the site, as origin plus path",
+  report: "the inspector report, copied from the extension popup",
+  reproducible: "whether it comes back on reload",
+  replaced: "what was in that spot before the card appeared",
+  severity: "how bad it was",
+  surface: "what broke",
+  steps: "what you did and what happened instead",
+  disabled: "whether it works with the extension turned off",
+  files: "which closed files this would touch",
+  problem: "what goes wrong today",
+  approach: "the proposed change",
+  blast_radius: "what this could break"
+};
+
+// Says only what the classifier established. Never quotes the issue back: a body
+// flagged for carrying a query string is the last thing to repeat in a comment
+// that cannot be unpublished.
+export function formatTriageComment(result) {
+  const asks = [];
+
+  for (const field of result.missing) {
+    asks.push(`- Missing: ${FIELD_PROMPTS[field] || field}.`);
+  }
+  if (result.flags.includes("extension-off-test-not-run")) {
+    asks.push(
+      "- Please try the page with the extension turned off. That one answer decides whether this is our bug or the site's, and nothing else in the report can settle it."
+    );
+  }
+  if (result.flags.includes("no-inspector-report")) {
+    asks.push(
+      "- The report field does not contain an inspector report. Open the extension popup, press **Report missed ad**, click the ad, and paste what lands on your clipboard."
+    );
+  }
+  if (result.flags.includes("url-not-redacted")) {
+    asks.push(
+      "- The page URL still carries a query string or fragment. Please edit the issue and cut it back to origin plus path — a query string can carry a session token, and an edit does not remove it from the issue's history."
+    );
+  }
+  if (result.kind === "unknown") {
+    asks.push(
+      "- This issue was not filed through one of the forms, so there is nothing to route on. Please open a new one from the issue chooser."
+    );
+  }
+
+  if (!asks.length) return null;
+
+  return [
+    TRIAGE_COMMENT_MARKER,
+    "Automated first pass. Nothing here is a judgement about the report — these are the answers that are missing before it can be worked.",
+    "",
+    ...asks
+  ].join("\n");
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  if (process.argv.includes("--labels")) {
+    console.log(TRIAGE_LABELS.join("\n"));
+    process.exit(0);
+  }
+
   const result = triage({
     title: process.env.ISSUE_TITLE || "",
     body: process.env.ISSUE_BODY || ""
   });
-  console.log(JSON.stringify(result, null, 2));
+
+  if (process.argv.includes("--comment")) {
+    const comment = formatTriageComment(result);
+    if (comment) console.log(comment);
+  } else {
+    console.log(JSON.stringify(result, null, 2));
+  }
 }
