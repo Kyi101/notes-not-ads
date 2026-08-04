@@ -8,10 +8,41 @@ const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, '..');
 
 const EASYLIST_URL = 'https://easylist.to/easylist/easylist.txt';
-const MAX_STATIC_RULES_PER_RULESET = 30000;
-const GENERATED_DNR_RULE_LIMIT = 5000;
+
+// Chrome documents a guaranteed minimum of 30000 static rules per extension,
+// which earlier code treated as a hard cap. It is a floor: the real budget is a
+// shared pool. Probed at 52094 rules the ruleset loaded with 277723 pool slots
+// still free. Keep a ceiling anyway — Chrome drops an oversized ruleset whole,
+// which fails far worse than truncation.
+const STATIC_RULE_CEILING = 60000;
 const GENERATED_COSMETIC_RULE_LIMIT = 5000;
 const writeChanges = process.argv.includes('--write');
+
+const BLOCK_RESOURCE_TYPES = [
+  'script', 'image', 'xmlhttprequest', 'sub_frame',
+  'ping', 'media', 'websocket', 'other'
+];
+
+// EasyList option -> DNR resource type. Options absent here either have no DNR
+// equivalent ($popup) or do not narrow the match ($third-party), and are
+// handled explicitly in parseException.
+const EXCEPTION_TYPE_OPTIONS = {
+  script: 'script',
+  image: 'image',
+  stylesheet: 'stylesheet',
+  xmlhttprequest: 'xmlhttprequest',
+  subdocument: 'sub_frame',
+  media: 'media',
+  font: 'font',
+  ping: 'ping',
+  websocket: 'websocket',
+  other: 'other',
+  object: 'object'
+};
+
+const EXCEPTION_IGNORED_OPTIONS = new Set([
+  'third-party', '3p', 'first-party', '1p', 'important', 'all', 'document'
+]);
 
 function fetchUrl(url) {
   return new Promise((resolve, reject) => {
@@ -23,12 +54,12 @@ function fetchUrl(url) {
   });
 }
 
-function parseRules(text) {
+export function parseRules(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('!'));
-  
+
   const dnrRules = [];
   const cosmeticRules = [];
-  
+  const blockedDomains = new Set();
   let ruleId = 100;
 
   for (const line of lines) {
@@ -36,51 +67,110 @@ function parseRules(text) {
       cosmeticRules.push(line);
       continue;
     }
-    
+
     if (line.startsWith('||') && line.endsWith('^') && !line.includes('*') && !line.includes('/')) {
       const domain = line.slice(2, -1);
+      if (blockedDomains.has(domain)) continue;
+      blockedDomains.add(domain);
       dnrRules.push({
         id: ruleId++,
         priority: 1,
         action: { type: 'block' },
-        condition: {
-          urlFilter: `||${domain}`,
-          resourceTypes: ['script', 'image', 'xmlhttprequest', 'sub_frame', 'ping', 'media', 'websocket', 'other']
-        }
+        condition: { urlFilter: `||${domain}`, resourceTypes: [...BLOCK_RESOURCE_TYPES] }
       });
     }
-    if (dnrRules.length >= GENERATED_DNR_RULE_LIMIT) break;
   }
 
-  assertDnrRulesetWithinCap(dnrRules, 'generated EasyList DNR');
+  // Exceptions run in a second pass so they can be scoped to what pass one
+  // actually blocked. Without them a blanket block on hosts like
+  // imasdk.googleapis.com or g.doubleclick.net breaks video playback and page
+  // layout on the sites EasyList explicitly carves out.
+  let exceptionCount = 0;
+  for (const line of lines) {
+    if (!line.startsWith('@@')) continue;
+    const condition = parseException(line, blockedDomains);
+    if (!condition) continue;
+    dnrRules.push({ id: ruleId++, priority: 2, action: { type: 'allow' }, condition });
+    exceptionCount += 1;
+  }
+
+  assertDnrRulesetWithinCeiling(dnrRules, 'generated EasyList DNR');
   return {
     dnrRules,
+    exceptionCount,
     cosmeticRules: cosmeticRules.slice(0, GENERATED_COSMETIC_RULE_LIMIT)
   };
 }
 
-function assertDnrRulesetWithinCap(rules, label) {
-  if (rules.length > MAX_STATIC_RULES_PER_RULESET) {
+// Returns a DNR condition for an @@ exception, or null when the exception
+// cannot be expressed safely. Unscoped allow rules are never emitted: one would
+// silently unblock a tracker on every site.
+export function parseException(line, blockedDomains) {
+  const body = line.slice(2);
+  const optionStart = body.lastIndexOf('$');
+  const pattern = optionStart > -1 ? body.slice(0, optionStart) : body;
+  const optionText = optionStart > -1 ? body.slice(optionStart + 1) : '';
+
+  if (!pattern.startsWith('||')) return null;
+  if (!/^[\x20-\x7e]+$/.test(pattern)) return null;
+
+  const host = pattern.slice(2).split(/[/^*]/)[0];
+  if (!blockedDomains.has(host)) return null;
+
+  let initiatorDomains = null;
+  const resourceTypes = [];
+
+  for (const option of optionText ? optionText.split(',') : []) {
+    if (option.startsWith('domain=')) {
+      const values = option.slice(7).split('|');
+      // A negated entry inverts the scope into "everywhere except", which has
+      // no scoped-allow equivalent. Drop the whole exception rather than
+      // widening it.
+      if (values.some(v => v.startsWith('~'))) return null;
+      initiatorDomains = values.filter(Boolean).map(v => v.toLowerCase());
+      continue;
+    }
+    if (EXCEPTION_TYPE_OPTIONS[option]) {
+      resourceTypes.push(EXCEPTION_TYPE_OPTIONS[option]);
+      continue;
+    }
+    if (EXCEPTION_IGNORED_OPTIONS.has(option)) continue;
+    return null;
+  }
+
+  if (!initiatorDomains?.length) return null;
+  if (initiatorDomains.some(domain => !/^[a-z0-9.\-]+$/.test(domain))) return null;
+
+  const condition = { urlFilter: pattern, initiatorDomains };
+  if (resourceTypes.length) condition.resourceTypes = resourceTypes;
+  return condition;
+}
+
+function assertDnrRulesetWithinCeiling(rules, label) {
+  if (rules.length > STATIC_RULE_CEILING) {
     throw new Error(
-      `${label} has ${rules.length} rules; Chrome MV3 static rulesets must stay at or below ${MAX_STATIC_RULES_PER_RULESET}.`
+      `${label} has ${rules.length} rules; Chrome drops an oversized static ruleset whole, so this build keeps it at or below ${STATIC_RULE_CEILING}.`
     );
   }
 }
 
 async function main() {
   const text = await fetchUrl(EASYLIST_URL);
-  const { dnrRules, cosmeticRules } = parseRules(text);
+  const { dnrRules, exceptionCount, cosmeticRules } = parseRules(text);
 
   if (!writeChanges) {
     console.log(
-      `[dry] parsed ${dnrRules.length} DNR rules and ${cosmeticRules.length} cosmetic rules from EasyList.`
+      `[dry] parsed ${dnrRules.length} DNR rules (${dnrRules.length - exceptionCount} block, ${exceptionCount} scoped allow) and ${cosmeticRules.length} cosmetic rules from EasyList.`
     );
     console.log('Run `node scripts/update-lists.mjs --write` to update local generated lists.');
     return;
   }
   
+  // Written minified: at ~52k rules the indented form costs ~12MB of package
+  // and repo weight for a file no human reviews line by line. lint-dnr-rules.mjs
+  // is the review mechanism.
   const dnrPath = path.join(root, 'rules', 'easylist_dnr.json');
-  fs.writeFileSync(dnrPath, JSON.stringify(dnrRules, null, 2));
+  fs.writeFileSync(dnrPath, JSON.stringify(dnrRules));
   
   const cosmeticJsPath = path.join(root, 'src', 'cosmetic-filters.js');
   const jsContent = fs.readFileSync(cosmeticJsPath, 'utf8');

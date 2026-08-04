@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateRawSync } from "node:zlib";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -12,6 +13,8 @@ const outputDir = path.join(projectRoot, "dist");
 const outputPath = path.join(outputDir, `attention-redirector-${version}.zip`);
 const ZIP_DOS_TIME = 0;
 const ZIP_DOS_DATE = (1 << 5) | 1; // 1980-01-01
+const ZIP_METHOD_STORE = 0;
+const ZIP_METHOD_DEFLATE = 8;
 const requiredReleasePaths = [
   "manifest.json",
   "popup.html",
@@ -103,17 +106,33 @@ async function createZipArchive(filePaths) {
     const fileData = await readFile(absolutePath);
     const nameData = Buffer.from(filePath.replaceAll(path.sep, "/"));
     const checksum = crc32(fileData);
-    const localHeader = createLocalFileHeader(nameData, checksum, fileData.length);
+
+    // Deflate only when it actually helps: on already-compressed assets such as
+    // the woff2 fonts and png icons it inflates the entry.
+    const deflated = deflateRawSync(fileData, { level: 9 });
+    const useDeflate = deflated.length < fileData.length;
+    const payload = useDeflate ? deflated : fileData;
+    const method = useDeflate ? ZIP_METHOD_DEFLATE : ZIP_METHOD_STORE;
+
+    const localHeader = createLocalFileHeader(
+      nameData,
+      checksum,
+      method,
+      payload.length,
+      fileData.length
+    );
     const centralHeader = createCentralDirectoryHeader(
       nameData,
       checksum,
+      method,
+      payload.length,
       fileData.length,
       offset
     );
 
-    chunks.push(localHeader, nameData, fileData);
+    chunks.push(localHeader, nameData, payload);
     centralDirectory.push(centralHeader, nameData);
-    offset += localHeader.length + nameData.length + fileData.length;
+    offset += localHeader.length + nameData.length + payload.length;
   }
 
   const centralOffset = offset;
@@ -128,34 +147,41 @@ async function createZipArchive(filePaths) {
   return Buffer.concat([...chunks, ...centralChunks, endRecord]);
 }
 
-function createLocalFileHeader(nameData, checksum, fileSize) {
+function createLocalFileHeader(nameData, checksum, method, compressedSize, uncompressedSize) {
   const buffer = Buffer.alloc(30);
   buffer.writeUInt32LE(0x04034b50, 0);
   buffer.writeUInt16LE(20, 4);
   buffer.writeUInt16LE(0, 6);
-  buffer.writeUInt16LE(0, 8);
+  buffer.writeUInt16LE(method, 8);
   buffer.writeUInt16LE(ZIP_DOS_TIME, 10);
   buffer.writeUInt16LE(ZIP_DOS_DATE, 12);
   buffer.writeUInt32LE(checksum, 14);
-  buffer.writeUInt32LE(fileSize, 18);
-  buffer.writeUInt32LE(fileSize, 22);
+  buffer.writeUInt32LE(compressedSize, 18);
+  buffer.writeUInt32LE(uncompressedSize, 22);
   buffer.writeUInt16LE(nameData.length, 26);
   buffer.writeUInt16LE(0, 28);
   return buffer;
 }
 
-function createCentralDirectoryHeader(nameData, checksum, fileSize, localOffset) {
+function createCentralDirectoryHeader(
+  nameData,
+  checksum,
+  method,
+  compressedSize,
+  uncompressedSize,
+  localOffset
+) {
   const buffer = Buffer.alloc(46);
   buffer.writeUInt32LE(0x02014b50, 0);
   buffer.writeUInt16LE(20, 4);
   buffer.writeUInt16LE(20, 6);
   buffer.writeUInt16LE(0, 8);
-  buffer.writeUInt16LE(0, 10);
+  buffer.writeUInt16LE(method, 10);
   buffer.writeUInt16LE(ZIP_DOS_TIME, 12);
   buffer.writeUInt16LE(ZIP_DOS_DATE, 14);
   buffer.writeUInt32LE(checksum, 16);
-  buffer.writeUInt32LE(fileSize, 20);
-  buffer.writeUInt32LE(fileSize, 24);
+  buffer.writeUInt32LE(compressedSize, 20);
+  buffer.writeUInt32LE(uncompressedSize, 24);
   buffer.writeUInt16LE(nameData.length, 28);
   buffer.writeUInt16LE(0, 30);
   buffer.writeUInt16LE(0, 32);

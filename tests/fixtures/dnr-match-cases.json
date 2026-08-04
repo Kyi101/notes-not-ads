@@ -1,0 +1,120 @@
+{
+  "description": "Deterministic DNR match expectations, asserted against Chrome's own matcher via chrome.declarativeNetRequest.testMatchOutcome. A case states the request Chrome sees and whether the packaged rulesets must block it. Live ad serving is probabilistic; this is not.",
+  "cases": [
+    {
+      "id": "generated-head-of-list",
+      "url": "https://0019x.com/ad.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Alphabetically early generated rule. Was already covered before the rule cap was raised."
+    },
+    {
+      "id": "generated-middle-of-list",
+      "url": "https://ogpbiyasujelr.website/a.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Past the old 5000-rule cut. Guards against the generated ruleset being truncated again."
+    },
+    {
+      "id": "generated-tail-of-list",
+      "url": "https://yotta.scrolller.com/t.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Last generated rule alphabetically. EasyList's domain section is sorted, so a truncated build fails here first."
+    },
+
+    {
+      "id": "ima-sdk-unlisted-site",
+      "url": "https://imasdk.googleapis.com/js/sdkloader/ima3.js",
+      "type": "script",
+      "initiator": "https://randomsite.example",
+      "expect": "block",
+      "why": "The video ad SDK is blocked by default."
+    },
+    {
+      "id": "ima-sdk-carved-out-site",
+      "url": "https://imasdk.googleapis.com/js/sdkloader/ima3.js",
+      "type": "script",
+      "initiator": "https://bbc.com",
+      "expect": "allow",
+      "why": "EasyList exempts the SDK here because blocking it stops the player from starting the feature video, not just the ad."
+    },
+    {
+      "id": "ima-dai-carved-out-site",
+      "url": "https://imasdk.googleapis.com/js/sdkloader/ima3_dai.js",
+      "type": "script",
+      "initiator": "https://cbssports.com",
+      "expect": "allow",
+      "why": "Same carve-out for the dynamic-ad-insertion loader."
+    },
+    {
+      "id": "gpt-unlisted-site",
+      "url": "https://g.doubleclick.net/tag/js/gpt.js",
+      "type": "script",
+      "initiator": "https://randomsite.example",
+      "expect": "block",
+      "why": "Google Publisher Tag is blocked by default."
+    },
+    {
+      "id": "gpt-carved-out-site",
+      "url": "https://g.doubleclick.net/tag/js/gpt.js",
+      "type": "script",
+      "initiator": "https://bloomberg.com",
+      "expect": "allow",
+      "why": "EasyList exempts GPT here because blocking it breaks page layout."
+    },
+    {
+      "id": "gts-gpt-carved-out-site",
+      "url": "https://googletagservices.com/tag/js/gpt.js",
+      "type": "script",
+      "initiator": "https://vimeo.com",
+      "expect": "allow",
+      "why": "Exception rules must be scoped to their initiator, never applied globally."
+    },
+
+    {
+      "id": "streaming-canary-film-manifest",
+      "url": "https://ashdi.vip/video04/2/films/x/hls/index.m3u8",
+      "type": "xmlhttprequest",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "The feature film's HLS manifest. Blocking the player CDN breaks playback entirely, which is worse than showing the ad."
+    },
+    {
+      "id": "streaming-canary-film-segment",
+      "url": "https://jk29ocmjeoyql3tj.ashdi.vip/content/stream/films/x/hls/480/segment1.ts",
+      "type": "xmlhttprequest",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "Film video segments ride a rotating subdomain of the same player CDN."
+    },
+    {
+      "id": "streaming-canary-player-script",
+      "url": "https://ashdi.vip/player/embed.js?v=2.5",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "The player bootstrap itself. Must survive any rule aimed at the ad chain."
+    },
+
+    {
+      "id": "ordinary-site-asset-wikipedia",
+      "url": "https://en.wikipedia.org/w/load.php",
+      "type": "script",
+      "initiator": "https://en.wikipedia.org",
+      "expect": "allow",
+      "why": "False-positive canary for a generated ruleset this large."
+    },
+    {
+      "id": "ordinary-site-asset-github",
+      "url": "https://github.githubassets.com/assets/app.js",
+      "type": "script",
+      "initiator": "https://github.com",
+      "expect": "allow",
+      "why": "False-positive canary on a first-party asset host."
+    }
+  ]
+}
