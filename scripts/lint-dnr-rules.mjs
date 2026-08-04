@@ -73,8 +73,22 @@ for (const target of targets) {
     }
 
     if (action === "allow") {
-      const scoped =
-        (rule.condition?.initiatorDomains?.length || 0) + (rule.condition?.requestDomains?.length || 0);
+      const scopeDomains = [
+        ...(rule.condition?.initiatorDomains || []),
+        ...(rule.condition?.requestDomains || [])
+      ];
+      for (const domain of scopeDomains) {
+        // DNR matches a listed domain and every subdomain of it, so "com" is not
+        // a scope — it is the whole TLD wearing one. Counting the array length
+        // was enough to satisfy the check below while unblocking the tracker
+        // everywhere the check exists to prevent.
+        if (typeof domain !== "string" || !isScopableDomain(domain)) {
+          throw new Error(
+            `DNR lint violation: ${where} scopes an allow to "${domain}", which is not a scope. DNR matches the domain and all its subdomains, so a bare TLD unblocks the request across it. Name a registrable host.`
+          );
+        }
+      }
+      const scoped = scopeDomains.length;
       if (scoped < 1 && !carriesItsOwnScope(filter)) {
         throw new Error(
           `DNR lint violation: ${where} has the filter "${filter}" and no initiatorDomains or requestDomains. A bare host allow silently unblocks a tracker on every site; give it a domain scope or a path specific enough to name one resource.`
@@ -92,6 +106,16 @@ console.log("PASS DNR rule lint");
 // beyond the host, because it can then only match that one resource. Deliberately
 // re-implemented rather than imported from the list parser: a gate that shares
 // code with what it inspects cannot catch that code being wrong.
+// Requires a label under a public-looking suffix. This does not consult the
+// public suffix list, so "example.co.uk" passes and "co.uk" would too; closing
+// that would mean shipping and refreshing the PSL. It closes the hole that was
+// actually open — a bare TLD counted as a scope.
+function isScopableDomain(domain) {
+  const labels = domain.trim().toLowerCase().split(".");
+  if (labels.length < 2) return false;
+  return labels.every((label) => /^[a-z0-9-]+$/.test(label));
+}
+
 function carriesItsOwnScope(urlFilter) {
   if (!urlFilter.startsWith("||")) return false;
   const rest = urlFilter.slice(2);

@@ -122,6 +122,34 @@ try {
     ],
     "no initiatorDomains"
   );
+  // A domain scope is what the checks above send an unscoped allow away to get,
+  // so it has to be worth something. DNR matches a listed domain and all its
+  // subdomains, which makes a bare TLD the broadest possible allow wearing the
+  // shape of the narrowest.
+  await expectReject(
+    "allow scoped to a bare TLD",
+    [
+      {
+        id: 1,
+        priority: 2,
+        action: { type: "allow" },
+        condition: { urlFilter: "||tracker.example^", initiatorDomains: ["com"] }
+      }
+    ],
+    "not a scope"
+  );
+  await expectReject(
+    "allow scoped to a bare TLD via requestDomains",
+    [
+      {
+        id: 1,
+        priority: 2,
+        action: { type: "allow" },
+        condition: { urlFilter: "||tracker.example^", requestDomains: ["io"] }
+      }
+    ],
+    "not a scope"
+  );
   await expectReject(
     "regexFilter on block rule",
     [
