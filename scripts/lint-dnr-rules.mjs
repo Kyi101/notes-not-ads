@@ -7,6 +7,7 @@ const projectRoot = path.resolve(__dirname, "..");
 
 const ALLOWED_ACTIONS = new Set(["block", "allow"]);
 const MIN_FILTER_LENGTH = 4;
+const MIN_ALLOW_DISCRIMINATOR = 4;
 const DEFAULT_TARGETS = ["rules/rules_1.json", "rules/easylist_dnr.json"];
 
 const supplied = process.argv.slice(2);
@@ -74,9 +75,9 @@ for (const target of targets) {
     if (action === "allow") {
       const scoped =
         (rule.condition?.initiatorDomains?.length || 0) + (rule.condition?.requestDomains?.length || 0);
-      if (scoped < 1) {
+      if (scoped < 1 && !carriesItsOwnScope(filter)) {
         throw new Error(
-          `DNR lint violation: ${where} is an unscoped allow rule. Without initiatorDomains or requestDomains it silently unblocks a tracker on every site.`
+          `DNR lint violation: ${where} has the filter "${filter}" and no initiatorDomains or requestDomains. A bare host allow silently unblocks a tracker on every site; give it a domain scope or a path specific enough to name one resource.`
         );
       }
     }
@@ -86,3 +87,15 @@ for (const target of targets) {
 }
 
 console.log("PASS DNR rule lint");
+
+// A host-anchored allow needs no domain scope once it names a path or query
+// beyond the host, because it can then only match that one resource. Deliberately
+// re-implemented rather than imported from the list parser: a gate that shares
+// code with what it inspects cannot catch that code being wrong.
+function carriesItsOwnScope(urlFilter) {
+  if (!urlFilter.startsWith("||")) return false;
+  const rest = urlFilter.slice(2);
+  const separator = rest.search(/[/^]/);
+  if (separator < 0) return false;
+  return rest.slice(separator + 1).replace(/[|^*]/g, "").length >= MIN_ALLOW_DISCRIMINATOR;
+}

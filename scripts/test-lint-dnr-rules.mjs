@@ -52,6 +52,12 @@ try {
       priority: 2,
       action: { type: "allow" },
       condition: { urlFilter: "||example.com^", initiatorDomains: ["example.com"] }
+    },
+    {
+      id: 4,
+      priority: 2,
+      action: { type: "allow" },
+      condition: { urlFilter: "||abcnews.com/assets/js/prebid.min.js" }
     }
   ]);
   if (clean !== null) {
@@ -81,7 +87,7 @@ try {
   await expectReject("wildcard filter", [blockRule(1, "*")], "too broadly");
   await expectReject("short filter", [blockRule(1, "||ad^")], "too broadly");
   await expectReject(
-    "unscoped allow",
+    "unscoped bare-host allow",
     [
       {
         id: 1,
@@ -90,7 +96,31 @@ try {
         condition: { urlFilter: "||tracker.example^", resourceTypes: ["script"] }
       }
     ],
-    "unscoped allow"
+    "no initiatorDomains"
+  );
+  await expectReject(
+    "unscoped allow with too thin a path",
+    [
+      {
+        id: 1,
+        priority: 2,
+        action: { type: "allow" },
+        condition: { urlFilter: "||tracker.example/a/", resourceTypes: ["script"] }
+      }
+    ],
+    "no initiatorDomains"
+  );
+  await expectReject(
+    "unscoped hostless allow",
+    [
+      {
+        id: 1,
+        priority: 2,
+        action: { type: "allow" },
+        condition: { urlFilter: "/assets/js/prebid.min.js", resourceTypes: ["script"] }
+      }
+    ],
+    "no initiatorDomains"
   );
   await expectReject(
     "regexFilter on block rule",

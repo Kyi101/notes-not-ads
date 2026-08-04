@@ -1305,3 +1305,71 @@ never the ad source, so it is kept but is not the defence.
 - Refuted on the way, recorded so it is not revived: "rule 155 went stale" (it
   did not) and "our own block of `stats_vast.php` triggers a fallback ad chain"
   (a three-arm test showed prerolls with no extension installed at all).
+
+## 2026-08-04 - Convert More Filter Shapes Instead Of Adding More Filter Lists
+
+**Decision**: teach `scripts/update-lists.mjs` the filter shapes it was
+discarding — host-plus-path, host-agnostic path and substring patterns,
+`$domain=` scoping, `$third-party`/`$first-party`, and resource-type options —
+rather than ingest an additional upstream list. Unknown options still drop the
+rule. `$popup`, `$document`, `$all`, `$rewrite` and regex literals are refused
+by name.
+
+**Why**: the parser converted only bare `||host^` lines, so it was dropping
+8,448 of EasyList's own 60,543 network rules. Measured against the regional list
+that carries the fix for the preroll chain: it holds 5,565 network rules of
+which the old parser would have converted 520, and the three lines that beat the
+chain — a path pattern and two `$3p` host rules — were all in the discarded 91%.
+Adding a source would have added maintenance and still shipped the bug. The
+shape gap, not the source gap, was the real one.
+
+**Consequences**:
+- 56,804 block rules, up from 52,108, with no new upstream dependency. Package
+  is 871KB.
+- Blocks can now be narrower than before, not just more numerous: 1,620 host
+  rules that used to be all-or-nothing are now third-party only, so a site's own
+  assets survive when a visitor goes there directly.
+- Hostless patterns match every request on every site, so they carry a longer
+  minimum than the four characters host-anchored rules get. Set at 8: it costs
+  10 of 1,173 hostless rules and removes exactly the ones that can match an
+  ordinary URL by coincidence (`/e/cm?`, `/a/?ad=`, `://adv.`). At 9 it would
+  cost 204.
+- Adding a source list is now a cheap follow-on rather than a rewrite.
+
+## 2026-08-04 - An Allow Rule May Be Scoped By Its Own Path
+
+**Decision**: `lint-dnr-rules.mjs` accepts an allow rule with no
+`initiatorDomains` when its `urlFilter` is host-anchored and names a path or
+query of at least four characters beyond the host. A bare `||host^` allow with
+no domain scope is still rejected.
+
+**Why**: 463 of EasyList's 757 exceptions carry no `$domain=`, and the blanket
+ban dropped all of them. Most are host-plus-path carve-outs like
+`@@||abcnews.com/assets/js/prebid.min.js`, which can only ever match one file on
+one host — the pattern is the scope. The ban existed to stop an allow rule
+silently unblocking a tracker across the whole web, and that risk belongs to
+bare-host allows specifically.
+
+**Consequences**:
+- 131 allow rules ship, up from 61, including 18 scoped only by their own path.
+- The check is deliberately re-implemented in the linter rather than imported
+  from the parser. A gate that shares code with what it inspects cannot catch
+  that code being wrong.
+- Paired match cases assert both halves: the carved-out file is allowed and a
+  sibling file on the same host is still blocked.
+
+## 2026-08-04 - Generated Host Rules Keep EasyList's Trailing Separator
+
+**Decision**: emit `||host^`, not `||host`.
+
+**Why**: the generator stripped the `^` EasyList wrote. Without the separator,
+DNR keeps matching past the domain, so `||adnxs.com` also matched
+`adnxs.com.example.org` and `adnxs.community.example.org`. Confirmed against
+Chrome's matcher before and after: both hosts blocked, then both allowed. One
+dropped character was a false-positive vector on every generated host rule.
+
+**Consequences**:
+- Both lookalike hosts are permanent match cases, so the character cannot go
+  missing again silently.
+- This narrows 52k rules. The subdomain and exact-host cases are asserted
+  alongside, so the fix cannot quietly under-block instead.

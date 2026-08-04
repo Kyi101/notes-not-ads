@@ -133,6 +133,112 @@
     },
 
     {
+      "id": "lookalike-suffixed-host",
+      "url": "https://adnxs.com.example.org/app.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "The generator once wrote ||adnxs.com without the trailing ^ EasyList had, so the rule also matched any host merely beginning with it. One dropped character was a false positive on all 52k generated rules."
+    },
+    {
+      "id": "lookalike-embedded-host",
+      "url": "https://adnxs.community.example.org/app.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "Same class without a dot boundary. An innocent host must not inherit a block because its name starts with a blocked one."
+    },
+
+    {
+      "id": "domain-scoped-on-listed-site",
+      "url": "https://dxyz.cloudfront.net/player.js",
+      "type": "script",
+      "initiator": "https://chessgames.com",
+      "expect": "block",
+      "why": "EasyList blocks this general-purpose CDN only on five named sites. The block must still fire on one of them."
+    },
+    {
+      "id": "domain-scoped-off-listed-site",
+      "url": "https://dxyz.cloudfront.net/player.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "The same rule everywhere else. Dropping a $domain= scope here would block a CDN that serves a large share of the ordinary web."
+    },
+    {
+      "id": "third-party-scoped-blocks-third-party",
+      "url": "https://33across.com/tag.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "$third-party maps to domainType. The block must fire when the request really is third-party."
+    },
+    {
+      "id": "third-party-scoped-spares-first-party",
+      "url": "https://33across.com/tag.js",
+      "type": "script",
+      "initiator": "https://33across.com",
+      "expect": "allow",
+      "why": "Ignoring $third-party would have blocked the site's own assets when a visitor goes there directly."
+    },
+    {
+      "id": "host-path-blocks-the-path",
+      "url": "https://anrdoezrs.net/image-1234567.gif",
+      "type": "image",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Host-plus-path rules. EasyList blocks this path rather than the host, and so must we."
+    },
+    {
+      "id": "host-path-spares-the-rest-of-the-host",
+      "url": "https://anrdoezrs.net/index.html",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "Proves the path is load-bearing. If this blocks, a path rule was widened into a host rule."
+    },
+    {
+      "id": "hostless-path-blocks-any-host",
+      "url": "https://someblog.example/wp-content/plugins/ad-inserter/js/ai-functions.min.js",
+      "type": "script",
+      "initiator": "https://someblog.example",
+      "expect": "block",
+      "why": "Host-agnostic path rules are the shape that survives hostname rotation, which is what the preroll chain used to escape."
+    },
+    {
+      "id": "hostless-path-blocks-a-second-host",
+      "url": "https://other.example/wp-content/plugins/ad-inserter/js/ai-functions.min.js",
+      "type": "script",
+      "initiator": "https://other.example",
+      "expect": "block",
+      "why": "Same path on an unrelated host. If only one of the pair fails, the rule was anchored to a host by mistake."
+    },
+    {
+      "id": "self-scoped-allow-carves-out-one-file",
+      "url": "https://adsales.snidigital.com/v2/ads-config.min.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "An exception with no $domain= is still safe when its own path names one file. These were dropped entirely before."
+    },
+    {
+      "id": "self-scoped-allow-does-not-open-the-host",
+      "url": "https://adsales.snidigital.com/v2/tracker.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "The other half of the pair. An unscoped allow that leaked to the whole host would silently unblock a tracker everywhere."
+    },
+    {
+      "id": "recaptcha-survives",
+      "url": "https://google.com/recaptcha/api.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "Breaking CAPTCHAs locks people out of logins, which is the most expensive false positive an ad blocker can ship."
+    },
+
+    {
       "id": "ordinary-site-asset-wikipedia",
       "url": "https://en.wikipedia.org/w/load.php",
       "type": "script",

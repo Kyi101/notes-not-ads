@@ -4,7 +4,7 @@
 // 6 loads served an ad at all — so a browsing-based check cannot tell a fixed
 // rule from a lucky page load. testMatchOutcome asks the engine directly.
 //
-// Usage: node scripts/test-dnr-match.mjs
+// Usage: node scripts/test-dnr-match.mjs [fixture.json]
 
 import { chromium } from "@playwright/test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -16,9 +16,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
 const manifest = JSON.parse(await readFile(path.join(projectRoot, "manifest.json"), "utf8"));
-const fixture = JSON.parse(
-  await readFile(path.join(projectRoot, "tests/fixtures/dnr-match-cases.json"), "utf8")
-);
+const fixturePath = process.argv[2]
+  ? path.resolve(process.cwd(), process.argv[2])
+  : path.join(projectRoot, "tests/fixtures/dnr-match-cases.json");
+const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
 
 // testMatchOutcome names the winning rule but not what it does, so a matched
 // allow rule is indistinguishable from a matched block rule without this map.

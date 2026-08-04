@@ -23,10 +23,8 @@ const BLOCK_RESOURCE_TYPES = [
   'ping', 'media', 'websocket', 'other'
 ];
 
-// EasyList option -> DNR resource type. Options absent here either have no DNR
-// equivalent ($popup) or do not narrow the match ($third-party), and are
-// handled explicitly in parseException.
-const EXCEPTION_TYPE_OPTIONS = {
+// EasyList option -> DNR resource type.
+const TYPE_OPTIONS = {
   script: 'script',
   image: 'image',
   stylesheet: 'stylesheet',
@@ -40,9 +38,33 @@ const EXCEPTION_TYPE_OPTIONS = {
   object: 'object'
 };
 
-const EXCEPTION_IGNORED_OPTIONS = new Set([
-  'third-party', '3p', 'first-party', '1p', 'important', 'all', 'document'
-]);
+const PARTY_OPTIONS = {
+  'third-party': 'thirdParty',
+  '3p': 'thirdParty',
+  'first-party': 'firstParty',
+  '1p': 'firstParty'
+};
+
+// Options that change nothing we can express. $important only decides who wins
+// a block/allow tie, and ignoring it favours not blocking.
+const NEUTRAL_OPTIONS = new Set(['important', 'match-case']);
+
+// Any option outside the three sets above makes the rule unconvertible, and an
+// unknown option is treated the same way. $popup has no DNR resource type;
+// $document and $all block top-level navigation, which fails far more visibly
+// than a missed ad; $rewrite and $redirect need actions this build refuses to
+// ship; $generichide and friends belong to the cosmetic layer, not DNR.
+
+// A pattern carrying no host anchor is evaluated against every request on every
+// site, so it needs more than the four characters the curated list gets away
+// with. Measured against EasyList: raising this from 6 to 8 costs 10 of 1173
+// hostless rules and removes exactly the ones that can match an ordinary URL by
+// coincidence — /e/cm?, /a/?ad=, ://adv. Raising it to 9 would cost 204.
+const MIN_HOSTLESS_FILTER_CORE = 8;
+
+// An allow rule with no initiator scope is only safe when its own pattern names
+// a specific resource. This is the length required of the part after the host.
+const MIN_ALLOW_DISCRIMINATOR = 4;
 
 function fetchUrl(url) {
   return new Promise((resolve, reject) => {
@@ -62,23 +84,26 @@ export function parseRules(text) {
   const blockedDomains = new Set();
   let ruleId = 100;
 
+  const seenConditions = new Set();
+
   for (const line of lines) {
-    if (line.includes('##') || line.includes('#@#')) {
+    if (line.includes('##') || line.includes('#@#') || line.includes('#?#') || line.includes('#$#')) {
       cosmeticRules.push(line);
       continue;
     }
+    if (line.startsWith('@@')) continue;
 
-    if (line.startsWith('||') && line.endsWith('^') && !line.includes('*') && !line.includes('/')) {
-      const domain = line.slice(2, -1);
-      if (blockedDomains.has(domain)) continue;
-      blockedDomains.add(domain);
-      dnrRules.push({
-        id: ruleId++,
-        priority: 1,
-        action: { type: 'block' },
-        condition: { urlFilter: `||${domain}`, resourceTypes: [...BLOCK_RESOURCE_TYPES] }
-      });
-    }
+    const condition = parseBlock(line);
+    if (!condition) continue;
+
+    const key = JSON.stringify(condition);
+    if (seenConditions.has(key)) continue;
+    seenConditions.add(key);
+
+    const host = hostOfFilter(condition.urlFilter);
+    if (host) blockedDomains.add(host);
+
+    dnrRules.push({ id: ruleId++, priority: 1, action: { type: 'block' }, condition });
   }
 
   // Exceptions run in a second pass so they can be scoped to what pass one
@@ -90,6 +115,9 @@ export function parseRules(text) {
     if (!line.startsWith('@@')) continue;
     const condition = parseException(line, blockedDomains);
     if (!condition) continue;
+    const key = `allow:${JSON.stringify(condition)}`;
+    if (seenConditions.has(key)) continue;
+    seenConditions.add(key);
     dnrRules.push({ id: ruleId++, priority: 2, action: { type: 'allow' }, condition });
     exceptionCount += 1;
   }
@@ -102,48 +130,162 @@ export function parseRules(text) {
   };
 }
 
-// Returns a DNR condition for an @@ exception, or null when the exception
-// cannot be expressed safely. Unscoped allow rules are never emitted: one would
-// silently unblock a tracker on every site.
-export function parseException(line, blockedDomains) {
-  const body = line.slice(2);
-  const optionStart = body.lastIndexOf('$');
-  const pattern = optionStart > -1 ? body.slice(0, optionStart) : body;
-  const optionText = optionStart > -1 ? body.slice(optionStart + 1) : '';
+// Splits "pattern$opt1,opt2" apart. EasyList only ever puts options after the
+// last $ on a line, and an option list never contains a slash or a space, so a
+// trailing $ inside a path or a $csp value is not mistaken for a separator.
+function splitOptions(line) {
+  const index = line.lastIndexOf('$');
+  if (index < 0) return { pattern: line, options: [] };
+  const tail = line.slice(index + 1);
+  if (/[\s/]/.test(tail)) return { pattern: line, options: [] };
+  return { pattern: line.slice(0, index), options: tail.split(',').filter(Boolean) };
+}
 
-  if (!pattern.startsWith('||')) return null;
-  if (!/^[\x20-\x7e]+$/.test(pattern)) return null;
+// Reads the option list shared by block and exception lines. Returns null on
+// anything it does not understand, so an unrecognised option drops the rule
+// instead of silently shipping a wider match than the list author wrote.
+function parseOptions(options) {
+  const parsed = {
+    resourceTypes: [],
+    initiatorDomains: null,
+    excludedInitiatorDomains: null,
+    domainType: null
+  };
 
-  const host = pattern.slice(2).split(/[/^*]/)[0];
-  if (!blockedDomains.has(host)) return null;
+  for (const option of options) {
+    const negated = option.startsWith('~');
+    const bare = negated ? option.slice(1) : option;
 
-  let initiatorDomains = null;
-  const resourceTypes = [];
-
-  for (const option of optionText ? optionText.split(',') : []) {
-    if (option.startsWith('domain=')) {
-      const values = option.slice(7).split('|');
-      // A negated entry inverts the scope into "everywhere except", which has
-      // no scoped-allow equivalent. Drop the whole exception rather than
-      // widening it.
-      if (values.some(v => v.startsWith('~'))) return null;
-      initiatorDomains = values.filter(Boolean).map(v => v.toLowerCase());
+    if (bare.startsWith('domain=')) {
+      const included = [];
+      const excluded = [];
+      for (const value of bare.slice(7).split('|')) {
+        if (!value) continue;
+        const domain = value.replace(/^~/, '').toLowerCase();
+        if (!/^[a-z0-9.\-]+$/.test(domain)) return null;
+        (value.startsWith('~') ? excluded : included).push(domain);
+      }
+      if (included.length) parsed.initiatorDomains = included;
+      if (excluded.length) parsed.excludedInitiatorDomains = excluded;
       continue;
     }
-    if (EXCEPTION_TYPE_OPTIONS[option]) {
-      resourceTypes.push(EXCEPTION_TYPE_OPTIONS[option]);
+
+    if (PARTY_OPTIONS[bare]) {
+      const party = PARTY_OPTIONS[bare];
+      const resolved = negated
+        ? (party === 'thirdParty' ? 'firstParty' : 'thirdParty')
+        : party;
+      if (parsed.domainType && parsed.domainType !== resolved) return null;
+      parsed.domainType = resolved;
       continue;
     }
-    if (EXCEPTION_IGNORED_OPTIONS.has(option)) continue;
+
+    if (TYPE_OPTIONS[bare]) {
+      // A negated type means "every type except this one". Spelling out the
+      // complement would widen the rule past what the author wrote.
+      if (negated) return null;
+      parsed.resourceTypes.push(TYPE_OPTIONS[bare]);
+      continue;
+    }
+
+    if (NEUTRAL_OPTIONS.has(bare)) continue;
     return null;
   }
 
-  if (!initiatorDomains?.length) return null;
-  if (initiatorDomains.some(domain => !/^[a-z0-9.\-]+$/.test(domain))) return null;
+  return parsed;
+}
 
-  const condition = { urlFilter: pattern, initiatorDomains };
-  if (resourceTypes.length) condition.resourceTypes = resourceTypes;
+// Normalises an EasyList pattern into a DNR urlFilter, or null when the pattern
+// has no safe DNR equivalent.
+function toUrlFilter(pattern) {
+  if (!pattern) return null;
+  // Regex literals are rejected outright: their breadth cannot be judged from
+  // their length, which is the whole basis of the specificity guards below.
+  // This must stay above the wildcard strip. EasyList writes a path rule as
+  // /ad/img/* and a regex as /ad\/img/, so the trailing wildcard is the only
+  // thing telling them apart — strip it first and 180 path rules start looking
+  // like regexes.
+  if (pattern.startsWith('/') && pattern.endsWith('/') && pattern.length > 2) return null;
+  if (!/^[\x21-\x7e]+$/.test(pattern)) return null;
+  if (pattern.includes('$')) return null;
+
+  // Leading and trailing wildcards are what DNR does by default.
+  const filter = pattern.replace(/^\*+/, '').replace(/\*+$/, '');
+  if (!filter) return null;
+
+  const core = filter.replace(/[|^*]/g, '');
+  if (filter.startsWith('||')) {
+    return core.length >= 4 ? filter : null;
+  }
+  return core.length >= MIN_HOSTLESS_FILTER_CORE ? filter : null;
+}
+
+function hostOfFilter(urlFilter) {
+  if (!urlFilter.startsWith('||')) return null;
+  const host = urlFilter.slice(2).split(/[/^*?]/)[0];
+  return host || null;
+}
+
+// Returns a DNR condition for a blocking line, or null when it cannot be
+// expressed. Bare-host lines gain back the trailing ^ EasyList wrote: without
+// the separator, ||adnxs.com also matches adnxs.community.example.org.
+export function parseBlock(line) {
+  const { pattern, options } = splitOptions(line);
+  const parsed = parseOptions(options);
+  if (!parsed) return null;
+
+  const bareHost = /^\|\|[^/^*|]+\^?$/.test(pattern);
+  const urlFilter = toUrlFilter(bareHost ? `||${pattern.slice(2).replace(/\^$/, '')}^` : pattern);
+  if (!urlFilter) return null;
+
+  const condition = { urlFilter };
+  condition.resourceTypes = parsed.resourceTypes.length
+    ? parsed.resourceTypes
+    : [...BLOCK_RESOURCE_TYPES];
+  if (parsed.initiatorDomains) condition.initiatorDomains = parsed.initiatorDomains;
+  if (parsed.excludedInitiatorDomains) {
+    condition.excludedInitiatorDomains = parsed.excludedInitiatorDomains;
+  }
+  if (parsed.domainType) condition.domainType = parsed.domainType;
   return condition;
+}
+
+// Returns a DNR condition for an @@ exception, or null when the exception
+// cannot be expressed safely. An allow rule must be scoped by initiator or by
+// its own pattern; an unscoped one would unblock a tracker on every site.
+export function parseException(line, blockedDomains) {
+  const { pattern, options } = splitOptions(line.slice(2));
+  const parsed = parseOptions(options);
+  if (!parsed) return null;
+
+  // "Allow everywhere except here" has no safe scoped form.
+  if (parsed.excludedInitiatorDomains) return null;
+
+  const urlFilter = toUrlFilter(pattern);
+  if (!urlFilter) return null;
+
+  const host = hostOfFilter(urlFilter);
+  // An exception only earns a rule when it carves out something we block.
+  if (!host || !blockedDomains.has(host)) return null;
+
+  if (!parsed.initiatorDomains?.length && !isSelfScopedAllow(urlFilter)) return null;
+
+  const condition = { urlFilter };
+  if (parsed.initiatorDomains) condition.initiatorDomains = parsed.initiatorDomains;
+  if (parsed.resourceTypes.length) condition.resourceTypes = parsed.resourceTypes;
+  if (parsed.domainType) condition.domainType = parsed.domainType;
+  return condition;
+}
+
+// A host-anchored allow carries its own scope once it names a path or query
+// beyond the host, because it can then only ever match that one resource.
+export function isSelfScopedAllow(urlFilter) {
+  if (!urlFilter.startsWith('||')) return false;
+  const rest = urlFilter.slice(2);
+  const separator = rest.search(/[/^]/);
+  if (separator < 0) return false;
+  const discriminator = rest.slice(separator + 1).replace(/[|^*]/g, '');
+  return discriminator.length >= MIN_ALLOW_DISCRIMINATOR;
 }
 
 function assertDnrRulesetWithinCeiling(rules, label) {
