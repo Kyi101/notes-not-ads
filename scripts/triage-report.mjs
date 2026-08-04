@@ -123,7 +123,11 @@ export function triage({ title = "", body = "" } = {}) {
   if (carriesUnredactedPageUrl(values.site, values.report)) flags.push("url-not-redacted");
 
   let severity = "normal";
-  const addLabels = [];
+  // The form declares these too, but GitHub drops a label that does not exist
+  // yet, and the workflow only creates them once an issue has already been
+  // filed. So the very first report of each kind would lose them permanently.
+  // Re-applying is free; gh treats an already-present label as a no-op.
+  const addLabels = [...form.labels];
 
   if (form.kind === "breakage") {
     if (values.surface && BREAKING_SURFACES.has(values.surface)) severity = "urgent";

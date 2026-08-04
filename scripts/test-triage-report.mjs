@@ -353,6 +353,13 @@ for (const label of emitted) {
     `triage emits "${label}" but the workflow never creates it, so gh would fail on the first report that needs it`
   );
 }
-assert.ok(emitted.size >= 6, `only ${emitted.size} labels exercised; the corpus stopped covering the label set`);
+// The other direction: a label the workflow creates but no report can earn is
+// either dead or a routing path nothing tests. Both are worth knowing about.
+const unexercised = TRIAGE_LABELS.filter((label) => !emitted.has(label));
+assert.deepEqual(
+  unexercised,
+  [],
+  `the workflow creates ${unexercised.join(", ")} but no case in this file produces them, so nothing checks the routing that would`
+);
 
 console.log(`PASS triage report (${emitted.size} of ${TRIAGE_LABELS.length} labels exercised)`);
