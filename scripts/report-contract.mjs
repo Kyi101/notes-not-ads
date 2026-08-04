@@ -37,12 +37,45 @@ export const REPORT_HEADINGS = [
   "Attention Redirector Saved Inspector Reports"
 ];
 
-// A form is only useful to triage if the fields it routes on are present.
+// A form is only useful to triage if the fields it routes on are present. The
+// field values here are the rendered headings, not the ids: GitHub posts a form
+// response as "### <label>" blocks, so the label is what triage actually parses
+// and the id is only how the form file names it.
 export const ISSUE_FORMS = {
-  "missed-ad.yml": { labels: ["missed-ad", "needs-triage"], fields: ["site", "report"] },
-  "false-positive.yml": { labels: ["false-positive", "needs-triage"], fields: ["site", "severity"] },
-  "broken-page.yml": { labels: ["breakage", "needs-triage"], fields: ["site", "surface", "disabled"] },
-  "engine-proposal.yml": { labels: ["engine", "needs-triage"], fields: ["files", "problem", "blast_radius"] }
+  "missed-ad.yml": {
+    kind: "missed-ad",
+    titlePrefix: "[missed] ",
+    labels: ["missed-ad", "needs-triage"],
+    fields: { site: "Site", report: "Inspector report", reproducible: "Does it come back on reload?" }
+  },
+  "false-positive.yml": {
+    kind: "false-positive",
+    titlePrefix: "[false-positive] ",
+    labels: ["false-positive", "needs-triage"],
+    fields: { site: "Site", replaced: "What got replaced", severity: "How bad was it?" }
+  },
+  "broken-page.yml": {
+    kind: "breakage",
+    titlePrefix: "[broken] ",
+    labels: ["breakage", "needs-triage", "priority"],
+    fields: {
+      site: "Site",
+      surface: "What broke",
+      steps: "What you did, and what happened instead",
+      disabled: "Does it work with the extension turned off?"
+    }
+  },
+  "engine-proposal.yml": {
+    kind: "engine",
+    titlePrefix: "[engine] ",
+    labels: ["engine", "needs-triage"],
+    fields: {
+      files: "Which closed files this would touch",
+      problem: "The problem",
+      approach: "The proposed change",
+      blast_radius: "What this could break"
+    }
+  }
 };
 
 const FIELD_TYPES = new Set(["markdown", "input", "textarea", "dropdown", "checkboxes"]);
@@ -124,9 +157,10 @@ async function main() {
   // GitHub rather than rejected, which is exactly why it needs a local check.
   function readForm(text, file) {
     const labels = [];
-    const fields = [];
+    const fields = new Map();
     let inBody = false;
     let currentType = null;
+    let currentId = null;
 
     for (const raw of text.split("\n")) {
       const labelLine = raw.match(/^labels:\s*\[(.+)\]\s*$/);
@@ -143,13 +177,20 @@ async function main() {
       const typeLine = raw.match(/^\s*-\s*type:\s*(\S+)\s*$/);
       if (typeLine) {
         currentType = typeLine[1];
+        currentId = null;
         if (!FIELD_TYPES.has(currentType)) fail(`${file} declares an unknown field type "${currentType}".`);
         continue;
       }
       const idLine = raw.match(/^\s*id:\s*(\S+)\s*$/);
       if (idLine) {
         if (currentType === "markdown") fail(`${file} gives an id to a markdown block, which GitHub ignores.`);
-        fields.push(idLine[1]);
+        currentId = idLine[1];
+        fields.set(currentId, null);
+        continue;
+      }
+      const headingLine = raw.match(/^\s*label:\s*(.+?)\s*$/);
+      if (headingLine && currentId) {
+        fields.set(currentId, headingLine[1].replace(/^["']|["']$/g, ""));
       }
     }
 
@@ -169,15 +210,25 @@ async function main() {
     if (!/^name:\s*\S/m.test(text)) fail(`${file} has no name:, so it does not appear in the issue chooser.`);
     if (!/^description:\s*\S/m.test(text)) fail(`${file} has no description:.`);
 
+    // The title prefix is how triage tells one form's issues from another's.
+    if (!text.includes(`title: "${expected.titlePrefix}"`)) {
+      fail(`${file} must set title: "${expected.titlePrefix}", which is the only thing distinguishing its issues from another form's.`);
+    }
+
     const form = readForm(text, file);
     for (const label of expected.labels) {
       if (!form.labels.includes(label)) {
         fail(`${file} does not apply the "${label}" label, which is how triage finds it.`);
       }
     }
-    for (const field of expected.fields) {
-      if (!form.fields.includes(field)) {
+    for (const [field, heading] of Object.entries(expected.fields)) {
+      if (!form.fields.has(field)) {
         fail(`${file} has no field with id "${field}", which triage reads.`);
+      }
+      if (form.fields.get(field) !== heading) {
+        fail(
+          `${file} labels the "${field}" field "${form.fields.get(field)}", but triage parses the rendered body for "### ${heading}". A relabelled field is invisible to triage.`
+        );
       }
     }
   }
