@@ -1,0 +1,71 @@
+# Everything here is deterministic. The live-site evals and the third-party
+# adblock-tester runs stay local on purpose: they load real pages, so they fail
+# for reasons that have nothing to do with the diff, and a gate that goes red for
+# reasons nobody controls stops being read.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Deterministic gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      # The bundle is packaged as-is, so a stale one ships whatever it was last
+      # built from. npm run check rebuilds it; if that produced a diff, the commit
+      # carries a bundle its own partials do not agree with.
+      - name: Bundle matches its partials
+        run: |
+          if ! git diff --quiet -- src/content.js; then
+            echo "src/content.js is out of date. Run 'npm run build' and commit the result."
+            git diff --stat -- src/content.js
+            exit 1
+          fi
+
+  browser:
+    name: Extension loads in Chromium
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # An MV3 extension cannot be loaded headless, so the run needs a display.
+      - run: xvfb-run -a npm run test:extension
+      - run: xvfb-run -a npm run test:onboarding
+      - run: xvfb-run -a npm run test:dnr-match
+
+  paired-change:
+    name: Filter changes ship a case
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check diffs against the merge base, which needs real history.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: git fetch --no-tags origin ${{ github.base_ref }}
+      - run: node scripts/check-paired-change.mjs --base origin/${{ github.base_ref }}
