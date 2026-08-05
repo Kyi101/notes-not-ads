@@ -638,6 +638,19 @@
         <div id="caption-link-slot" class="promo-region" style="width: 728px; height: 90px;">
           <a href="https://example.test/about-ads">Advertisement</a>
         </div>
+        <!-- The caption is a label above the creative, and the wrapper reserves
+             the height. Replacing only the creative leaves the word standing
+             over a blank box, which is what a reader reports as "the ad did not
+             go away". The wrapper itself has to be claimed. -->
+        <div id="labelled-reserved-wrapper" style="width: 728px; min-height: 250px;">
+          <p class="slot-caption">Advertisement</p>
+          <div class="promo-region" style="width: 728px; height: 220px;">creative</div>
+        </div>
+        <div id="labelled-reserved-trailing" style="width: 728px; min-height: 250px;">
+          <p class="slot-caption">Advertisement</p>
+          <div class="promo-region" style="width: 728px; height: 200px;">creative</div>
+          <p class="slot-caption">Continue reading below</p>
+        </div>
         <div id="search-affiliate-results" class="search-affiliate-results">
           <div
             id="search-affiliate-ad"

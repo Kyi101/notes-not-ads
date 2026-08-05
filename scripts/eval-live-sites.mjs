@@ -257,7 +257,9 @@ async function runCase(context, worker, testCase, options) {
         ? "error"
         : policyCheck
           ? "fail"
-        : options.failOnSuspects && pageMetrics.visibleAdSuspects.length > 0
+        : options.failOnSuspects &&
+            (pageMetrics.visibleAdSuspects.length > 0 ||
+              pageMetrics.captionSurvivors.length > 0)
           ? "fail"
           : "pass";
 
@@ -445,12 +447,72 @@ async function collectPageMetrics(page) {
       }
     }
 
+    // The sweep above needs a suspect to be at least 120x40 and to name itself
+    // an ad, so it cannot see the thing a reader actually complains about: the
+    // site's own caption, a few pixels tall in a class like "caption", left
+    // standing over the gap where the ad was.
+    const CAPTIONS =
+      /^(advertisement|advertising|sponsored|sponsored content|promoted|paid post|реклама|на правах реклами)[.:]?$/i;
+    const captionSurvivors = [];
+
+    for (const node of document.querySelectorAll("body *")) {
+      if (captionSurvivors.length >= 12) {
+        break;
+      }
+      if (
+        !(node instanceof HTMLElement) ||
+        node.closest(extensionSelector) ||
+        node.querySelector("*") ||
+        // A caption inside a link is the site's own chrome, not a slot badge —
+        // the "Advertising" entry in a footer or account menu points at the
+        // ad-sales page. The replacer skips these for the same reason, so
+        // reporting them here would flag behaviour we chose to have.
+        node.closest("a") ||
+        !CAPTIONS.test(String(node.textContent || "").trim())
+      ) {
+        continue;
+      }
+
+      const rect = node.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) {
+        continue;
+      }
+
+      let readable = true;
+      for (let el = node; el && el !== document.documentElement; el = el.parentElement) {
+        const style = window.getComputedStyle(el);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number.parseFloat(style.opacity || "1") === 0
+        ) {
+          readable = false;
+          break;
+        }
+      }
+      if (!readable) {
+        continue;
+      }
+
+      captionSurvivors.push({
+        signature: getSignature(node),
+        text: String(node.textContent || "").trim().slice(0, 40),
+        rect: {
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          top: Math.round(rect.top),
+          left: Math.round(rect.left)
+        }
+      });
+    }
+
     return {
       url: location.href,
       title: document.title,
       attentionSlots: document.querySelectorAll(".attention-redirector-slot").length,
       attentionCards: document.querySelectorAll(".attention-redirector-card").length,
       visibleAdSuspects,
+      captionSurvivors,
       bodyTextLength: document.body ? document.body.innerText.length : 0,
       domSignals: {
         passwordFields: document.querySelectorAll("input[type='password']").length,
@@ -490,7 +552,7 @@ function printCaseResult(result) {
   const policyText = result.sitePolicy ? ` policy=${result.sitePolicy.protocol}` : "";
   const policyMismatch = result.policyCheck ? " policy-mismatch" : "";
   console.log(
-    `${marker} ${result.group}/${result.id}${formatResultTags(result)}${policyText}${policyMismatch} cards=${result.metrics.attentionCards} suspects=${result.metrics.visibleAdSuspects.length} ${result.finalUrl}`
+    `${marker} ${result.group}/${result.id}${formatResultTags(result)}${policyText}${policyMismatch} cards=${result.metrics.attentionCards} suspects=${result.metrics.visibleAdSuspects.length} captions=${result.metrics.captionSurvivors.length} ${result.finalUrl}`
   );
 }
 

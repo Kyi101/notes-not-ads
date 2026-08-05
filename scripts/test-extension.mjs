@@ -184,6 +184,12 @@ try {
   if (!(await page.locator("#fp-hero-image").count())) {
     throw new Error("An article hero image was replaced by a card.");
   }
+  const ambientSurvivors = await findCaptionSurvivors(page);
+  if (ambientSurvivors.length) {
+    throw new Error(
+      `Full Ambient left ad captions readable: ${ambientSurvivors.join(", ")}.`
+    );
+  }
   await page
     .locator("#portal-fixed-media-child.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
@@ -532,6 +538,31 @@ try {
   if (visibleCleanSlotCount !== 0) {
     throw new Error(`Clean left ${visibleCleanSlotCount} detected slots visible.`);
   }
+  const cleanSurvivors = await findCaptionSurvivors(cleanPage);
+  if (cleanSurvivors.length) {
+    throw new Error(
+      `Clean left ad captions readable: ${cleanSurvivors.join(", ")}.`
+    );
+  }
+  // The caption going quiet is only half of it: a wrapper that reserved height
+  // for the creative leaves a blank box where the ad was.
+  const cleanGaps = await cleanPage.evaluate(() =>
+    ["labelled-reserved-wrapper", "labelled-reserved-trailing"]
+      .map((id) => ({
+        id,
+        height: Math.round(
+          document.getElementById(id)?.getBoundingClientRect().height ?? -1
+        )
+      }))
+      .filter((entry) => entry.height > 0)
+  );
+  if (cleanGaps.length) {
+    throw new Error(
+      `Clean left reserved gaps: ${cleanGaps
+        .map((gap) => `#${gap.id} ${gap.height}px`)
+        .join(", ")}.`
+    );
+  }
   await cleanPage.close();
 
   await saveExtensionSettings(serviceWorker, {
@@ -566,6 +597,12 @@ try {
   if (Math.abs(mixedAmbientRatio - 0.5) > 0.3) {
     throw new Error(
       `Presence 5 was too skewed: ${mixedAmbientCount} ambient and ${mixedCleanCount} clean.`
+    );
+  }
+  const mixedSurvivors = await findCaptionSurvivors(mixedPage);
+  if (mixedSurvivors.length) {
+    throw new Error(
+      `Balanced left ad captions readable: ${mixedSurvivors.join(", ")}.`
     );
   }
   await mixedPage.close();
@@ -1598,6 +1635,57 @@ async function findFixtureTabId(serviceWorker, fixtureUrl) {
   throw new Error(
     `Could not find fixture tab id. Visible tabs: ${JSON.stringify(tabs)}`
   );
+}
+
+// A slot can be replaced and still leave the page reading as if nothing
+// happened: the site's caption sits outside the slot, so the word survives over
+// a gap the wrapper still reserves. Counting cards cannot see that; only asking
+// what a reader can still read can.
+async function findCaptionSurvivors(page) {
+  return page.evaluate(() => {
+    const CAPTIONS =
+      /^(advertisement|advertising|sponsored|sponsored content|promoted|paid post|реклама|на правах реклами)[.:]?$/i;
+
+    const isReadable = (element) => {
+      let current = element;
+      while (current && current !== document.documentElement) {
+        const style = getComputedStyle(current);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number.parseFloat(style.opacity || "1") === 0
+        ) {
+          return false;
+        }
+        current = current.parentElement;
+      }
+      return true;
+    };
+
+    return Array.from(document.querySelectorAll("body *"))
+      .filter((element) => {
+        if (element.closest("[class*='attention-redirector']")) return false;
+        // An fp- bait is something that must survive untouched, so a caption
+        // inside one is the passing result: the editorial legend reading
+        // "Реклама", the "Sponsored" row in a real account menu.
+        if (element.closest("[id^='fp-']")) return false;
+        // A caption inside a link is the site's own chrome, not a slot badge —
+        // the "Advertising" entry in a footer or account menu points at the
+        // ad-sales page. The replacer skips these deliberately, so asserting on
+        // them would gate a behaviour we chose not to have.
+        if (element.closest("a")) return false;
+        if (element.querySelector("*")) return false;
+        if (!CAPTIONS.test((element.textContent || "").trim())) return false;
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && isReadable(element);
+      })
+      .map((element) => {
+        const owner = element.closest("[id]");
+        return `${element.localName}.${element.className || "-"} in #${
+          owner ? owner.id : "?"
+        }`;
+      });
+  });
 }
 
 async function sendExtensionMessage(serviceWorker, tabId, message) {

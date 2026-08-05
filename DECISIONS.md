@@ -1457,3 +1457,19 @@ The leaf-skip itself is correct and stays. It exists so a bolded "Реклама
 - Real image creatives are still claimed. They arrive at the IAB sizes or from an ad host, and an ad-identified container around one is a candidate in its own right — when the image stops matching, the container is what gets replaced.
 - Nothing was lost in the run this came from. An image candidate is swapped for a generated wrapper, so it is exactly the slot that reports an empty reason; all three in the run were the TechRadar heroes. Re-running that site alone kept all seven genuine slots (the DFP leaderboard, both lightboxes, four sponsored posts) and dropped the three images.
 - `tests/fixtures/ad-clutter.html` carries the hero image as a permanent case. The gauntlet sweep cannot see it, because a replaced image leaves the DOM, so `scripts/test-extension.mjs` asserts the image is still there. Verified to fail without the guard.
+
+## 2026-08-05 - A Caption Paragraph Identifies Its Wrapper, And A Gate Now Says So
+
+**Decision**: In `hasAdLabel`, the leaf scan skips a candidate whose *parent* is inside `a` or `p` rather than one that is itself a `p`. A caption/gap survivor assertion runs in `scripts/test-extension.mjs` at all three presences and is reported by `scripts/eval-live-sites.mjs`.
+
+**Why**: the container-text check added earlier the same day only reaches a container whose *entire* text is the caption. The shape a reader actually complains about is a reserved-height wrapper holding both a `<p>Advertisement</p>` and the creative — total text "Advertisement creative", which the anchored pattern rejects — so the leaf scan is what has to see the paragraph, and it was skipping every `p`. The wrapper therefore never became a candidate, the creative alone was replaced, and the word stayed standing over the height the wrapper still reserved.
+
+The prose guard the old skip existed for is intact: a leaf nested *inside* a paragraph of prose is still skipped, and the 120-character cap still keeps the whole rule away from anything with real content around the badge.
+
+The deeper problem was that no gate anywhere asserted a caption was gone. Every proof to that point counted cards, and a card can appear while the caption beside it survives — which is how "bug 1 fixed" was claimed on a Full Ambient run and had to be corrected the same day.
+
+**Consequences**:
+- `tests/fixtures/ad-clutter.html` carries the reserved wrapper in both shapes, with and without trailing copy. The gate walks every leaf on the page for a readable ad caption, checking `display`/`visibility`/`opacity` up the ancestor chain because `--preserve-children` only sets `opacity: 0`, and separately asserts Clean leaves the wrappers at zero height. Verified to fail without the fix.
+- Both detectors skip a caption inside a link, matching the replacer's own anchor guard. Live evidence: four of the twelve survivors in the 21-site run were footer and menu links reading "Advertising" — AccuWeather, Game8, Screenrant, The Sun's `#menu-link-34`. Reporting them would flag behaviour we chose to have.
+- `scripts/audit-card-legibility.mjs` takes `--presence`. Presence decides card-versus-collapse, not how a card draws, so the new claim it buys is that a card measured in a page that reflowed under it is unchanged: 72 cards render at both 5 and 10, with zero difference in width, height, font size, clamp, or centring. Presence 0 renders nothing to measure and is covered by the extension suite instead.
+- Seven genuine survivors remain on live sites and are not fixed here: six on The Sun and one on Yahoo. The Sun's is the reserved-gap case deferred on 2026-07-18 — `div.advert-wrapper.advert-section-container` collapses to the 36px of its own caption once the creative is blocked, while its `div.module--1-billboard` ancestor holds 330px of empty height that no rule claims.

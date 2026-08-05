@@ -3737,9 +3737,14 @@
       }
       checked += 1;
 
-      // Anchor leaves are site chrome ("Advertising" nav links); paragraph
-      // leaves are prose (bolded definition words), not slot badges.
-      if (node.closest("a,p")) {
+      // A leaf inside a link is site chrome ("Advertising" nav links) and a leaf
+      // inside a paragraph is prose (the bolded label word in a definition).
+      // Neither is a slot badge. The paragraph itself is the exception: a <p>
+      // whose own text is the whole caption is how sites mark a slot, and
+      // skipping it is what left labelled banners standing with their caption
+      // showing above a reserved gap. The 120-character cap above keeps this
+      // away from anything with real content around the badge.
+      if (node.parentElement && node.parentElement.closest("a,p")) {
         continue;
       }
 
