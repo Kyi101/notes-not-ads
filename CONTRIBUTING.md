@@ -13,7 +13,13 @@ every page on the web. So they are handled differently.
 ### Open to pull requests
 
 - `rules/` — declarativeNetRequest rules (`rules/rules_1.json`, `rules/easylist_dnr.json`)
-- `src/cosmetic-filters.js` — cosmetic selector list
+- `src/cosmetic-filters.js` — the cosmetic selector list, meaning the array of
+  quoted filter strings that opens the file. Adding, correcting, or removing
+  entries there is welcome. The parser functions below the array are closed:
+  `npm run check` proves every line of the array is a plain string, nothing
+  equivalent guards the code beneath it, and that code runs as a content script
+  on every page you visit. Splitting the two apart so this boundary is a file
+  boundary is planned; until then it is a rule rather than a gate.
 - `evals/live-sites.json` — eval cases
 - `tests/fixtures/` — test fixtures
 
