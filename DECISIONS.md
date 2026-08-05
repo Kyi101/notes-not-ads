@@ -1422,3 +1422,13 @@ dropped character was a false-positive vector on every generated host rule.
 - `SHADOW_ROOT_STYLE_TEXT` in `src/shared.js` had drifted: it never honoured `--ar-card-pad` or `--ar-card-font` and had no `--narrow` or `--tall` rules at all, so per-slot sizing was inert inside open shadow roots. Both stylesheets now match.
 - `npm run audit:cards` renders the real content script across 11 ad shapes and 9 hostile host-CSS cases crossed with 6 note lengths, asserts on the rendered boxes, and writes a contact sheet. 120 of 120 cells legible.
 
+## 2026-08-05 - A Slot The Site Keeps Hidden Is Left Empty
+
+**Decision**: Skip the card when the slot still computes to `visibility: hidden` after the extension's own inline hiding is cleared.
+
+**Why**: the card audit found this by accident. The first version of the hostile fixture set `visibility: hidden` inline, which `renderReplacementSlot` already clears, so the case passed while proving nothing. Moving it to a stylesheet rule — what a site actually writes for a slot it hides — failed all six note lengths: a card rendered into a container nobody can see. A hidden slot has no attention to redirect. Carding it puts an unreadable note into a gap the reader was never shown, and forcing the card visible would be worse: filling a blank the page deliberately left blank is the opposite of what this extension is for.
+
+**Consequences**:
+- The check reads computed style after the inline properties are removed, so the extension can still restore its own hidden slots when the user turns presence back on.
+- An ancestor hiding the slot counts too, since the card inherits that.
+- The fixture marks the slot `data-matrix-expect="no-card"`, and the audit fails if a card ever appears there — the assertion runs in both directions.

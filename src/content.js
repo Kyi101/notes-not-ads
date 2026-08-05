@@ -3220,6 +3220,16 @@
     slot.style.removeProperty("display");
     slot.style.removeProperty("visibility");
     slot.style.removeProperty("pointer-events");
+
+    // Our own hiding is inline, so it is gone by this line and what remains is the
+    // site's. A slot the site keeps hidden has no attention to redirect: carding it
+    // puts a note nobody can read into a gap nobody was meant to see, and forcing
+    // the card visible would fill a blank the page deliberately left blank.
+    if (window.getComputedStyle(slot).visibility === "hidden") {
+      removeReplacementCards(slot);
+      return;
+    }
+
     slot.dataset.attentionRedirectorPresentation = "ambient";
     const card = buildCard(createCardModel(surfaceKey), rect);
     removeReplacementCards(slot);

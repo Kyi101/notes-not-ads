@@ -31,6 +31,13 @@
         font-size: 13px;
         color: #7a5a22;
       }
+
+      /* The replacer removes the slot's inline visibility, so an inline
+         visibility: hidden is not a real test of a hidden host container. A
+         stylesheet rule is what a site actually writes for a slot it hides. */
+      .host-stylesheet-hidden {
+        visibility: hidden;
+      }
     </style>
   </head>
   <body>
@@ -63,27 +70,36 @@
         ["tracked-out", "letter-spacing: 6px;"],
         ["underlined", "text-decoration: underline;"],
         ["transparent-fill", "-webkit-text-fill-color: transparent;"],
-        ["hidden", "visibility: hidden;"],
         ["tiny-text", "font-size: 4px;"]
+      ];
+
+      // Applied through the stylesheet rather than inline, because inline styles
+      // on the slot are the ones the replacer clears. A slot the site keeps
+      // hidden is meant to stay empty, so "no card" is the passing result.
+      const HOSTILE_SLOT_CLASSES = [
+        ["stylesheet-hidden", "host-stylesheet-hidden", "no-card"]
       ];
 
       // Slots are direct children of body on purpose. A wrapper element that
       // contains both the caption and the slot is itself a legitimate ad
       // container, so the scanner claims the wrapper and the card stops landing
       // on the box whose size we are auditing.
-      function addSlot(label, width, height, extraCss) {
+      function addSlot(label, width, height, extraCss, extraClass, expect) {
         const caption = document.createElement("p");
         caption.className = "matrix-caption";
         caption.textContent = `${label} — ${width}x${height}`;
         document.body.append(caption);
 
         const slot = document.createElement("div");
-        slot.className = "ad-slot";
+        slot.className = extraClass ? `ad-slot ${extraClass}` : "ad-slot";
         slot.id = `matrix-ad-${label}`;
         slot.dataset.adSlot = label;
         slot.dataset.matrixLabel = label;
         slot.dataset.matrixWidth = String(width);
         slot.dataset.matrixHeight = String(height);
+        if (expect) {
+          slot.dataset.matrixExpect = expect;
+        }
         slot.style.cssText = `width:${width}px;height:${height}px;${extraCss || ""}`;
         slot.textContent = "Advertisement";
 
@@ -96,6 +112,10 @@
 
       for (const [name, css] of HOSTILE_SLOT_CSS) {
         addSlot(`hostile-${name}`, 540, 230, css);
+      }
+
+      for (const [name, className, expect] of HOSTILE_SLOT_CLASSES) {
+        addSlot(`hostile-${name}`, 540, 230, "", className, expect);
       }
     </script>
   </body>

@@ -109,21 +109,27 @@ try {
     }
 
     const rendered = new Set(measurements.map((entry) => entry.label));
-    for (const label of await page.evaluate(() =>
-      [...document.querySelectorAll("[data-matrix-label]")].map(
-        (slot) => slot.dataset.matrixLabel
-      )
+    for (const slot of await page.evaluate(() =>
+      [...document.querySelectorAll("[data-matrix-label]")].map((element) => ({
+        label: element.dataset.matrixLabel,
+        expect: element.dataset.matrixExpect || null,
+        width: Number(element.dataset.matrixWidth),
+        height: Number(element.dataset.matrixHeight)
+      }))
     )) {
-      if (!rendered.has(label)) {
+      if (!rendered.has(slot.label)) {
+        // A slot the site keeps hidden is meant to stay empty, so an absent card
+        // is the passing result rather than a miss.
+        const empty = slot.expect === "no-card";
         cells.push({
-          label,
+          label: slot.label,
           noteId,
           note,
           shot: null,
-          problems: ["no-card-rendered"],
-          expected: [],
-          slotWidth: null,
-          slotHeight: null
+          problems: empty ? [] : ["no-card-rendered"],
+          expected: empty ? ["left-empty-by-design"] : [],
+          slotWidth: slot.width,
+          slotHeight: slot.height
         });
       }
     }
@@ -161,6 +167,16 @@ function measureCards() {
       const card = slot.querySelector(".attention-redirector-card");
       if (!card) {
         return null;
+      }
+
+      if (slot.dataset.matrixExpect === "no-card") {
+        return {
+          label: slot.dataset.matrixLabel,
+          slotWidth: Number(slot.dataset.matrixWidth),
+          slotHeight: Number(slot.dataset.matrixHeight),
+          problems: ["card-rendered-in-hidden-slot"],
+          expected: []
+        };
       }
 
       const body = card.querySelector(".attention-redirector-card__body");
@@ -287,18 +303,19 @@ function printSummary(cells) {
   }
 
   const failing = cells.filter((cell) => cell.problems.length);
-  const clamped = cells.filter(
+  const bydesign = cells.filter(
     (cell) => !cell.problems.length && cell.expected.length
   );
   console.log(
     `\n${cells.length - failing.length} of ${cells.length} cells legible` +
-      `${clamped.length ? ` (${clamped.length} clamped at the font floor)` : ""}.\n`
+      `${bydesign.length ? ` (${bydesign.length} by design)` : ""}.\n`
   );
 
-  for (const cell of clamped) {
+  for (const cell of bydesign) {
     console.log(
-      `  CLAMPED ${cell.label} (${cell.slotWidth}x${cell.slotHeight}) / ` +
-        `${cell.noteId} @ ${cell.fontSize}`
+      `  BY DESIGN ${cell.label} (${cell.slotWidth}x${cell.slotHeight}) / ` +
+        `${cell.noteId}${cell.fontSize ? ` @ ${cell.fontSize}` : ""}: ` +
+        cell.expected.join(", ")
     );
   }
 
@@ -394,7 +411,7 @@ function renderCell(cell) {
         .map((problem) => `<li>${escapeHtml(problem)}</li>`)
         .join("")}</ul></div>`
     : cell.expected?.length
-      ? `<div class="clamped">clamped at font floor</div>`
+      ? `<div class="clamped">${escapeHtml(cell.expected.join(", "))}</div>`
       : `<div class="ok">legible</div>`;
   const meta = cell.fontSize
     ? `<div class="meta">${escapeHtml(cell.fontSize)} · clamp ${escapeHtml(
