@@ -201,6 +201,12 @@ try {
     .locator("#framework-owned-ad.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
   await page
+    .locator("#caption-paragraph-slot.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
+  await page
+    .locator("#caption-link-slot.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
+  await page
     .locator("#brnd8e78c7f2c.attention-redirector-slot")
     .waitFor({ state: "attached", timeout: 5000 });
   await page

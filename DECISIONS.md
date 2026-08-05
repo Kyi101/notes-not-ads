@@ -1432,3 +1432,17 @@ dropped character was a false-positive vector on every generated host rule.
 - The check reads computed style after the inline properties are removed, so the extension can still restore its own hidden slots when the user turns presence back on.
 - An ancestor hiding the slot counts too, since the card inherits that.
 - The fixture marks the slot `data-matrix-expect="no-card"`, and the audit fails if a card ever appears there — the assertion runs in both directions.
+
+## 2026-08-05 - A Container Holding Nothing But The Caption Identifies Itself
+
+**Decision**: In `hasAdLabel`, treat a container whose entire text is an ad caption as labelled, regardless of which element the caption sits in.
+
+**Why**: this is the reported Bloomberg miss, reproduced locally. A slot survived with the word "Advertisement" still on it. The size guards were innocent — a neutral full-width strip at the reported geometry gets carded — and so was the geometry under every plausible device pixel ratio. The actual cause is in the leaf scan: it skips any candidate leaf inside `a` or `p`, so a caption written as `<p>Advertisement</p>` or as a link is invisible to it, and for a bare container the caption is the only signal there is. A probe across caption markup confirmed it: `span`, `small`, `h5`, and bare text were all claimed; `p` and `a` were not.
+
+The leaf-skip itself is correct and stays. It exists so a bolded "Реклама" inside a paragraph of prose does not read as a slot badge. The new check cannot reach prose, because the label pattern is anchored at both ends and the container's whole text has to match it.
+
+**Consequences**:
+- `tests/fixtures/ad-clutter.html` carries both markup shapes as permanent cases, asserted in `scripts/test-extension.mjs`. The false-positive gauntlet in the same fixture still passes, including the legend and the definition paragraph that contain a label word inside longer text.
+- A sweep of ten ad-heavy sites returned identical card counts before and after, so nothing new is being claimed on real pages.
+- `Advertising` is deliberately still not a label. Business Insider's footer accordion has a 312x44 row reading exactly that, and adding the word would claim site chrome. `Advertisement`, `Ad`, `Ads`, `Sponsored`, `Promoted`, and the Ukrainian and Russian forms all match.
+- The whole strip being wrapped in `<a href>` is still not claimed, which is the existing anchor guard and left alone.

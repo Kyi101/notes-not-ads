@@ -601,6 +601,15 @@ function hasAdLabel(element) {
     return false;
   }
 
+  // A container holding nothing but the caption is self-identifying, whatever
+  // element the caption sits in. Without this the leaf scan below decides, and
+  // it cannot see a caption written as <p>Advertisement</p> or as a link, which
+  // is how a slot survives with its label still showing. The label pattern is
+  // anchored, so this matches only text that is the caption and nothing else.
+  if (isAdLabelString(totalText)) {
+    return true;
+  }
+
   const descendants = element.querySelectorAll(
     "span,div,p,small,b,strong,em,i,h4,h5,h6,figcaption,label"
   );
