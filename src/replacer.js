@@ -926,6 +926,19 @@ function isCommonAdSize(rect) {
   });
 }
 
+// A picture the site sized for itself is content. Display creatives arrive at
+// the standard sizes or from an ad host, so a bare image whose only ad signal
+// is a class token is a photograph — TechRadar writes its article heroes as
+// class="block-image-ads hero-image". An ad-identified container around such an
+// image is still a candidate on its own, so nothing real is lost here.
+function isContentImage(element, rect) {
+  return (
+    element.matches("img,picture") &&
+    !isCommonAdSize(rect) &&
+    !hasAdLikeSource(element)
+  );
+}
+
 function isSidebarElement(element) {
   return Boolean(
     closestAcrossRoots(element, "aside,[role='complementary']") ||

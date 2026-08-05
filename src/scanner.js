@@ -354,7 +354,7 @@ function getMatchReason(element) {
   const hasScriptIframe = hasScriptAdIframe(element);
   const hasCommonSize = isCommonAdSize(rect);
 
-  if (hasAdIdentifier) {
+  if (hasAdIdentifier && !isContentImage(element, rect)) {
     return "ad-like identifier";
   }
 

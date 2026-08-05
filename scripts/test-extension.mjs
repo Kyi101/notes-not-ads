@@ -179,6 +179,11 @@ try {
       `Editorial bait elements were replaced: ${falsePositiveBaits.join(", ")}.`
     );
   }
+  // A replaced image is swapped out for a wrapper, so it leaves the DOM
+  // entirely and the bait sweep above cannot see it go.
+  if (!(await page.locator("#fp-hero-image").count())) {
+    throw new Error("An article hero image was replaced by a card.");
+  }
   await page
     .locator("#portal-fixed-media-child.attention-redirector-slot")
     .waitFor({ timeout: 5000 });

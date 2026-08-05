@@ -1446,3 +1446,14 @@ The leaf-skip itself is correct and stays. It exists so a bolded "Реклама
 - A sweep of ten ad-heavy sites returned identical card counts before and after, so nothing new is being claimed on real pages.
 - `Advertising` is deliberately still not a label. Business Insider's footer accordion has a 312x44 row reading exactly that, and adding the word would claim site chrome. `Advertisement`, `Ad`, `Ads`, `Sponsored`, `Promoted`, and the Ukrainian and Russian forms all match.
 - The whole strip being wrapped in `<a href>` is still not claimed, which is the existing anchor guard and left alone.
+
+## 2026-08-05 - An Image Is Not An Ad Slot On A Class Token Alone
+
+**Decision**: In `getMatchReason`, an `img` or `picture` matched only by an ad-like identifier is skipped unless it is also a standard ad size or has an ad-like source.
+
+**Why**: the 21-site false-positive run replaced three TechRadar article hero images with cards. TechRadar writes them as `class="block-image-ads hero-image"` at 341x341, loaded from its own CMS CDN, with editorial alt text. `block-image-ads` ends in an `ads` token, so the identifier rule fired on a photograph. A leaf image carries no structure to corroborate the token; a container does, which is why the rule still stands for containers.
+
+**Consequences**:
+- Real image creatives are still claimed. They arrive at the IAB sizes or from an ad host, and an ad-identified container around one is a candidate in its own right — when the image stops matching, the container is what gets replaced.
+- Nothing was lost in the run this came from. An image candidate is swapped for a generated wrapper, so it is exactly the slot that reports an empty reason; all three in the run were the TechRadar heroes. Re-running that site alone kept all seven genuine slots (the DFP leaderboard, both lightboxes, four sponsored posts) and dropped the three images.
+- `tests/fixtures/ad-clutter.html` carries the hero image as a permanent case. The gauntlet sweep cannot see it, because a replaced image leaves the DOM, so `scripts/test-extension.mjs` asserts the image is still there. Verified to fail without the guard.
