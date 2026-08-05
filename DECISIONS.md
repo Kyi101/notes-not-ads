@@ -1406,3 +1406,19 @@ dropped character was a false-positive vector on every generated host rule.
 **Consequences**:
 - A pull request touching the bundle now shows an ownership flag rather than passing as generated output.
 - `CONTRIBUTING.md` states that anything not named as open is closed, including files added later, so the open list is the exhaustive one.
+
+## 2026-08-05 - The Card Resets Inherited Text CSS And Measures Its Own Fit
+
+**Decision**: Reset the inherited text properties that can make a note unreadable on `.attention-redirector-card`, and size the note by measuring it against the real box (`fitCardText` in `src/replacer.js`) instead of deriving a font size from the slot's height alone.
+
+**Why**: two separate bugs produced the same symptom — a note shoved into a corner, cut off at the bottom, or running off both edges. The card renders inside the site's own ad container, so it inherits whatever CSS that site wrote for its ad caption. A container with `white-space: nowrap` turns the note into one unwrappable line clipped on both sides, which reproduced the reported screenshot exactly; `writing-mode: vertical-rl` turns it on its side. Separately, the font size came from the slot's height, which cannot know how much text there is, so a long note was silently clamped and the sentence lost its ending while the card still looked fine.
+
+`letter-spacing` and `text-decoration` were tested and left alone — the first does not reach the card, the second does not visually propagate. `direction` is deliberately not reset so a note written right-to-left still reads correctly.
+
+**Consequences**:
+- `cardFontCeiling` reproduces the per-shape sizes the CSS variants used to hardcode, in the same precedence order, so a short note in a big slot renders at the size it always did. The fit pass only ever comes down from there.
+- 13px is a floor. A note longer than the slot can hold at a readable size ends in an ellipsis rather than shrinking into microtype, and the audit reports that as clamped rather than failed.
+- Font size and line count now have one owner. The CSS variants carry only padding and alignment, because two places deciding how big the note gets is how the clamp and the fit test disagreed in the first place.
+- `SHADOW_ROOT_STYLE_TEXT` in `src/shared.js` had drifted: it never honoured `--ar-card-pad` or `--ar-card-font` and had no `--narrow` or `--tall` rules at all, so per-slot sizing was inert inside open shadow roots. Both stylesheets now match.
+- `npm run audit:cards` renders the real content script across 11 ad shapes and 9 hostile host-CSS cases crossed with 6 note lengths, asserts on the rendered boxes, and writes a contact sheet. 120 of 120 cells legible.
+

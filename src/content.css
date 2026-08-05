@@ -53,6 +53,22 @@
   font-family: Optima, Candara, "Trebuchet MS", sans-serif !important;
   line-height: 1.08 !important;
   text-align: center !important;
+  /* The card lives inside the site's own ad container, so every inherited text
+     property arrives from CSS written for that site's ad caption. A container
+     with white-space: nowrap turns the note into one unwrappable line clipped on
+     both edges; vertical writing-mode turns it on its side. Reset the inherited
+     properties that can make the note unreadable. direction is deliberately left
+     alone so a note written right-to-left still reads correctly. */
+  white-space: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
+  text-indent: 0 !important;
+  text-transform: none !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  -webkit-text-fill-color: currentColor !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.48),
     0 10px 32px rgba(73, 101, 85, 0.16) !important;
@@ -146,8 +162,11 @@
   font-weight: 500 !important;
   letter-spacing: -0.035em !important;
   line-height: 1.08 !important;
+  /* A pasted link has no space to wrap at, so without this it runs off both
+     edges of the card at full size. */
+  overflow-wrap: anywhere !important;
   -webkit-box-orient: vertical !important;
-  -webkit-line-clamp: 3 !important;
+  -webkit-line-clamp: var(--ar-card-lines, 3) !important;
   overflow: hidden !important;
 }
 
@@ -156,10 +175,12 @@
   border-radius: 10px !important;
 }
 
+/* Font size and line count are measured against the real box in
+   replacer.js (fitCardText). The variants below carry only the padding and
+   alignment that differ by shape, so there is one place that decides how big
+   the note gets. */
 .attention-redirector-card--compact .attention-redirector-card__body {
-  font-size: 17px !important;
   line-height: 1.08 !important;
-  -webkit-line-clamp: 2 !important;
 }
 
 .attention-redirector-slot--short .attention-redirector-card {
@@ -169,9 +190,7 @@
 }
 
 .attention-redirector-slot--short .attention-redirector-card__body {
-  font-size: 15px !important;
   line-height: 1.08 !important;
-  -webkit-line-clamp: 1 !important;
 }
 
 .attention-redirector-slot--narrow .attention-redirector-card {
@@ -180,11 +199,10 @@
 
 .attention-redirector-slot--narrow .attention-redirector-card__body {
   width: 100% !important;
-  font-size: 20px !important;
 }
 
-/* Tall skyscrapers: text centered in the full column, width-driven size, and
-   more lines allowed so the message settles in the middle instead of the top. */
+/* Tall skyscrapers: text centered in the full column so the message settles in
+   the middle instead of the top. */
 .attention-redirector-slot--tall .attention-redirector-card {
   align-items: center !important;
   justify-content: center !important;
@@ -193,9 +211,7 @@
 
 .attention-redirector-slot--tall .attention-redirector-card__body {
   width: 100% !important;
-  font-size: var(--ar-card-font, 22px) !important;
   line-height: 1.14 !important;
-  -webkit-line-clamp: 8 !important;
 }
 
 .attention-redirector-inspector,

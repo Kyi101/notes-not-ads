@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Attention Redirector Card Matrix</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f7f7f4;
+        color: #202624;
+        font-family: Georgia, serif;
+      }
+
+      .matrix-caption {
+        margin: 0 0 8px;
+        font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+        font-size: 12px;
+        font-weight: 400;
+        color: #66736f;
+      }
+
+      .ad-slot {
+        display: grid;
+        place-items: center;
+        box-sizing: border-box;
+        margin: 0 0 40px;
+        border: 1px dashed #b67b2b;
+        background: #fff2d9;
+        font-size: 13px;
+        color: #7a5a22;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // The size and hostility lists live here so the fixture is the single
+      // source of truth; the audit script reads labels back off the DOM.
+      const SLOT_SIZES = [
+        ["mobile-banner", 320, 50],
+        ["banner", 468, 60],
+        ["leaderboard", 728, 90],
+        ["billboard", 970, 250],
+        ["mrec", 300, 250],
+        ["large-rect", 336, 280],
+        ["square", 250, 250],
+        ["halfpage", 300, 600],
+        ["skyscraper", 160, 600],
+        ["inline-wide-short", 540, 230],
+        ["full-width-strip", 1583, 319]
+      ];
+
+      // Text styling a host page can put on its own ad container. Every one of
+      // these inherits or propagates into the card, which lives inside that
+      // container, so the card gets them whether or not it asked. All are
+      // ordinary CSS that real sites write for their own ad captions.
+      const HOSTILE_SLOT_CSS = [
+        ["nowrap", "white-space: nowrap;"],
+        ["vertical-text", "writing-mode: vertical-rl;"],
+        ["uppercase", "text-transform: uppercase;"],
+        ["indented", "text-indent: 64px;"],
+        ["tracked-out", "letter-spacing: 6px;"],
+        ["underlined", "text-decoration: underline;"],
+        ["transparent-fill", "-webkit-text-fill-color: transparent;"],
+        ["hidden", "visibility: hidden;"],
+        ["tiny-text", "font-size: 4px;"]
+      ];
+
+      // Slots are direct children of body on purpose. A wrapper element that
+      // contains both the caption and the slot is itself a legitimate ad
+      // container, so the scanner claims the wrapper and the card stops landing
+      // on the box whose size we are auditing.
+      function addSlot(label, width, height, extraCss) {
+        const caption = document.createElement("p");
+        caption.className = "matrix-caption";
+        caption.textContent = `${label} — ${width}x${height}`;
+        document.body.append(caption);
+
+        const slot = document.createElement("div");
+        slot.className = "ad-slot";
+        slot.id = `matrix-ad-${label}`;
+        slot.dataset.adSlot = label;
+        slot.dataset.matrixLabel = label;
+        slot.dataset.matrixWidth = String(width);
+        slot.dataset.matrixHeight = String(height);
+        slot.style.cssText = `width:${width}px;height:${height}px;${extraCss || ""}`;
+        slot.textContent = "Advertisement";
+
+        document.body.append(slot);
+      }
+
+      for (const [label, width, height] of SLOT_SIZES) {
+        addSlot(label, width, height, "");
+      }
+
+      for (const [name, css] of HOSTILE_SLOT_CSS) {
+        addSlot(`hostile-${name}`, 540, 230, css);
+      }
+    </script>
+  </body>
+</html>

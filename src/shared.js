@@ -222,6 +222,16 @@ const SHADOW_ROOT_STYLE_TEXT = `
   font-family: Optima, Candara, "Trebuchet MS", sans-serif !important;
   line-height: 1.08 !important;
   text-align: center !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
+  text-indent: 0 !important;
+  text-transform: none !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  -webkit-text-fill-color: currentColor !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48), 0 10px 32px rgba(73, 101, 85, 0.16) !important;
 }
 .attention-redirector-card::before,
@@ -279,29 +289,32 @@ const SHADOW_ROOT_STYLE_TEXT = `
   margin: 0 !important;
   color: var(--ar-ink) !important;
   font: inherit !important;
-  font-size: clamp(22px, 3.7vw, 46px) !important;
+  font-size: var(--ar-card-font, clamp(22px, 3.7vw, 46px)) !important;
   font-weight: 500 !important;
   letter-spacing: -0.035em !important;
   line-height: 1.08 !important;
+  overflow-wrap: anywhere !important;
   -webkit-box-orient: vertical !important;
-  -webkit-line-clamp: 3 !important;
+  -webkit-line-clamp: var(--ar-card-lines, 3) !important;
   overflow: hidden !important;
 }
 .attention-redirector-card--compact {
   padding: 12px 34px 12px 16px !important;
   border-radius: 10px !important;
 }
-.attention-redirector-card--compact .attention-redirector-card__body {
-  font-size: 17px !important;
-  -webkit-line-clamp: 2 !important;
-}
 .attention-redirector-slot--short .attention-redirector-card {
   padding: 7px 36px 7px 14px !important;
   border-radius: 8px !important;
 }
-.attention-redirector-slot--short .attention-redirector-card__body {
-  font-size: 15px !important;
-  -webkit-line-clamp: 1 !important;
+.attention-redirector-slot--narrow .attention-redirector-card {
+  text-align: left !important;
+}
+.attention-redirector-slot--narrow .attention-redirector-card__body,
+.attention-redirector-slot--tall .attention-redirector-card__body {
+  width: 100% !important;
+}
+.attention-redirector-slot--tall .attention-redirector-card__body {
+  line-height: 1.14 !important;
 }
 .attention-redirector-card--still,
 .attention-redirector-card--still[data-ambient-variant]::before,

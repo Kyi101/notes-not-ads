@@ -223,6 +223,16 @@
     font-family: Optima, Candara, "Trebuchet MS", sans-serif !important;
     line-height: 1.08 !important;
     text-align: center !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    hyphens: none !important;
+    text-indent: 0 !important;
+    text-transform: none !important;
+    writing-mode: horizontal-tb !important;
+    text-orientation: mixed !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    -webkit-text-fill-color: currentColor !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48), 0 10px 32px rgba(73, 101, 85, 0.16) !important;
   }
   .attention-redirector-card::before,
@@ -280,29 +290,32 @@
     margin: 0 !important;
     color: var(--ar-ink) !important;
     font: inherit !important;
-    font-size: clamp(22px, 3.7vw, 46px) !important;
+    font-size: var(--ar-card-font, clamp(22px, 3.7vw, 46px)) !important;
     font-weight: 500 !important;
     letter-spacing: -0.035em !important;
     line-height: 1.08 !important;
+    overflow-wrap: anywhere !important;
     -webkit-box-orient: vertical !important;
-    -webkit-line-clamp: 3 !important;
+    -webkit-line-clamp: var(--ar-card-lines, 3) !important;
     overflow: hidden !important;
   }
   .attention-redirector-card--compact {
     padding: 12px 34px 12px 16px !important;
     border-radius: 10px !important;
   }
-  .attention-redirector-card--compact .attention-redirector-card__body {
-    font-size: 17px !important;
-    -webkit-line-clamp: 2 !important;
-  }
   .attention-redirector-slot--short .attention-redirector-card {
     padding: 7px 36px 7px 14px !important;
     border-radius: 8px !important;
   }
-  .attention-redirector-slot--short .attention-redirector-card__body {
-    font-size: 15px !important;
-    -webkit-line-clamp: 1 !important;
+  .attention-redirector-slot--narrow .attention-redirector-card {
+    text-align: left !important;
+  }
+  .attention-redirector-slot--narrow .attention-redirector-card__body,
+  .attention-redirector-slot--tall .attention-redirector-card__body {
+    width: 100% !important;
+  }
+  .attention-redirector-slot--tall .attention-redirector-card__body {
+    line-height: 1.14 !important;
   }
   .attention-redirector-card--still,
   .attention-redirector-card--still[data-ambient-variant]::before,
@@ -3215,6 +3228,7 @@
     } else {
       slot.replaceChildren(card);
     }
+    fitCardText(card);
     observeCardMotion(card);
     installReplacementGuard(slot, card);
   }
@@ -3402,19 +3416,12 @@
       card.classList.add("attention-redirector-card--compact");
     }
 
-    // Default-tier cards size padding/text from the slot's own box rather than
-    // the viewport, so short/wide ad slots don't crop oversized text. Tall narrow
-    // slots (skyscrapers) size text from width so it doesn't overflow sideways.
     const w = rect.width || 0;
     const h = rect.height || 0;
     if (w && h) {
-      const isTall = h >= 320 && h > w * 1.8;
       const pad = Math.round(Math.min(Math.max(Math.min(w, h) * 0.1, 10), 48));
-      const font = isTall
-        ? Math.round(Math.min(Math.max(w * 0.13, 18), 30))
-        : Math.round(Math.min(Math.max(h * 0.22, 18), 44));
       card.style.setProperty("--ar-card-pad", `${pad}px`);
-      card.style.setProperty("--ar-card-font", `${font}px`);
+      card.style.setProperty("--ar-card-font", `${cardFontCeiling(rect)}px`);
     }
 
     const hideButton = document.createElement("button");
@@ -3439,6 +3446,121 @@
     }
 
     return card;
+  }
+
+  // Below this the note is technically present and practically unreadable, so the
+  // card stops shrinking and clamps instead. An honest ellipsis beats microscopic
+  // text that only looks like it fits.
+  const CARD_FONT_FLOOR = 13;
+
+  // The size a card would like to use if the note were short, by slot shape. The
+  // fit pass only ever comes down from here, so a short note in a big slot still
+  // renders at the size it always did.
+  function cardFontCeiling(rect) {
+    const w = rect.width || 0;
+    const h = rect.height || 0;
+
+    if (!(w && h)) {
+      return 44;
+    }
+    if (h >= 320 && h > w * 1.8) {
+      return Math.round(Math.min(Math.max(w * 0.13, 18), 30));
+    }
+    if (w < 420) {
+      return 20;
+    }
+    if (h < 90) {
+      return 15;
+    }
+    if (w < 260 || h < 110) {
+      return 17;
+    }
+    return Math.round(Math.min(Math.max(h * 0.22, 18), 44));
+  }
+
+  // Sizing text from the slot's height alone cannot know how much text there is,
+  // so a long note was silently clamped away — the card looked fine and the
+  // sentence was missing its ending. Measure the rendered note against the box it
+  // has to live in and step the size down until it fits, then set the line count
+  // from what actually fits so a note that hits the floor ends in an ellipsis
+  // rather than a shaved half-line.
+  function fitCardText(card) {
+    const body = card.querySelector(".attention-redirector-card__body");
+    if (!body) {
+      return;
+    }
+
+    const style = window.getComputedStyle(card);
+    const availableWidth =
+      card.clientWidth -
+      parseFloat(style.paddingLeft) -
+      parseFloat(style.paddingRight);
+    const availableHeight =
+      card.clientHeight -
+      parseFloat(style.paddingTop) -
+      parseFloat(style.paddingBottom);
+    if (!(availableWidth > 0 && availableHeight > 0)) {
+      return;
+    }
+
+    // Unclamp while measuring, or the body reports the size the clamp already cut
+    // it to instead of the size the note wants.
+    card.style.setProperty("--ar-card-lines", "999");
+
+    const ceiling = Math.round(
+      parseFloat(card.style.getPropertyValue("--ar-card-font")) || 44
+    );
+    const floor = Math.min(CARD_FONT_FLOOR, ceiling);
+
+    // The note has to fit in whole lines, because whole lines are what the clamp
+    // will keep. Measuring against the raw box height instead lets a size through
+    // whose last line the clamp then cuts.
+    const measure = (size) => {
+      card.style.setProperty("--ar-card-font", `${size}px`);
+      const lineHeight =
+        parseFloat(window.getComputedStyle(body).lineHeight) || size * 1.08;
+      const lines = Math.max(1, Math.floor(availableHeight / lineHeight));
+      return {
+        lines,
+        fits:
+          body.scrollHeight <= lines * lineHeight + 1 &&
+          body.scrollWidth <= availableWidth + 1
+      };
+    };
+
+    let best = null;
+    let bestLines = 1;
+    const atCeiling = measure(ceiling);
+
+    if (atCeiling.fits) {
+      best = ceiling;
+      bestLines = atCeiling.lines;
+    } else {
+      let low = floor;
+      let high = ceiling - 1;
+      // Six halvings resolve the whole range to the nearest pixel.
+      for (let step = 0; step < 6 && low <= high; step += 1) {
+        const middle = Math.floor((low + high) / 2);
+        const result = measure(middle);
+        if (result.fits) {
+          best = middle;
+          bestLines = result.lines;
+          low = middle + 1;
+        } else {
+          high = middle - 1;
+        }
+      }
+    }
+
+    if (best === null) {
+      // Longer than the slot can hold at a readable size. Render at the floor and
+      // let the clamp end it with an ellipsis.
+      best = floor;
+      bestLines = measure(floor).lines;
+    }
+
+    card.style.setProperty("--ar-card-font", `${best}px`);
+    card.style.setProperty("--ar-card-lines", String(bestLines));
   }
 
   function createCardModel(surfaceKey) {
