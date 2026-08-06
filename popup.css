@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  /* Shallows — the daylight Tide card, mirror of the in-page replacement */
+  /* Shallows — the daylight side of the extension chrome */
   --page-base: #c7d6c7;
   --grad:
     radial-gradient(70% 40% at 22% 0%, rgba(255, 255, 255, 0.55), transparent 75%),
@@ -22,9 +22,9 @@
   --focus: rgba(24, 48, 39, 0.5);
 }
 
-/* Deep Water — the dark side of the same Tide palette. Applied when the OS is
-   dark (unless the user forced light in Options), and duplicated for an explicit
-   dark override. Keep the two token blocks in sync. */
+/* Deep Water — the dark side of the same palette. Applied when the OS is dark
+   (unless the user forced light in Options), and duplicated for an explicit dark
+   override. Keep the two token blocks in sync. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
@@ -89,7 +89,9 @@ body {
   font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
-/* Light moving through water: one slow transform-only layer */
+/* One still highlight. It used to drift on a 45s loop behind a 34px blur, which
+   was the same ambient idea the card itself dropped — and a compositor layer
+   held alive for as long as the popup is open, to say nothing. */
 body::before {
   content: "";
   position: fixed;
@@ -99,23 +101,6 @@ body::before {
   background: var(--drift);
   opacity: var(--drift-opacity);
   filter: blur(34px);
-  animation: tide-drift 45s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
-@keyframes tide-drift {
-  from {
-    transform: translate3d(-3%, -2%, 0) rotate(-2deg) scale(1);
-  }
-  to {
-    transform: translate3d(3%, 3%, 0) rotate(2deg) scale(1.06);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body::before {
-    animation: none;
-  }
 }
 
 button,

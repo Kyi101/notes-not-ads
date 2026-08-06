@@ -3422,7 +3422,7 @@
       "attention-redirector-slot--preserve-children"
     );
 
-    // Overlay ads are hidden, never carded: a Tide card in a fixed overlay or
+    // Overlay ads are hidden, never carded: a card in a fixed overlay or
     // viewport takeover occupies the screen exactly like the ad did. Cards are
     // reserved for in-flow slots, where they preserve the page's layout.
     const isOverlaySlot =

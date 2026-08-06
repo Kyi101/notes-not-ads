@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  /* Shallows — the daylight Tide palette, shared with popup + in-page card */
+  /* Shallows — the daylight side of the extension chrome, shared with the popup */
   --page-base: #c7d6c7;
   --grad:
     radial-gradient(60% 40% at 18% 0%, rgba(255, 255, 255, 0.6), transparent 72%),
@@ -93,7 +93,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Light moving through water: one slow transform-only layer */
+/* One still highlight, the same one the popup carries. It used to drift on a 48s
+   loop behind a 46px blur — the ambient idea the card itself dropped. */
 body::before {
   content: "";
   position: fixed;
@@ -103,13 +104,6 @@ body::before {
   background: var(--drift);
   opacity: var(--drift-opacity);
   filter: blur(46px);
-  animation: tide-drift 48s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
-@keyframes tide-drift {
-  from { transform: translate3d(-3%, -2%, 0) rotate(-2deg) scale(1); }
-  to { transform: translate3d(3%, 3%, 0) rotate(2deg) scale(1.07); }
 }
 
 button {
@@ -264,77 +258,35 @@ button {
   50% { opacity: 0.25; }
 }
 
-/* The "after": the real in-page Tide card, alive and calm. */
-.tide-card {
-  position: relative;
+/* The "after". This is the first card anyone sees, so it has to be the card they
+   will actually get. Surface, ink, hairline, radius, and the left-set long note
+   are the light-tone values from src/content.css. Padding there is
+   min(w, h) * 0.1; at 6/5 the height is the short side, so h/10 is w/12, and
+   percentage padding resolves against width — 8.333% holds at any column width
+   this page produces. */
+.note-card {
   display: flex;
   align-items: center;
-  justify-content: center;
   aspect-ratio: 6 / 5;
-  padding: 26px;
-  border-radius: 16px;
-  isolation: isolate;
-  overflow: hidden;
-  background: linear-gradient(145deg, #d9e4d8, #adc2ae);
-  color: #183027;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    0 14px 36px rgba(73, 101, 85, 0.22);
+  padding: 8.333%;
+  border-radius: 12px;
+  background: #e6ebe3;
+  color: #20312a;
+  box-shadow: inset 0 0 0 1px rgba(32, 49, 42, 0.12);
 }
 
-.tide-card::before {
-  content: "";
-  position: absolute;
-  inset: -55% -20%;
-  z-index: 0;
-  border-radius: 44%;
-  background: linear-gradient(
-    115deg,
-    rgba(255, 255, 255, 0.26) 0%,
-    rgba(217, 228, 216, 0.08) 42%,
-    rgba(73, 101, 85, 0.22) 72%,
-    rgba(255, 255, 255, 0.2) 100%
-  );
-  animation: tide-swell 30s ease-in-out infinite alternate;
-}
-
-.tide-card::after {
-  content: "";
-  position: absolute;
-  right: -18%;
-  bottom: -52%;
-  z-index: 0;
-  width: 66%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(217, 104, 58, 0.2) 0%,
-    rgba(217, 104, 58, 0.12) 42%,
-    rgba(217, 104, 58, 0) 72%
-  );
-  animation: tide-orb 26s ease-in-out infinite alternate;
-}
-
-.tide-card__body {
-  position: relative;
-  z-index: 1;
-  max-width: 15ch;
-  font-size: clamp(19px, 2.4vw, 26px);
+/* Leading and tracking come off the ramps in replacer.js (cardLineHeight,
+   cardTracking). The floor is 20px rather than 19 so the whole clamp sits in one
+   bucket of both ramps and a single pair of values stays true across viewports.
+   Size is the one thing a static preview cannot match: the real one is solved per
+   slot by fitCardText. The measure cap is the card's own. */
+.note-card__body {
+  max-width: min(100%, 30em);
+  font-size: clamp(20px, 2.4vw, 26px);
   font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: -0.03em;
-  text-align: center;
-}
-
-@keyframes tide-swell {
-  from { transform: translate3d(-4%, -2%, 0) rotate(-6deg); }
-  to { transform: translate3d(4%, 3%, 0) rotate(6deg); }
-}
-
-@keyframes tide-orb {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(-8%, -6%, 0) scale(1.12); }
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+  text-align: left;
 }
 
 .points {
@@ -473,12 +425,9 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body::before,
   .hero,
   .demo,
-  .clutter-ad__flash,
-  .tide-card::before,
-  .tide-card::after {
+  .clutter-ad__flash {
     animation: none;
   }
 }

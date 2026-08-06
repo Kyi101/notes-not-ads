@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Attention Redirector",
   "version": "0.1.0",
-  "description": "Replaces obvious ad and clutter surfaces with calm Tide visuals or one user-written intention.",
+  "description": "Replaces obvious ad and clutter surfaces with a quiet card carrying one of your own notes, or removes them.",
   "permissions": ["storage", "activeTab", "scripting", "declarativeNetRequest"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "icons": {

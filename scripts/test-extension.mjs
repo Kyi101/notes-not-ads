@@ -283,7 +283,7 @@ try {
     "Branding takeover iframe"
   );
   // A viewport takeover must be hidden, never replaced with a
-  // viewport-covering Tide card that blocks the page itself.
+  // viewport-covering card that blocks the page itself.
   await page.waitForFunction(() => {
     const slot = document.getElementById("brnd8e78c7f2c");
     return slot?.dataset.attentionRedirectorPresentation === "clean";

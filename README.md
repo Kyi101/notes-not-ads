@@ -16,10 +16,10 @@ This product overlaps with ad blockers, but its unique value is still the attent
 - Handles common DOM ad patterns such as safeframe/footer ads and Google IMA-style video ad overlays.
 - Starts at `document_end` and reacts to newly inserted slots on a short
   leading-edge schedule to reduce visible ad flash.
-- Replaces matched slots with the Tide Ambient Field or collapses them out of layout.
-- Preserves site-owned children inside container slots and renders Tide above
+- Replaces matched slots with a flat note card or collapses them out of layout.
+- Preserves site-owned children inside container slots and renders the card above
   them, so React/Next-style reconciliation can continue safely.
-- Preserves the original slot height on Tide cards where possible to reduce layout jumps.
+- Preserves the original slot height on cards where possible to reduce layout jumps.
 - Lets each inserted card be hidden.
 - Carries up to five user-written notes, rotated deterministically across detected surfaces.
 - Supports global enable/disable, current-site control, disabled domains, and reduced motion.
@@ -118,8 +118,8 @@ drafts live in `docs/`:
 
 ## Performance Benchmark
 
-Use the deterministic long-page benchmark to compare disabled, still Tide, and
-animated Tide under the same continuous scroll workload:
+Use the deterministic long-page benchmark to compare disabled, still, and
+default card rendering under the same continuous scroll workload:
 
 ```bash
 npm run benchmark:performance
@@ -295,8 +295,8 @@ The popup is the everyday control surface for global state, the current site, no
   exact visual restoration still requires a refresh. Direct media candidates
   may still be wrapped.
 - Turning the extension or a site off hides existing replacement surfaces immediately, but restoring the original ad DOM still requires a refresh.
-- Tide motion is active only near the viewport. Offscreen cards keep their
-  static field until they approach view.
+- Cards carry no ambient motion. The only motion is a 140ms fade on insertion,
+  which the still setting and the OS reduced-motion preference both remove.
 
 ## Recommended Next Improvements
 

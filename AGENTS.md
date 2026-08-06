@@ -4,7 +4,7 @@
 
 Build a small Manifest V3 Chrome Extension that blocks common ad-network
 requests, visually removes obvious ad/clutter surfaces, or replaces them with a
-calm Tide field and an optional user-written intention.
+quiet card carrying one of the user's own notes.
 
 ## Stack
 

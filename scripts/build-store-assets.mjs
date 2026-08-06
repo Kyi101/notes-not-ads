@@ -139,7 +139,7 @@ async function loadPage(page, url, { frameLargestCard = false } = {}) {
       return rect.bottom > 0 && rect.top < innerHeight && rect.width > 40 && rect.height > 40;
     }).length;
   });
-  console.log(`  in-viewport Tide cards: ${visible}`);
+  console.log(`  in-viewport cards: ${visible}`);
   return visible;
 }
 
