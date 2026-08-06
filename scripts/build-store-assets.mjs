@@ -16,10 +16,8 @@ const TILE = { width: 440, height: 280 };
 
 const SETTINGS = {
   enabled: true,
-  mode: "anchor",
   anchorNote: "Finish what deserves your attention.",
   anchorNotes: ["Finish what deserves your attention."],
-  visualPresence: 10,
   reducedMotion: "still",
   themePreference: "light",
   disabledDomains: []
@@ -85,7 +83,13 @@ try {
   await loadPage(page, PAGE_URL, { frameLargestCard: true });
   await shoot(page, "screenshot-1-replacement.png");
 
-  await applySettings(serviceWorker, { ...SETTINGS, visualPresence: 0 });
+  // With no note there is nothing to draw, so every detected surface collapses
+  // and the page closes over it — the plain-blocker shot.
+  await applySettings(serviceWorker, {
+    ...SETTINGS,
+    anchorNote: "",
+    anchorNotes: []
+  });
   await loadPage(page, PAGE_URL);
   await shoot(page, "screenshot-2-clean.png");
 

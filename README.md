@@ -1,6 +1,6 @@
 # Attention Redirector
 
-Attention Redirector is a Manifest V3 Chrome Extension release candidate that blocks common ad-network requests, visually removes obvious ad/clutter surfaces, or replaces them with a calm Tide field. Anchor mode can place one user-written intention over that field.
+Attention Redirector is a Manifest V3 Chrome Extension release candidate that blocks common ad-network requests and replaces obvious ad/clutter surfaces with a quiet card carrying a note the user wrote. With no notes it removes them instead.
 
 This product overlaps with ad blockers, but its unique value is still the attention surface: blocked or removed ad space becomes quiet, user-owned space instead of another feed. The network layer is intentionally bounded: static MV3 `declarativeNetRequest` rules for common ad requests, with DOM/cosmetic replacement and safety checks handling the visible surface.
 
@@ -21,14 +21,11 @@ This product overlaps with ad blockers, but its unique value is still the attent
   them, so React/Next-style reconciliation can continue safely.
 - Preserves the original slot height on Tide cards where possible to reduce layout jumps.
 - Lets each inserted card be hidden.
-- Supports Quiet mode without text and Anchor mode with one user-written intention.
+- Carries up to five user-written notes, rotated deterministically across detected surfaces.
 - Supports global enable/disable, current-site control, disabled domains, and reduced motion.
 - Current-site disable and sensitive-page skips install high-priority DNR `allow` rules for requests initiated by those domains.
-- Provides three Visual presence modes:
-  - **Clean** removes every detected surface and lets the page reflow.
-  - **Balanced** deterministically renders Tide on about half of them and removes the rest.
-  - **Full Ambient** renders Tide on every detected surface.
-- Opens a welcome page on first install that explains the two modes and links to Options.
+- Draws a card only while the user holds at least one note. Empty the notes and every detected surface is removed and the page reflows, with blocking still on.
+- Opens a welcome page on first install and links to Options.
 
 ## What It Avoids
 
@@ -61,7 +58,7 @@ The selector strategy is deliberately conservative. Missing some ads is preferab
 
 ## Permissions
 
-- `storage`: saves the mode, Anchor messages, visual presence, motion preference, and disabled domains locally.
+- `storage`: saves the notes, motion preference, and disabled domains locally.
 - `activeTab`: lets the popup talk to the current page after the user opens it.
 - `scripting`: lets the popup inject the existing content script into the active tab if the page was already open before the extension loaded or updated.
 - `declarativeNetRequest`: blocks packaged ad-network request rules and installs per-site allow overrides.
@@ -94,7 +91,7 @@ npm run test:onboarding
 
 `test:onboarding` uses a fresh browser profile so `onInstalled` fires, then verifies that the welcome page auto-opens, that its CTA opens Options, and that a saved theme preference is applied.
 
-`test:extension` launches Chromium with the unpacked extension, serves `tests/fixtures/ad-clutter.html` from a local server, and verifies DNR blocking, site/global DNR allow behavior, replacement patterns, latency, Tide-only rendering, framework-owned DOM reconciliation, Quiet/Anchor with multiple local messages, Clean, mixed Visual presence, reduced motion, popup/options persistence, settings migration, user-facing missed-ad reporting, and inspector behavior.
+`test:extension` launches Chromium with the unpacked extension, serves `tests/fixtures/ad-clutter.html` from a local server, and verifies DNR blocking, site/global DNR allow behavior, replacement patterns, latency, framework-owned DOM reconciliation, note rotation across surfaces, the empty-note collapse, reduced motion, popup/options persistence, settings migration, user-facing missed-ad reporting, and inspector behavior.
 
 The test starts a local `127.0.0.1` server and opens Chromium, so it may need permission in sandboxed agent sessions.
 
@@ -267,14 +264,12 @@ If a report targets a very large rail or column that already contains Attention 
 The options page lets you:
 
 - Enable or disable the extension globally.
-- Choose Quiet or Anchor as the default mode.
-- Set up to five local Anchor messages.
-- Set Visual presence to Clean, Balanced, or Full Ambient.
-- Follow the system reduced-motion preference or keep Tide always still.
+- Set up to five local notes, or clear them all so nothing is drawn.
+- Follow the system reduced-motion preference or keep cards always still.
 - Add disabled domains.
 - Reset to defaults.
 
-The popup is the everyday control surface for global state, the current site, mode, primary intention, Visual presence, missed-ad reporting, Options, and Advanced tools.
+The popup is the everyday control surface for global state, the current site, notes, missed-ad reporting, Options, and Advanced tools.
 
 ## Current Limitations
 
@@ -312,7 +307,7 @@ The popup is the everyday control surface for global state, the current site, mo
   - continue running every cosmetic match through Attention Redirector safety checks
 - Expand the local fixture page as new missed ad/popup patterns are found.
 - Use inspector reports to tune safety and wrapper selection, not as the only source of ad detection truth.
-- Consider per-site mode or presence overrides only if dogfooding shows global defaults are too coarse.
+- Consider per-site note overrides only if dogfooding shows global defaults are too coarse.
 - Evaluate the remaining blocker stack in layers:
   - EasyPrivacy update pipeline
   - procedural cosmetic filters

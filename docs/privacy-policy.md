@@ -14,9 +14,7 @@ developer.
 The extension stores settings locally in Chrome's extension storage, including:
 
 - whether the extension is enabled
-- your selected mode
-- your optional Anchor messages
-- your Visual presence setting
+- your notes
 - reduced-motion preference
 - disabled site domains
 - locally saved inspector reports, if you choose to save them

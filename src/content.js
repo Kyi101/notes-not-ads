@@ -12,10 +12,8 @@
 
   const DEFAULT_SETTINGS = {
     enabled: true,
-    mode: "quiet",
     anchorNote: DEFAULT_ANCHOR_NOTE,
     anchorNotes: [DEFAULT_ANCHOR_NOTE],
-    visualPresence: 10,
     reducedMotion: "system",
     disabledDomains: []
   };
@@ -33,14 +31,24 @@
       });
     });
 
-    return notes.length ? notes.slice(0, MAX_ANCHOR_NOTES) : [DEFAULT_ANCHOR_NOTE];
+    return notes.slice(0, MAX_ANCHOR_NOTES);
   }
 
-  function hasAnchorNoteInput(value) {
-    if (Array.isArray(value)) {
-      return value.some(hasAnchorNoteInput);
-    }
-    return typeof value === "string" && Boolean(value.trim());
+  // An empty list is an answer, not an absence: emptying the notes is how the user
+  // says "just block, draw nothing". So the default note is owed only to an install
+  // that has never written the key at all, and every later read is taken at its
+  // word — otherwise deleting your last note silently hands it back.
+  function resolveAnchorNotes(stored, legacyNotes) {
+    const written =
+      Array.isArray(stored.anchorNotes) ||
+      typeof stored.anchorNote === "string" ||
+      legacyNotes.length > 0;
+    const notes = normalizeAnchorNotes(
+      stored.anchorNotes,
+      stored.anchorNote,
+      legacyNotes
+    );
+    return written ? notes : DEFAULT_SETTINGS.anchorNotes.slice();
   }
 
   const SENSITIVE_DOMAINS = [
@@ -634,30 +642,12 @@
     const legacyNotes = Array.isArray(stored.customNotes)
       ? stored.customNotes.map((note) => String(note || "").trim()).filter(Boolean)
       : [];
-    const mode = ["quiet", "anchor"].includes(stored.mode)
-      ? stored.mode
-      : legacyNotes.length
-        ? "anchor"
-        : DEFAULT_SETTINGS.mode;
-    const legacyPresence =
-      stored.frequency === "max1" ? 3 : stored.frequency === "max3" ? 6 : 10;
-    const visualPresence = Number.isFinite(Number(stored.visualPresence))
-      ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
-      : legacyPresence;
+    const anchorNotes = resolveAnchorNotes(stored, legacyNotes);
 
     return {
       enabled: stored.enabled !== false,
-      mode,
-      anchorNote:
-        typeof stored.anchorNote === "string" && stored.anchorNote.trim()
-          ? stored.anchorNote.trim()
-          : legacyNotes[0] || DEFAULT_SETTINGS.anchorNote,
-      anchorNotes: normalizeAnchorNotes(
-        stored.anchorNotes,
-        stored.anchorNote,
-        legacyNotes
-      ),
-      visualPresence,
+      anchorNote: anchorNotes[0] || "",
+      anchorNotes,
       reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
       disabledDomains: Array.isArray(stored.disabledDomains)
         ? stored.disabledDomains
@@ -668,8 +658,7 @@
   function getStatus() {
     return {
       inserted: state.inserted,
-      visualPresence: state.settings ? state.settings.visualPresence : 10,
-      mode: state.settings ? state.settings.mode : "quiet",
+      noteCount: state.settings ? state.settings.anchorNotes.length : 0,
       enabled: Boolean(state.settings && state.settings.enabled),
       pageAllowed: isPageAllowed(state.settings),
       inspectorActive: state.inspector.active,
@@ -3425,8 +3414,11 @@
       slot.dataset.attentionRedirectorCollapse === "oversized-cosmetic";
 
     const pageAllowed = isPageAllowed(state.settings);
-    const visualizeSurface = shouldVisualizeSurface(surfaceKey);
-    if (!pageAllowed || shouldCollapseSlot || !visualizeSurface) {
+    // A slot becomes a card only if the user holds something to put in it. With no
+    // note there is nothing to draw, so the surface collapses and the page reflows:
+    // an empty note list is how you ask for a plain blocker.
+    const hasNote = state.settings.anchorNotes.length > 0;
+    if (!pageAllowed || shouldCollapseSlot || !hasNote) {
       if (existingGuard) {
         existingGuard.disconnect();
         state.replacementGuards.delete(slot);
@@ -3434,11 +3426,10 @@
       slot.dataset.attentionRedirectorPresentation = "clean";
       removeReplacementCards(slot);
       // Collapse the slot out of flow — so the page reflows like an ad blocker —
-      // when the user has actively cleaned this surface (Clean, or the hidden
-      // share at partial presence) or it is an overlay/oversized cosmetic. When
-      // the extension or site is simply turned off we only hide, so a refresh
-      // restores the original layout without us having removed boxes first.
-      const collapse = shouldCollapseSlot || (pageAllowed && !visualizeSurface);
+      // when the user holds no note to show here, or it is an overlay/oversized
+      // cosmetic. When the extension or site is simply turned off we only hide, so
+      // a refresh restores the original layout without us having removed boxes.
+      const collapse = shouldCollapseSlot || (pageAllowed && !hasNote);
       hideReplacementSlot(slot, { collapse });
       return;
     }
@@ -3496,17 +3487,6 @@
     slot
       .querySelectorAll(":scope > .attention-redirector-card")
       .forEach((card) => card.remove());
-  }
-
-  function shouldVisualizeSurface(surfaceKey) {
-    const presence = state.settings.visualPresence;
-    if (presence <= 0) {
-      return false;
-    }
-    if (presence >= 10) {
-      return true;
-    }
-    return hashString(surfaceKey) % 10 < presence;
   }
 
   function createSurfaceKey(element, rect) {
@@ -3598,7 +3578,6 @@
   function buildCard(cardModel, rect, slot) {
     const card = document.createElement("div");
     card.className = "attention-redirector-card";
-    card.dataset.mode = cardModel.mode;
     card.dataset.hostTone = detectHostTone(slot);
     card.dataset.noteLength = countWords(cardModel.body) <= 2 ? "short" : "long";
     card.classList.toggle(
@@ -3606,12 +3585,7 @@
       state.settings.reducedMotion === "still"
     );
     card.setAttribute("role", "group");
-    card.setAttribute(
-      "aria-label",
-      cardModel.mode === "anchor"
-        ? `Attention anchor: ${cardModel.body}`
-        : "Quiet attention replacement"
-    );
+    card.setAttribute("aria-label", `Attention anchor: ${cardModel.body}`);
 
     if (rect.width < 260 || rect.height < 110) {
       card.classList.add("attention-redirector-card--compact");
@@ -3639,12 +3613,10 @@
 
     card.append(hideButton);
 
-    if (cardModel.mode === "anchor") {
-      const body = document.createElement("div");
-      body.className = "attention-redirector-card__body";
-      body.textContent = cardModel.body;
-      card.append(body);
-    }
+    const body = document.createElement("div");
+    body.className = "attention-redirector-card__body";
+    body.textContent = cardModel.body;
+    card.append(body);
 
     return card;
   }
@@ -3882,17 +3854,11 @@
   }
 
   function createCardModel(surfaceKey) {
-    return {
-      mode: state.settings.mode,
-      body: selectAnchorNote(surfaceKey)
-    };
+    return { body: selectAnchorNote(surfaceKey) };
   }
 
   function selectAnchorNote(surfaceKey) {
-    const notes = normalizeAnchorNotes(
-      state.settings.anchorNotes,
-      state.settings.anchorNote
-    );
+    const notes = state.settings.anchorNotes;
     return notes[hashString(surfaceKey) % notes.length];
   }
 

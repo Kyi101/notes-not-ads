@@ -12,10 +12,8 @@ const extensionRoot = projectRoot;
 const fixturePath = path.join(projectRoot, "tests/fixtures/ad-clutter.html");
 const DEFAULT_EXTENSION_SETTINGS = {
   enabled: true,
-  mode: "quiet",
   anchorNote: "Finish what deserves your attention.",
   anchorNotes: ["Finish what deserves your attention."],
-  visualPresence: 10,
   reducedMotion: "system",
   disabledDomains: []
 };
@@ -378,12 +376,9 @@ try {
     )
     .waitFor({ timeout: 5000 });
 
-  const quietCards = page.locator(
-    ".attention-redirector-card[data-mode='quiet']"
-  );
-  const quietCardCount = await quietCards.count();
-  if (quietCardCount < 3) {
-    throw new Error(`Expected at least 3 Quiet cards, found ${quietCardCount}.`);
+  const cardCount = await page.locator(".attention-redirector-card").count();
+  if (cardCount < 3) {
+    throw new Error(`Expected at least 3 cards, found ${cardCount}.`);
   }
 
   // Both attributes decide how the card draws — the tone picks the surface it
@@ -410,7 +405,6 @@ try {
 
   await saveExtensionSettings(serviceWorker, {
     ...DEFAULT_EXTENSION_SETTINGS,
-    mode: "anchor",
     anchorNotes: [
       "Finish what deserves your attention.",
       "Protect the next hour.",
@@ -423,7 +417,7 @@ try {
   await anchorPage.waitForLoadState("domcontentloaded");
   await anchorPage
     .locator(
-      "#top-ad.attention-redirector-slot .attention-redirector-card[data-mode='anchor']"
+      "#top-ad.attention-redirector-slot .attention-redirector-card"
     )
     .waitFor({ timeout: 5000 });
 
@@ -480,9 +474,12 @@ try {
   }
   await reducedMotionPage.close();
 
+  // No note means nothing to draw, so every detected surface collapses and the
+  // page closes over it. This is the whole of what used to be Clean.
   await saveExtensionSettings(serviceWorker, {
     ...DEFAULT_EXTENSION_SETTINGS,
-    visualPresence: 0
+    anchorNote: "",
+    anchorNotes: []
   });
   const cleanPage = await context.newPage();
   await cleanPage.goto(`${fixtureUrl}#clean`);
@@ -586,48 +583,6 @@ try {
   }
   await cleanPage.close();
 
-  await saveExtensionSettings(serviceWorker, {
-    ...DEFAULT_EXTENSION_SETTINGS,
-    visualPresence: 5
-  });
-  const mixedPage = await context.newPage();
-  await mixedPage.goto(`${fixtureUrl}#mixed`);
-  await mixedPage.waitForLoadState("domcontentloaded");
-  await mixedPage
-    .locator(".attention-redirector-slot")
-    .first()
-    .waitFor({ state: "attached", timeout: 5000 });
-  await mixedPage.waitForTimeout(500);
-  const mixedAmbientCount = await mixedPage
-    .locator(
-      ".attention-redirector-slot[data-attention-redirector-presentation='ambient']"
-    )
-    .count();
-  const mixedCleanCount = await mixedPage
-    .locator(
-      ".attention-redirector-slot[data-attention-redirector-presentation='clean']"
-    )
-    .count();
-  if (mixedAmbientCount < 1 || mixedCleanCount < 1) {
-    throw new Error(
-      `Mixed presence expected both treatments; found ${mixedAmbientCount} ambient and ${mixedCleanCount} clean.`
-    );
-  }
-  const mixedAmbientRatio =
-    mixedAmbientCount / (mixedAmbientCount + mixedCleanCount);
-  if (Math.abs(mixedAmbientRatio - 0.5) > 0.3) {
-    throw new Error(
-      `Presence 5 was too skewed: ${mixedAmbientCount} ambient and ${mixedCleanCount} clean.`
-    );
-  }
-  const mixedSurvivors = await findCaptionSurvivors(mixedPage);
-  if (mixedSurvivors.length) {
-    throw new Error(
-      `Balanced left ad captions readable: ${mixedSurvivors.join(", ")}.`
-    );
-  }
-  await mixedPage.close();
-
   // Every other pass runs at whatever width the browser window happens to be,
   // which is always wide. Half a screen is a normal way to read, and the size
   // predicates are all width-sensitive: text grows taller as it wraps, and
@@ -713,7 +668,7 @@ try {
 
   await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
   await page
-    .locator(".attention-redirector-card[data-mode='quiet']")
+    .locator(".attention-redirector-card")
     .first()
     .waitFor({ state: "visible", timeout: 5000 });
 
@@ -725,26 +680,15 @@ try {
   });
   const popupPage = await context.newPage();
   await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popupPage.locator("#presenceModes").waitFor({ timeout: 5000 });
   await popupPage.locator("#anchorNote").waitFor({ timeout: 5000 });
   const migratedPopup = await popupPage.evaluate(() => {
-    return {
-      mode: document.querySelector("[data-mode][aria-pressed='true']")?.dataset.mode,
-      anchorNote: document.querySelector("#anchorNote")?.value,
-      presence: document.querySelector("[data-presence][aria-pressed='true']")
-        ?.dataset.presence
-    };
+    return { anchorNote: document.querySelector("#anchorNote")?.value };
   });
-  if (
-    migratedPopup.mode !== "anchor" ||
-    migratedPopup.anchorNote !== "Legacy focus" ||
-    migratedPopup.presence !== "balanced"
-  ) {
+  if (migratedPopup.anchorNote !== "Legacy focus") {
     throw new Error(
       `Popup did not migrate legacy settings: ${JSON.stringify(migratedPopup)}`
     );
   }
-  await popupPage.locator("[data-mode='anchor']").click();
   // Type across the debounced-save boundary with a trailing space to catch
   // the caret-stealing regression where saves rewrote the input mid-word.
   const popupNoteInput = popupPage.locator("#anchorNote");
@@ -758,14 +702,11 @@ try {
       `Popup note input lost text across debounced saves: ${JSON.stringify(popupNoteValue)}`
     );
   }
-  await popupPage.locator("[data-presence='clean']").click();
   await popupPage.waitForTimeout(350);
   const popupSettings = await loadExtensionSettings(serviceWorker);
   if (
-    popupSettings.mode !== "anchor" ||
     popupSettings.anchorNote !== "Protect the next hour." ||
-    popupSettings.anchorNotes?.[0] !== "Protect the next hour." ||
-    popupSettings.visualPresence !== 0
+    popupSettings.anchorNotes?.[0] !== "Protect the next hour."
   ) {
     throw new Error(
       `Popup did not persist controls: ${JSON.stringify(popupSettings)}`
@@ -796,28 +737,21 @@ try {
   const optionsPage = await context.newPage();
   await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
   await optionsPage.locator("#optionsForm").waitFor({ timeout: 5000 });
-  await optionsPage.locator("input[name='mode'][value='anchor']").waitFor({
-    state: "attached"
-  });
-  if (await optionsPage.locator("#categoryList, #frequency").count()) {
-    throw new Error("Options still exposes retired category or frequency controls.");
+  if (
+    await optionsPage
+      .locator("#categoryList, #frequency, [name='mode'], [name='visualPresence']")
+      .count()
+  ) {
+    throw new Error("Options still exposes retired mode, presence, or frequency controls.");
   }
   const renderedOptions = await optionsPage.evaluate(() => {
     return {
-      mode: document.querySelector("input[name='mode']:checked")?.value,
       anchorNotes: Array.from(
         document.querySelectorAll(".anchor-message-input")
-      ).map((input) => input.value),
-      visualPresence: document.querySelector(
-        "input[name='visualPresence']:checked"
-      )?.value
+      ).map((input) => input.value)
     };
   });
-  if (
-    renderedOptions.mode !== "anchor" ||
-    renderedOptions.anchorNotes[0] !== "Protect the next hour." ||
-    renderedOptions.visualPresence !== "0"
-  ) {
+  if (renderedOptions.anchorNotes[0] !== "Protect the next hour.") {
     throw new Error(
       `Options did not render saved controls: ${JSON.stringify(renderedOptions)}`
     );
@@ -840,14 +774,51 @@ try {
       `Options did not persist controls: ${JSON.stringify(optionsSettings)}`
     );
   }
+
+  // Emptying the notes is how the user asks for a plain blocker, so the field
+  // has to be able to reach zero and the save has to keep it there. Nothing else
+  // proves the UI can produce the state the engine collapses on: the storage
+  // writes above set it directly.
+  await optionsPage.locator(".anchor-message-input").nth(1).fill("");
+  await optionsPage.locator(".anchor-message-input").first().fill("");
+  await optionsPage.getByRole("button", { name: "Save settings" }).click();
+  await optionsPage.locator("#saveStatus").filter({ hasText: "Saved." }).waitFor();
+  const emptiedSettings = await loadExtensionSettings(serviceWorker);
+  if (
+    emptiedSettings.anchorNotes?.length !== 0 ||
+    emptiedSettings.anchorNote !== ""
+  ) {
+    throw new Error(
+      `Options handed the default note back after the last one was cleared: ${JSON.stringify(
+        emptiedSettings.anchorNotes
+      )}`
+    );
+  }
   await optionsPage.close();
+
+  const emptyNotePage = await context.newPage();
+  await emptyNotePage.goto(`${fixtureUrl}#no-notes`);
+  await emptyNotePage.waitForLoadState("domcontentloaded");
+  await emptyNotePage
+    .locator("#top-ad.attention-redirector-slot")
+    .waitFor({ state: "attached", timeout: 5000 });
+  await emptyNotePage.waitForTimeout(500);
+  const emptyNoteCardCount = await emptyNotePage
+    .locator(".attention-redirector-card")
+    .count();
+  if (emptyNoteCardCount !== 0) {
+    throw new Error(
+      `Emptying the notes still drew ${emptyNoteCardCount} cards.`
+    );
+  }
+  await emptyNotePage.close();
 
   await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
   await page.goto(fixtureUrl);
   await page.waitForLoadState("domcontentloaded");
   await page
     .locator(
-      "#top-ad.attention-redirector-slot .attention-redirector-card[data-mode='quiet']"
+      "#top-ad.attention-redirector-slot .attention-redirector-card"
     )
     .waitFor({ state: "visible", timeout: 5000 });
 
@@ -1030,7 +1001,7 @@ try {
   console.log("extension id:", extensionId);
   console.log("fixture url:", fixtureUrl);
   console.log("fixture tab id:", fixtureTabId);
-  console.log("quiet cards:", quietCardCount);
+  console.log("cards:", cardCount);
   console.log("compact cards:", compactCardCount);
   console.log("late replacement latency:", `${Math.round(lateReplacementLatency)}ms`);
   console.log(
@@ -1049,10 +1020,6 @@ try {
   console.log("anchor texts:", anchorTexts);
   console.log("reduced motion:", reducedAnimations);
   console.log("clean slots:", cleanSlotCount);
-  console.log(
-    "mixed presence:",
-    `${mixedAmbientCount} ambient / ${mixedCleanCount} clean`
-  );
   console.log("disabled open-page cards:", disabledOpenPageCardCount);
   console.log("disabled startup cards:", disabledCardCount);
   console.log("popup settings:", popupSettings);

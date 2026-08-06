@@ -234,74 +234,9 @@ button:disabled {
   border-bottom: 1px solid var(--hairline);
 }
 
-.section-label {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.section-label small,
-.section-label output {
-  color: var(--text);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-
-.segmented {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
-  background: var(--track);
-}
-
-.segmented button {
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.segmented button[aria-pressed="true"] {
-  background: var(--fill);
-  color: var(--on-fill);
-}
-
-.segmented--three {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.segmented--three button {
-  font-size: 10px;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-
 .anchor-field {
   display: grid;
   gap: 6px;
-  margin-top: 14px;
-  transition: opacity 140ms ease;
-}
-
-.anchor-field[data-active="false"] {
-  opacity: 0.4;
 }
 
 .anchor-field__header {
@@ -365,13 +300,6 @@ button:disabled {
   color: var(--text);
   font-size: 14px;
   line-height: 1;
-}
-
-.presence-note {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.35;
 }
 
 .primary-actions {

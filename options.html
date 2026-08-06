@@ -38,29 +38,9 @@
             <input id="enabled" type="checkbox" role="switch">
           </label>
 
-          <fieldset class="mode-fieldset">
-            <legend>Default mode</legend>
-            <div class="mode-grid">
-              <label class="mode-option">
-                <input type="radio" name="mode" value="quiet">
-                <span>
-                  <strong>Quiet</strong>
-                  <small>Tide only. No text competing for attention.</small>
-                </span>
-              </label>
-              <label class="mode-option">
-                <input type="radio" name="mode" value="anchor">
-                <span>
-                  <strong>Anchor</strong>
-                  <small>Rotate local intentions over the Tide field.</small>
-                </span>
-              </label>
-            </div>
-          </fieldset>
-
-          <div id="anchorField" class="field-label anchor-messages" data-active="false">
+          <div id="anchorField" class="field-label anchor-messages">
             <div class="field-header">
-              <span>Anchor messages</span>
+              <span>Notes</span>
               <small id="anchorCount">1/5 local</small>
             </div>
             <div id="anchorMessages" class="anchor-message-list"></div>
@@ -68,46 +48,19 @@
               id="addAnchorMessage"
               class="secondary-button inline-button"
               type="button"
-            >+ Add message</button>
+            >+ Add note</button>
             <small>
-              Used only in Anchor mode. Messages stay local and rotate across
-              detected surfaces.
+              Notes stay local and rotate across detected surfaces. Leave them
+              all empty and nothing is drawn — detected surfaces are removed and
+              the page closes over them.
             </small>
           </div>
         </section>
 
         <section class="settings-section">
           <div class="section-heading">
-            <h2>Visual presence</h2>
-            <p>Choose how much detected ad surface becomes Tide.</p>
-          </div>
-
-          <div
-            class="mode-grid presence-grid"
-            role="radiogroup"
-            aria-label="Visual presence"
-          >
-            <label class="mode-option">
-              <input type="radio" name="visualPresence" value="0">
-              <span>
-                <strong>Clean</strong>
-                <small>Detected surfaces are removed; the page reflows.</small>
-              </span>
-            </label>
-            <label class="mode-option">
-              <input type="radio" name="visualPresence" value="5">
-              <span>
-                <strong>Balanced</strong>
-                <small>About half become Tide; the rest are removed.</small>
-              </span>
-            </label>
-            <label class="mode-option">
-              <input type="radio" name="visualPresence" value="10">
-              <span>
-                <strong>Full Ambient</strong>
-                <small>Every detected surface becomes Tide.</small>
-              </span>
-            </label>
+            <h2>Display</h2>
+            <p>Motion and theme for this extension's own surfaces.</p>
           </div>
 
           <label class="field-label" for="reducedMotion">
@@ -131,10 +84,10 @@
           </label>
 
           <aside class="plain-note">
-            <strong>What Clean means</strong>
+            <strong>Blocking is separate</strong>
             <p>
-              Clean collapses detected visual slots. Network blocking stays on
-              while Attention Redirector is enabled; use global or site disable
+              Network blocking stays on whenever Attention Redirector is
+              enabled, with or without notes. Use the global or per-site switch
               to pause it.
             </p>
           </aside>

@@ -4,10 +4,8 @@ const MAX_ANCHOR_NOTES = 5;
 
 const DEFAULT_SETTINGS = {
   enabled: true,
-  mode: "quiet",
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
-  visualPresence: 10,
   reducedMotion: "system",
   themePreference: "system",
   disabledDomains: []
@@ -15,16 +13,8 @@ const DEFAULT_SETTINGS = {
 
 const THEME_PREFERENCES = ["system", "light", "dark"];
 
-function presenceRadioValue(value) {
-  const n = Number(value);
-  if (n <= 0) return 0;
-  if (n >= 10) return 10;
-  return 5;
-}
-
 const form = document.getElementById("optionsForm");
 const enabledInput = document.getElementById("enabled");
-const anchorField = document.getElementById("anchorField");
 const anchorMessagesContainer = document.getElementById("anchorMessages");
 const addAnchorMessageButton = document.getElementById("addAnchorMessage");
 const anchorCount = document.getElementById("anchorCount");
@@ -50,10 +40,6 @@ function bindEvents() {
     showStatus("Saved.");
   });
 
-  form.addEventListener("change", () => {
-    renderConditionalControls();
-  });
-
   themePreferenceInput.addEventListener("change", () => {
     applyTheme(themePreferenceInput.value);
   });
@@ -64,7 +50,6 @@ function bindEvents() {
       return;
     }
     renderAnchorMessages([...messages, ""], { focusIndex: messages.length });
-    renderConditionalControls();
   });
 
   resetButton.addEventListener("click", async () => {
@@ -77,24 +62,11 @@ function bindEvents() {
 function renderSettings(value) {
   const settings = mergeSettings(value);
   enabledInput.checked = settings.enabled;
-  const modeInput = form.querySelector(
-    `input[name="mode"][value="${settings.mode}"]`
-  );
-  if (modeInput) {
-    modeInput.checked = true;
-  }
   renderAnchorMessages(settings.anchorNotes);
-  const presenceInput = form.querySelector(
-    `input[name="visualPresence"][value="${presenceRadioValue(settings.visualPresence)}"]`
-  );
-  if (presenceInput) {
-    presenceInput.checked = true;
-  }
   reducedMotionInput.value = settings.reducedMotion;
   themePreferenceInput.value = settings.themePreference;
   applyTheme(settings.themePreference);
   disabledDomainsInput.value = settings.disabledDomains.join("\n");
-  renderConditionalControls();
 }
 
 function applyTheme(preference) {
@@ -103,26 +75,12 @@ function applyTheme(preference) {
     : "system";
 }
 
-function renderConditionalControls() {
-  const mode = form.querySelector("input[name='mode']:checked")?.value;
-  const anchorActive = mode === "anchor";
-  anchorMessagesContainer
-    .querySelectorAll(".anchor-message-input")
-    .forEach((input) => {
-      input.disabled = !anchorActive;
-    });
-  updateAnchorMessageControls(anchorActive);
-  anchorField.dataset.active = String(anchorActive);
-}
-
 function renderAnchorMessages(notes, options = {}) {
   const values = prepareAnchorMessageRows(notes);
   anchorMessagesContainer.replaceChildren(
     ...values.map((note, index) => createAnchorMessageRow(note, index))
   );
-  updateAnchorMessageControls(
-    form.querySelector("input[name='mode']:checked")?.value === "anchor"
-  );
+  updateAnchorMessageControls();
 
   if (Number.isInteger(options.focusIndex)) {
     const target = anchorMessagesContainer.querySelector(
@@ -139,7 +97,9 @@ function prepareAnchorMessageRows(notes) {
     ? notes.map((note) => String(note || "").trim()).slice(0, MAX_ANCHOR_NOTES)
     : normalizeAnchorNotes(notes);
 
-  return values.length ? values : [DEFAULT_ANCHOR_NOTE];
+  // One row always shows, even with no notes, so there is somewhere to type. An
+  // empty row is not a note — it is how the field says the list is empty.
+  return values.length ? values : [""];
 }
 
 function createAnchorMessageRow(note, index) {
@@ -153,11 +113,11 @@ function createAnchorMessageRow(note, index) {
   input.dataset.index = String(index);
   input.value = note;
   input.placeholder =
-    index === 0 ? DEFAULT_ANCHOR_NOTE : "Add another redirecting thought.";
+    index === 0
+      ? "Leave empty to draw nothing."
+      : "Add another redirecting thought.";
   input.addEventListener("input", () => {
-    updateAnchorMessageControls(
-      form.querySelector("input[name='mode']:checked")?.value === "anchor"
-    );
+    updateAnchorMessageControls();
   });
 
   const removeButton = document.createElement("button");
@@ -167,25 +127,24 @@ function createAnchorMessageRow(note, index) {
   removeButton.addEventListener("click", () => {
     const nextValues = readAnchorMessageInputs({ includeEmpty: true });
     nextValues.splice(index, 1);
-    renderAnchorMessages(nextValues.length ? nextValues : [DEFAULT_ANCHOR_NOTE], {
+    renderAnchorMessages(nextValues.length ? nextValues : [""], {
       focusIndex: Math.max(0, index - 1)
     });
-    renderConditionalControls();
   });
 
   row.append(input, removeButton);
   return row;
 }
 
-function updateAnchorMessageControls(anchorActive) {
+function updateAnchorMessageControls() {
   const rows = anchorMessagesContainer.querySelectorAll(".anchor-message-row");
-  const count = rows.length || 1;
-  anchorCount.textContent = `${count}/${MAX_ANCHOR_NOTES} local`;
-  addAnchorMessageButton.disabled = !anchorActive || count >= MAX_ANCHOR_NOTES;
+  anchorCount.textContent =
+    `${readAnchorMessageInputs().length}/${MAX_ANCHOR_NOTES} local`;
+  addAnchorMessageButton.disabled = rows.length >= MAX_ANCHOR_NOTES;
   anchorMessagesContainer
     .querySelectorAll(".anchor-remove-button")
     .forEach((button) => {
-      button.disabled = !anchorActive || count <= 1;
+      button.disabled = rows.length <= 1;
     });
 }
 
@@ -193,15 +152,8 @@ function readSettingsFromForm() {
   const anchorNotes = normalizeAnchorNotes(readAnchorMessageInputs());
   return mergeSettings({
     enabled: enabledInput.checked,
-    mode:
-      form.querySelector("input[name='mode']:checked")?.value ||
-      DEFAULT_SETTINGS.mode,
-    anchorNote: anchorNotes[0],
+    anchorNote: anchorNotes[0] || "",
     anchorNotes,
-    visualPresence: Number(
-      form.querySelector("input[name='visualPresence']:checked")?.value ??
-        DEFAULT_SETTINGS.visualPresence
-    ),
     reducedMotion: reducedMotionInput.value,
     themePreference: themePreferenceInput.value,
     disabledDomains: splitLines(disabledDomainsInput.value).map(normalizeDomain)
@@ -281,30 +233,12 @@ function mergeSettings(value) {
   const legacyNotes = Array.isArray(stored.customNotes)
     ? stored.customNotes.map((note) => String(note || "").trim()).filter(Boolean)
     : [];
-  const anchorNotes = normalizeAnchorNotes(
-    stored.anchorNotes,
-    stored.anchorNote,
-    legacyNotes
-  );
-  const hasAnchorNotes =
-    hasAnchorNoteInput(stored.anchorNotes) ||
-    hasAnchorNoteInput(stored.anchorNote) ||
-    legacyNotes.length > 0;
-  const legacyPresence =
-    stored.frequency === "max1" ? 3 : stored.frequency === "max3" ? 6 : 10;
+  const anchorNotes = resolveAnchorNotes(stored, legacyNotes);
 
   return {
     enabled: stored.enabled !== false,
-    mode: ["quiet", "anchor"].includes(stored.mode)
-      ? stored.mode
-      : hasAnchorNotes
-        ? "anchor"
-        : DEFAULT_SETTINGS.mode,
-    anchorNote: anchorNotes[0],
+    anchorNote: anchorNotes[0] || "",
     anchorNotes,
-    visualPresence: Number.isFinite(Number(stored.visualPresence))
-      ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
-      : legacyPresence,
     reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
     themePreference: ["system", "light", "dark"].includes(stored.themePreference)
       ? stored.themePreference
@@ -328,12 +262,22 @@ function normalizeAnchorNotes(...sources) {
     });
   });
 
-  return notes.length ? notes.slice(0, MAX_ANCHOR_NOTES) : [DEFAULT_ANCHOR_NOTE];
+  return notes.slice(0, MAX_ANCHOR_NOTES);
 }
 
-function hasAnchorNoteInput(value) {
-  if (Array.isArray(value)) {
-    return value.some(hasAnchorNoteInput);
-  }
-  return typeof value === "string" && Boolean(value.trim());
+// An empty list is an answer, not an absence: emptying the notes is how the user
+// says "just block, draw nothing". So the default note is owed only to an install
+// that has never written the key at all, and every later read is taken at its
+// word — otherwise deleting your last note silently hands it back.
+function resolveAnchorNotes(stored, legacyNotes) {
+  const written =
+    Array.isArray(stored.anchorNotes) ||
+    typeof stored.anchorNote === "string" ||
+    legacyNotes.length > 0;
+  const notes = normalizeAnchorNotes(
+    stored.anchorNotes,
+    stored.anchorNote,
+    legacyNotes
+  );
+  return written ? notes : DEFAULT_SETTINGS.anchorNotes.slice();
 }

@@ -26,41 +26,20 @@
       </section>
 
       <section class="control-section">
-        <div class="section-label">
-          <span>Replacement</span>
-          <small>Tide</small>
-        </div>
-        <div class="segmented" aria-label="Replacement mode">
-          <button type="button" data-mode="quiet" aria-pressed="true">Quiet</button>
-          <button type="button" data-mode="anchor" aria-pressed="false">Anchor</button>
-        </div>
-
-        <div id="anchorField" class="anchor-field" data-active="false">
+        <div id="anchorField" class="anchor-field">
           <div class="anchor-field__header">
-            <label for="anchorNote">Intentions</label>
+            <label for="anchorNote">Notes</label>
             <button
               id="addAnchorMessage"
               class="anchor-field__add"
               type="button"
-              aria-label="Add another Anchor message"
-              title="Add another Anchor message"
+              aria-label="Add another note"
+              title="Add another note"
             >+</button>
           </div>
           <div id="anchorNotes" class="anchor-notes"></div>
-          <small id="anchorCount">1/5 local messages</small>
+          <small id="anchorCount">1/5 local notes</small>
         </div>
-      </section>
-
-      <section class="control-section presence-section">
-        <div class="section-label">
-          <span>Visual presence</span>
-        </div>
-        <div id="presenceModes" class="segmented segmented--three" aria-label="Visual presence">
-          <button type="button" data-presence="clean" aria-pressed="false">Clean</button>
-          <button type="button" data-presence="balanced" aria-pressed="false">Balanced</button>
-          <button type="button" data-presence="full" aria-pressed="true">Full Ambient</button>
-        </div>
-        <p id="presenceDescription" class="presence-note">Every detected surface becomes Tide.</p>
       </section>
 
       <div class="primary-actions">

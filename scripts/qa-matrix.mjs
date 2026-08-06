@@ -151,15 +151,14 @@ async function runQA() {
     await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
     await optionsPage.waitForTimeout(1000);
     
-    // Fill 200+ char Anchor intention
+    // Fill 200+ char note
     const longString = "🚀 " + "a".repeat(200);
-    await optionsPage.locator('input[name="mode"][value="anchor"]').check();
     await optionsPage.locator('.anchor-message-input').first().fill(longString);
     await optionsPage.getByRole("button", { name: "Save settings" }).click();
     await optionsPage.waitForTimeout(1000);
     await optionsPage.close();
     
-    await addReport("7. Options page", "pass", "chrome-extension://options.html", "Successfully saved 200+ char Anchor intention.", "cosmetic", "row7");
+    await addReport("7. Options page", "pass", "chrome-extension://options.html", "Successfully saved a 200+ char note.", "cosmetic", "row7");
   } catch (e) {
     await addReport("7. Options page", "fail", "chrome-extension://options.html", e.message, "annoying", "row7");
   }

@@ -41,7 +41,7 @@ calm Tide field and an optional user-written intention.
 - `src/main.js` - content-script initialization, settings loading, message listeners, and mutation scheduling.
 - `src/inspector.js` - missed-clutter inspector UI and report capture.
 - `src/scanner.js` - DOM heuristics, cosmetic matching, safety skips, and candidate inspection.
-- `src/replacer.js` - replacement behavior, Tide card rendering, visual presence, and motion observer.
+- `src/replacer.js` - replacement behavior, card rendering, and the measured type scale.
 - `src/init.js` - content-script startup call.
 - `src/content.js` - generated browser content bundle; edit the source partials, then run `npm run build`.
 - `src/youtube-prune-loader.js` - YouTube-only document-start loader that respects extension/site disable before injecting player-response pruning.

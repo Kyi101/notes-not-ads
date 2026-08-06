@@ -11,10 +11,8 @@ const MAX_ANCHOR_NOTES = 5;
 
 const DEFAULT_SETTINGS = {
   enabled: true,
-  mode: "quiet",
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
-  visualPresence: 10,
   reducedMotion: "system",
   disabledDomains: []
 };
@@ -32,14 +30,24 @@ function normalizeAnchorNotes(...sources) {
     });
   });
 
-  return notes.length ? notes.slice(0, MAX_ANCHOR_NOTES) : [DEFAULT_ANCHOR_NOTE];
+  return notes.slice(0, MAX_ANCHOR_NOTES);
 }
 
-function hasAnchorNoteInput(value) {
-  if (Array.isArray(value)) {
-    return value.some(hasAnchorNoteInput);
-  }
-  return typeof value === "string" && Boolean(value.trim());
+// An empty list is an answer, not an absence: emptying the notes is how the user
+// says "just block, draw nothing". So the default note is owed only to an install
+// that has never written the key at all, and every later read is taken at its
+// word — otherwise deleting your last note silently hands it back.
+function resolveAnchorNotes(stored, legacyNotes) {
+  const written =
+    Array.isArray(stored.anchorNotes) ||
+    typeof stored.anchorNote === "string" ||
+    legacyNotes.length > 0;
+  const notes = normalizeAnchorNotes(
+    stored.anchorNotes,
+    stored.anchorNote,
+    legacyNotes
+  );
+  return written ? notes : DEFAULT_SETTINGS.anchorNotes.slice();
 }
 
 const SENSITIVE_DOMAINS = [

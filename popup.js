@@ -4,44 +4,10 @@ const CONTENT_STYLE_FILES = ["src/content.css"];
 const DEFAULT_ANCHOR_NOTE = "Finish what deserves your attention.";
 const MAX_ANCHOR_NOTES = 5;
 
-const PRESENCE_MODES = [
-  {
-    id: "clean",
-    value: 0,
-    label: "Clean",
-    description: "Detected surfaces are removed and the page reflows."
-  },
-  {
-    id: "balanced",
-    value: 5,
-    label: "Balanced",
-    description: "About half become Tide; the rest are removed."
-  },
-  {
-    id: "full",
-    value: 10,
-    label: "Full Ambient",
-    description: "Every detected surface becomes Tide."
-  }
-];
-
-function presenceModeFromValue(value) {
-  const n = Number(value);
-  if (n <= 0) return PRESENCE_MODES[0];
-  if (n >= 10) return PRESENCE_MODES[2];
-  return PRESENCE_MODES[1];
-}
-
-function presenceModeById(id) {
-  return PRESENCE_MODES.find((mode) => mode.id === id) || PRESENCE_MODES[2];
-}
-
 const DEFAULT_SETTINGS = {
   enabled: true,
-  mode: "quiet",
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
-  visualPresence: 10,
   reducedMotion: "system",
   themePreference: "system",
   disabledDomains: []
@@ -50,12 +16,9 @@ const DEFAULT_SETTINGS = {
 const globalToggle = document.getElementById("globalToggle");
 const siteToggle = document.getElementById("siteToggle");
 const siteLabel = document.getElementById("siteLabel");
-const anchorField = document.getElementById("anchorField");
 const anchorNotesContainer = document.getElementById("anchorNotes");
 const addAnchorMessageButton = document.getElementById("addAnchorMessage");
 const anchorCount = document.getElementById("anchorCount");
-const presenceModeButtons = document.querySelectorAll("[data-presence]");
-const presenceDescription = document.getElementById("presenceDescription");
 const reportMissedAdButton = document.getElementById("reportMissedAd");
 const replaceNowButton = document.getElementById("replaceNow");
 const inspectClutterButton = document.getElementById("inspectClutter");
@@ -107,15 +70,6 @@ function bindEvents() {
     refreshStatus();
   });
 
-  document.querySelectorAll("[data-mode]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      settings.mode = button.dataset.mode;
-      renderControls();
-      await saveAndApply();
-      refreshStatus();
-    });
-  });
-
   addAnchorMessageButton.addEventListener("click", () => {
     if (noteDrafts.length >= MAX_ANCHOR_NOTES) {
       return;
@@ -123,15 +77,6 @@ function bindEvents() {
     noteDrafts.push("");
     renderAnchorNotes(noteDrafts.length - 1);
     renderControls();
-  });
-
-  presenceModeButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      settings.visualPresence = presenceModeById(button.dataset.presence).value;
-      renderPresence();
-      await saveAndApply();
-      refreshStatus();
-    });
   });
 
   reportMissedAdButton.addEventListener("click", async () => {
@@ -195,23 +140,9 @@ function renderControls() {
   siteToggle.disabled = !activeDomain;
   siteLabel.textContent = activeDomain || "Not a normal webpage";
 
-  document.querySelectorAll("[data-mode]").forEach((button) => {
-    button.setAttribute(
-      "aria-pressed",
-      String(button.dataset.mode === settings.mode)
-    );
-  });
-
-  const anchorActive = settings.mode === "anchor";
-  anchorNotesContainer.querySelectorAll("input").forEach((input) => {
-    input.disabled = !anchorActive;
-  });
-  addAnchorMessageButton.disabled =
-    !anchorActive || noteDrafts.length >= MAX_ANCHOR_NOTES;
+  addAnchorMessageButton.disabled = noteDrafts.length >= MAX_ANCHOR_NOTES;
   anchorCount.textContent =
-    `${noteDrafts.length}/${MAX_ANCHOR_NOTES} local messages`;
-  anchorField.dataset.active = String(anchorActive);
-  renderPresence();
+    `${settings.anchorNotes.length}/${MAX_ANCHOR_NOTES} local notes`;
 
   replaceNowButton.disabled = !activeDomain;
   reportMissedAdButton.disabled = !activeDomain;
@@ -247,30 +178,20 @@ function createNoteInput(note, index) {
   input.maxLength = 180;
   input.dataset.index = String(index);
   input.value = note;
-  input.disabled = settings.mode !== "anchor";
   input.placeholder =
-    index === 0 ? DEFAULT_ANCHOR_NOTE : "Add another redirecting thought.";
+    index === 0
+      ? "Leave empty to draw nothing."
+      : "Add another redirecting thought.";
   if (index === 0) {
     input.id = "anchorNote";
   }
   input.addEventListener("input", () => {
     noteDrafts[index] = input.value;
     settings.anchorNotes = normalizeAnchorNotes(noteDrafts);
-    settings.anchorNote = settings.anchorNotes[0];
+    settings.anchorNote = settings.anchorNotes[0] || "";
     scheduleSave();
   });
   return input;
-}
-
-function renderPresence() {
-  const active = presenceModeFromValue(settings.visualPresence);
-  presenceModeButtons.forEach((button) => {
-    button.setAttribute(
-      "aria-pressed",
-      String(button.dataset.presence === active.id)
-    );
-  });
-  presenceDescription.textContent = active.description;
 }
 
 function scheduleSave() {
@@ -332,15 +253,17 @@ function renderStatusResponse(response) {
   }
 
   const count = Number(response.inserted || 0);
-  const modeLabel = settings.mode === "anchor" ? "Anchor" : "Quiet";
-  const presenceLabel = presenceModeFromValue(settings.visualPresence).label;
+  const noteCount = settings.anchorNotes.length;
+  const noteLabel = noteCount
+    ? `${noteCount} note${noteCount === 1 ? "" : "s"}`
+    : "no notes, surfaces removed";
   const inspectorText = inspectorActive
     ? inspectorReportMode
       ? " Report flow is open."
       : ` Inspector: ${Number(response.inspectorCandidateCount || 0)} suspects.`
     : "";
   setStatus(
-    `${count} detected surface${count === 1 ? "" : "s"} · ${modeLabel} · ${presenceLabel}.${inspectorText}`
+    `${count} detected surface${count === 1 ? "" : "s"} · ${noteLabel}.${inspectorText}`
   );
 }
 
@@ -378,29 +301,11 @@ function mergeSettings(value) {
   const legacyNotes = Array.isArray(stored.customNotes)
     ? stored.customNotes.map((note) => String(note || "").trim()).filter(Boolean)
     : [];
-  const anchorNotes = normalizeAnchorNotes(
-    stored.anchorNotes,
-    stored.anchorNote,
-    legacyNotes
-  );
-  const hasAnchorNotes =
-    hasAnchorNoteInput(stored.anchorNotes) ||
-    hasAnchorNoteInput(stored.anchorNote) ||
-    legacyNotes.length > 0;
-  const legacyPresence =
-    stored.frequency === "max1" ? 3 : stored.frequency === "max3" ? 6 : 10;
+  const anchorNotes = resolveAnchorNotes(stored, legacyNotes);
   return {
     enabled: stored.enabled !== false,
-    mode: ["quiet", "anchor"].includes(stored.mode)
-      ? stored.mode
-      : hasAnchorNotes
-        ? "anchor"
-        : DEFAULT_SETTINGS.mode,
-    anchorNote: anchorNotes[0],
+    anchorNote: anchorNotes[0] || "",
     anchorNotes,
-    visualPresence: Number.isFinite(Number(stored.visualPresence))
-      ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
-      : legacyPresence,
     reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
     themePreference: ["system", "light", "dark"].includes(stored.themePreference)
       ? stored.themePreference
@@ -424,14 +329,24 @@ function normalizeAnchorNotes(...sources) {
     });
   });
 
-  return notes.length ? notes.slice(0, MAX_ANCHOR_NOTES) : [DEFAULT_ANCHOR_NOTE];
+  return notes.slice(0, MAX_ANCHOR_NOTES);
 }
 
-function hasAnchorNoteInput(value) {
-  if (Array.isArray(value)) {
-    return value.some(hasAnchorNoteInput);
-  }
-  return typeof value === "string" && Boolean(value.trim());
+// An empty list is an answer, not an absence: emptying the notes is how the user
+// says "just block, draw nothing". So the default note is owed only to an install
+// that has never written the key at all, and every later read is taken at its
+// word — otherwise deleting your last note silently hands it back.
+function resolveAnchorNotes(stored, legacyNotes) {
+  const written =
+    Array.isArray(stored.anchorNotes) ||
+    typeof stored.anchorNote === "string" ||
+    legacyNotes.length > 0;
+  const notes = normalizeAnchorNotes(
+    stored.anchorNotes,
+    stored.anchorNote,
+    legacyNotes
+  );
+  return written ? notes : DEFAULT_SETTINGS.anchorNotes.slice();
 }
 
 function getActiveTab() {

@@ -7,15 +7,10 @@
 // three lines passes every gate. This script closes that hole: it asserts on the
 // rendered box, not on the fact that a card exists.
 //
-//   node scripts/audit-card-legibility.mjs [--presence 10]
+//   node scripts/audit-card-legibility.mjs
 //
 // Writes per-cell screenshots and an HTML contact sheet to
 // runs/card-legibility/<timestamp>/ and exits non-zero if any cell fails.
-//
-// Presence decides card-versus-collapse, not how a card draws, so the audit's
-// question at partial presence is different: the surviving cards now sit next to
-// slots that collapsed out of flow, and a card measured in a page that reflowed
-// under it is the case Full Ambient can never produce.
 
 import { chromium } from "@playwright/test";
 import http from "node:http";
@@ -50,16 +45,6 @@ const NOTE_CASES = [
 
 const VIEWPORT = { width: 1800, height: 1000 };
 
-const presenceArg = process.argv.indexOf("--presence");
-const PRESENCE =
-  presenceArg === -1 ? 10 : Number.parseInt(process.argv[presenceArg + 1], 10);
-if (!Number.isInteger(PRESENCE) || PRESENCE < 1 || PRESENCE > 10) {
-  // Presence 0 renders no cards at all, so there is nothing here to measure;
-  // that the page is left clean is what the extension test suite asserts.
-  console.error("--presence must be an integer from 1 to 10.");
-  process.exit(2);
-}
-
 const runDir = path.join(
   projectRoot,
   "runs/card-legibility",
@@ -93,18 +78,14 @@ try {
   for (const [noteId, note] of NOTE_CASES) {
     await saveSettings(serviceWorker, {
       enabled: true,
-      mode: "anchor",
       anchorNote: note,
       anchorNotes: [note],
-      visualPresence: PRESENCE,
       reducedMotion: "still",
       disabledDomains: []
     });
 
     await page.goto(fixtureUrl, { waitUntil: "domcontentloaded" });
-    // Which slot wins a card is a hash of its key, so no single slot can be
-    // waited on below Full Ambient. Any slot the replacer has ruled on proves
-    // the pass ran.
+    // Any slot the replacer has ruled on proves the pass ran.
     await page
       .locator("[data-attention-redirector-presentation]")
       .first()
@@ -132,28 +113,21 @@ try {
       [...document.querySelectorAll("[data-matrix-label]")].map((element) => ({
         label: element.dataset.matrixLabel,
         expect: element.dataset.matrixExpect || null,
-        presentation: element.dataset.attentionRedirectorPresentation || null,
         width: Number(element.dataset.matrixWidth),
         height: Number(element.dataset.matrixHeight)
       }))
     )) {
       if (!rendered.has(slot.label)) {
         // A slot the site keeps hidden is meant to stay empty, so an absent card
-        // is the passing result rather than a miss. Below Full Ambient the
-        // replacer cleans a hashed share of slots for the same reason.
+        // is the passing result rather than a miss.
         const empty = slot.expect === "no-card";
-        const cleaned = PRESENCE < 10 && slot.presentation === "clean";
         cells.push({
           label: slot.label,
           noteId,
           note,
           shot: null,
-          problems: empty || cleaned ? [] : ["no-card-rendered"],
-          expected: empty
-            ? ["left-empty-by-design"]
-            : cleaned
-              ? ["cleaned-at-this-presence"]
-              : [],
+          problems: empty ? [] : ["no-card-rendered"],
+          expected: empty ? ["left-empty-by-design"] : [],
           slotWidth: slot.width,
           slotHeight: slot.height
         });
@@ -332,20 +306,13 @@ function printSummary(cells) {
   const bydesign = cells.filter(
     (cell) => !cell.problems.length && cell.expected.length
   );
-  const cleaned = bydesign.filter((cell) =>
-    cell.expected.includes("cleaned-at-this-presence")
-  );
   console.log(
-    `\npresence ${PRESENCE}: ${cells.length - failing.length} of ${
+    `\n${cells.length - failing.length} of ${
       cells.length
     } cells legible${bydesign.length ? ` (${bydesign.length} by design)` : ""}.\n`
   );
 
-  if (cleaned.length) {
-    console.log(`  ${cleaned.length} cells cleaned at this presence.`);
-  }
-
-  for (const cell of bydesign.filter((entry) => !cleaned.includes(entry))) {
+  for (const cell of bydesign) {
     console.log(
       `  BY DESIGN ${cell.label} (${cell.slotWidth}x${cell.slotHeight}) / ` +
         `${cell.noteId}${cell.fontSize ? ` @ ${cell.fontSize}` : ""}: ` +

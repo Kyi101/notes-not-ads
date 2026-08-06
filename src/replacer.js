@@ -83,8 +83,11 @@ function renderReplacementSlot(slot) {
     slot.dataset.attentionRedirectorCollapse === "oversized-cosmetic";
 
   const pageAllowed = isPageAllowed(state.settings);
-  const visualizeSurface = shouldVisualizeSurface(surfaceKey);
-  if (!pageAllowed || shouldCollapseSlot || !visualizeSurface) {
+  // A slot becomes a card only if the user holds something to put in it. With no
+  // note there is nothing to draw, so the surface collapses and the page reflows:
+  // an empty note list is how you ask for a plain blocker.
+  const hasNote = state.settings.anchorNotes.length > 0;
+  if (!pageAllowed || shouldCollapseSlot || !hasNote) {
     if (existingGuard) {
       existingGuard.disconnect();
       state.replacementGuards.delete(slot);
@@ -92,11 +95,10 @@ function renderReplacementSlot(slot) {
     slot.dataset.attentionRedirectorPresentation = "clean";
     removeReplacementCards(slot);
     // Collapse the slot out of flow — so the page reflows like an ad blocker —
-    // when the user has actively cleaned this surface (Clean, or the hidden
-    // share at partial presence) or it is an overlay/oversized cosmetic. When
-    // the extension or site is simply turned off we only hide, so a refresh
-    // restores the original layout without us having removed boxes first.
-    const collapse = shouldCollapseSlot || (pageAllowed && !visualizeSurface);
+    // when the user holds no note to show here, or it is an overlay/oversized
+    // cosmetic. When the extension or site is simply turned off we only hide, so
+    // a refresh restores the original layout without us having removed boxes.
+    const collapse = shouldCollapseSlot || (pageAllowed && !hasNote);
     hideReplacementSlot(slot, { collapse });
     return;
   }
@@ -154,17 +156,6 @@ function removeReplacementCards(slot) {
   slot
     .querySelectorAll(":scope > .attention-redirector-card")
     .forEach((card) => card.remove());
-}
-
-function shouldVisualizeSurface(surfaceKey) {
-  const presence = state.settings.visualPresence;
-  if (presence <= 0) {
-    return false;
-  }
-  if (presence >= 10) {
-    return true;
-  }
-  return hashString(surfaceKey) % 10 < presence;
 }
 
 function createSurfaceKey(element, rect) {
@@ -256,7 +247,6 @@ function createReplacementSlot(element, rect) {
 function buildCard(cardModel, rect, slot) {
   const card = document.createElement("div");
   card.className = "attention-redirector-card";
-  card.dataset.mode = cardModel.mode;
   card.dataset.hostTone = detectHostTone(slot);
   card.dataset.noteLength = countWords(cardModel.body) <= 2 ? "short" : "long";
   card.classList.toggle(
@@ -264,12 +254,7 @@ function buildCard(cardModel, rect, slot) {
     state.settings.reducedMotion === "still"
   );
   card.setAttribute("role", "group");
-  card.setAttribute(
-    "aria-label",
-    cardModel.mode === "anchor"
-      ? `Attention anchor: ${cardModel.body}`
-      : "Quiet attention replacement"
-  );
+  card.setAttribute("aria-label", `Attention anchor: ${cardModel.body}`);
 
   if (rect.width < 260 || rect.height < 110) {
     card.classList.add("attention-redirector-card--compact");
@@ -297,12 +282,10 @@ function buildCard(cardModel, rect, slot) {
 
   card.append(hideButton);
 
-  if (cardModel.mode === "anchor") {
-    const body = document.createElement("div");
-    body.className = "attention-redirector-card__body";
-    body.textContent = cardModel.body;
-    card.append(body);
-  }
+  const body = document.createElement("div");
+  body.className = "attention-redirector-card__body";
+  body.textContent = cardModel.body;
+  card.append(body);
 
   return card;
 }
@@ -540,17 +523,11 @@ function fitCardText(card) {
 }
 
 function createCardModel(surfaceKey) {
-  return {
-    mode: state.settings.mode,
-    body: selectAnchorNote(surfaceKey)
-  };
+  return { body: selectAnchorNote(surfaceKey) };
 }
 
 function selectAnchorNote(surfaceKey) {
-  const notes = normalizeAnchorNotes(
-    state.settings.anchorNotes,
-    state.settings.anchorNote
-  );
+  const notes = state.settings.anchorNotes;
   return notes[hashString(surfaceKey) % notes.length];
 }
 

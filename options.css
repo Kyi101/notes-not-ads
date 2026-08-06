@@ -201,15 +201,12 @@ p {
 
 .switch-row strong,
 .switch-row small,
-.mode-option strong,
-.mode-option small,
 summary strong,
 summary small {
   display: block;
 }
 
-.switch-row strong,
-.mode-option strong {
+.switch-row strong {
   margin-bottom: 3px;
   color: var(--text);
   font-size: 14px;
@@ -217,7 +214,6 @@ summary small {
 }
 
 .switch-row small,
-.mode-option small,
 .field-label small,
 summary small {
   color: var(--muted);
@@ -262,57 +258,10 @@ input[role="switch"]:checked::after {
   transform: translateX(20px);
 }
 
-.mode-fieldset {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.mode-fieldset legend,
 .field-label {
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
-}
-
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 9px;
-}
-
-.mode-option {
-  position: relative;
-  display: block;
-  min-height: 94px;
-  cursor: pointer;
-}
-
-.mode-option input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.mode-option span {
-  display: block;
-  height: 100%;
-  padding: 16px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 11px;
-  background: transparent;
-  transition: border-color 140ms ease, background 140ms ease;
-}
-
-.mode-option input:checked + span {
-  border-color: var(--sea);
-  background: var(--chip-active-bg);
-}
-
-.mode-option input:focus-visible + span {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
 }
 
 .field-label {
@@ -376,10 +325,6 @@ textarea {
   line-height: 1.6;
 }
 
-#anchorField[data-active="false"] {
-  opacity: 0.52;
-}
-
 .inline-button {
   justify-self: start;
   min-height: 36px;
@@ -389,10 +334,6 @@ textarea {
 .anchor-remove-button {
   min-height: 40px;
   padding-inline: 12px;
-}
-
-.presence-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .control-note {
@@ -516,7 +457,6 @@ summary:focus-visible {
   }
 
   .section-heading,
-  .mode-grid,
   .anchor-message-row {
     grid-template-columns: 1fr;
   }

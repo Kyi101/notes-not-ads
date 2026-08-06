@@ -123,30 +123,12 @@ function mergeSettings(value) {
   const legacyNotes = Array.isArray(stored.customNotes)
     ? stored.customNotes.map((note) => String(note || "").trim()).filter(Boolean)
     : [];
-  const mode = ["quiet", "anchor"].includes(stored.mode)
-    ? stored.mode
-    : legacyNotes.length
-      ? "anchor"
-      : DEFAULT_SETTINGS.mode;
-  const legacyPresence =
-    stored.frequency === "max1" ? 3 : stored.frequency === "max3" ? 6 : 10;
-  const visualPresence = Number.isFinite(Number(stored.visualPresence))
-    ? Math.min(10, Math.max(0, Math.round(Number(stored.visualPresence))))
-    : legacyPresence;
+  const anchorNotes = resolveAnchorNotes(stored, legacyNotes);
 
   return {
     enabled: stored.enabled !== false,
-    mode,
-    anchorNote:
-      typeof stored.anchorNote === "string" && stored.anchorNote.trim()
-        ? stored.anchorNote.trim()
-        : legacyNotes[0] || DEFAULT_SETTINGS.anchorNote,
-    anchorNotes: normalizeAnchorNotes(
-      stored.anchorNotes,
-      stored.anchorNote,
-      legacyNotes
-    ),
-    visualPresence,
+    anchorNote: anchorNotes[0] || "",
+    anchorNotes,
     reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
     disabledDomains: Array.isArray(stored.disabledDomains)
       ? stored.disabledDomains
@@ -157,8 +139,7 @@ function mergeSettings(value) {
 function getStatus() {
   return {
     inserted: state.inserted,
-    visualPresence: state.settings ? state.settings.visualPresence : 10,
-    mode: state.settings ? state.settings.mode : "quiet",
+    noteCount: state.settings ? state.settings.anchorNotes.length : 0,
     enabled: Boolean(state.settings && state.settings.enabled),
     pageAllowed: isPageAllowed(state.settings),
     inspectorActive: state.inspector.active,
