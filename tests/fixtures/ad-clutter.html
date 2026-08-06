@@ -600,6 +600,16 @@
         <div id="side-rail-ad" class="sidebar-ad">
           Sponsored ad
         </div>
+        <!--
+          Replaced on the first scan, then wrapped in a second ad container by
+          the script below. Within one scan `hasCandidateDescendant` drops the
+          wrapper, so the nesting NY Post's sticky rail shows can only be
+          reproduced across two scans.
+        -->
+        <div id="nested-rail-ad" class="sidebar-ad" data-ad-slot="rail-inner"
+          style="width: 300px; min-height: 250px;">
+          Sponsored ad
+        </div>
         <div id="animated-promo" class="animated-rectangle">
           Animated rectangle
         </div>
@@ -964,6 +974,28 @@
           slot.innerHTML = "<strong>Refreshed ad creative should not remain</strong>";
         }
       }, 900);
+
+      // A sticky rail arriving around its already-replaced ad, the way NY Post
+      // builds one. The wrapper is a fresh candidate in a later scan, and the
+      // slot it contains is no longer a candidate at all, so nothing in a single
+      // scan's bookkeeping can see that carding the wrapper draws a second card
+      // around the first.
+      window.setTimeout(() => {
+        const inner = document.getElementById("nested-rail-ad");
+        if (!inner || !inner.parentElement) {
+          return;
+        }
+
+        const wrapper = document.createElement("div");
+        wrapper.id = "nested-rail-wrapper";
+        wrapper.className = "sidebar-ad";
+        wrapper.dataset.adSlot = "rail-wrapper";
+        wrapper.style.width = "300px";
+        wrapper.style.minHeight = "600px";
+
+        inner.parentElement.insertBefore(wrapper, inner);
+        wrapper.appendChild(inner);
+      }, 700);
 
       window.setTimeout(() => {
         const slot = document.createElement("div");

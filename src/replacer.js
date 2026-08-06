@@ -865,6 +865,22 @@ function hasHardUnsafeAncestor(element) {
   return Boolean(closestAcrossRoots(element, HARD_UNSAFE_ANCESTOR_SELECTOR));
 }
 
+function hasReplacedAncestor(element) {
+  return Boolean(
+    element.parentElement &&
+      closestAcrossRoots(
+        element.parentElement,
+        "[data-attention-redirector-replaced='true']"
+      )
+  );
+}
+
+function containsReplacedSlot(element) {
+  return Boolean(
+    element.querySelector("[data-attention-redirector-replaced='true']")
+  );
+}
+
 function hasSoftUnsafeAncestor(element) {
   return Boolean(closestAcrossRoots(element, SOFT_UNSAFE_ANCESTOR_SELECTOR));
 }

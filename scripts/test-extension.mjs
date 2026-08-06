@@ -396,6 +396,31 @@ try {
     );
   }
 
+  // One card per nesting chain. A card inside another card shows the note twice
+  // in one box, and the inner slot's min-height inflates the wrapper that the
+  // outer card is then sized against, so the pair also produces a card far
+  // taller than the ad it replaced.
+  const nestedCardCount = await page.evaluate(() => {
+    return [...document.querySelectorAll(".attention-redirector-card")].filter((card) => {
+      const slot = card.closest(".attention-redirector-slot");
+      return Boolean(
+        slot && slot.parentElement && slot.parentElement.closest(".attention-redirector-slot")
+      );
+    }).length;
+  });
+  if (nestedCardCount !== 0) {
+    throw new Error(`Found ${nestedCardCount} cards drawn inside another card's slot.`);
+  }
+
+  const nestedRailCards = await page
+    .locator("#nested-rail-wrapper .attention-redirector-card")
+    .count();
+  if (nestedRailCards !== 1) {
+    throw new Error(
+      `Nested rail should hold exactly one card, found ${nestedRailCards}.`
+    );
+  }
+
   const compactCardCount = await page
     .locator(".attention-redirector-card--compact")
     .count();

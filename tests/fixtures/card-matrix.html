@@ -55,7 +55,11 @@
         ["halfpage", 300, 600],
         ["skyscraper", 160, 600],
         ["inline-wide-short", 540, 230],
-        ["full-width-strip", 1583, 319]
+        ["full-width-strip", 1583, 319],
+        // Measured off NY Post's sticky rail, which is taller than the viewport.
+        // Every other shape here fits on screen, so nothing in the matrix could
+        // show what a note looks like adrift in a box that does not.
+        ["sticky-rail", 300, 1250]
       ];
 
       // Text styling a host page can put on its own ad container. Every one of

@@ -1529,3 +1529,27 @@ The rejected alternative was deriving presence from note *count* — none to cle
 **Implemented 2026-08-06**: making the empty list real came down to telling a fresh install apart from a user who deleted their last note, since both hand the merge an absence. `resolveAnchorNotes` reads a stored `anchorNotes` array — empty or not — or a stored `anchorNote` string as *written*, and takes it at its word; only an install that has never written either key is owed the default note. That is safe against existing installs because the old `normalizeAnchorNotes` could never persist an empty array, so an empty one can only be deliberate. The rule is written three times, in `src/shared.js`, `options.js`, and `popup.js`, which remain three independent copies of the settings contract.
 
 The Options field keeps one row visible at all times rather than allowing zero rows: an empty row is how the list says it is empty, so there is always somewhere to type and no empty state to design. `test:extension` now clears the last note through that field and asserts the save keeps it empty and the page then draws nothing — falsified by restoring the old fallback, which failed it as intended.
+
+## 2026-08-06 - One Card Per Nesting Chain, And No Repetition Rule
+
+**Decision**: a container is not replaced if it sits inside an already-replaced slot or wraps one — whichever slot arrives first keeps the card. The repetition rule the presence decision left open is dropped, because the measurement that was supposed to size it falsified its premise.
+
+**Why**: the presence decision closed with "a heavy page now shows the same sentence on every slot it finds — seven on The Sun. Repeated seven times, a sentence reads as broken rather than calm." That is a claim about what a reader sees at once, so it was measured before it was fixed. Scrolling three heavy pages at 1280x900:
+
+| | cards | page height | most co-visible in one screen | median gap |
+|---|---|---|---|---|
+| The Sun | 6 | 17,164px | 1 | 2,684px |
+| DailyMail | 17 | 33,025px | 1 | 1,878px |
+| NY Post | 10 | 45,654px | 2 | 901px |
+
+Two cards are essentially never on screen together. The repetition is sequential across a long scroll — a refrain every couple of thousand pixels — not seven sentences stacked in view. There is no reader with the problem the rule was for.
+
+The one page that reached two co-visible cards was not repeating at all. NY Post's sticky rail `div.widget-wrapper…nypost_dfp_` was carded at 300x1250, and the `div.ad.ad--container` inside it was carded too, at 300x603. Both showed the same note because both were cards, one drawn inside the other.
+
+**Consequences**:
+- `safeToReplace` rejects both directions of the nesting, and `getSafetyBlocks` reports them, so the inspector explains a skip instead of staying silent. On NY Post that takes 10 slots to 7 and nested cards to 0; The Sun and DailyMail are unchanged at 6 and 17.
+- The guard has to look both up and down because the two containers are reached by different scans. `hasCandidateDescendant` already drops a wrapper whose descendant is a candidate, but only within one scan; a wrapper claimed later sees a descendant that is no longer a candidate at all, having already been replaced.
+- The 1250px rail was partly self-inflicted. Replacing the inner container sets `min-height` on it, which grows the wrapper, which is then measured at the inflated size. With the inner left alone the same rail cards at 663px, and the two others on that page at 310px.
+- The reproduction had to be built across two scans to be real. A fixture with both containers present at load proves nothing: `hasCandidateDescendant` drops the wrapper and the gate passes with the guard disabled — which is what the first attempt did. The fixture now replaces the inner slot and wraps it 700ms later, and that version fails without the guard.
+- `audit:cards` gains a 300x1250 `sticky-rail` shape, since every other shape in the matrix fits on screen and none of them could have shown a note adrift in a box that does not. It reports the rail legible, which is true and beside the point: the text is readable, the proportion is absurd. Nothing asserts proportion yet. With the nesting fixed no page under measurement still produces such a card, so the rule that would cap it is not written.
+- Cost of the descendant check is a `querySelector` per candidate. `benchmark:performance` is unmoved at 16.7ms p95 over 60 cards, 0 frames past 32ms.

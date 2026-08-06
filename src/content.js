@@ -2574,6 +2574,16 @@
       return false;
     }
 
+    // One card per nesting chain, whichever slot got there first. A container
+    // inside an already-replaced slot has no attention left of its own, and a
+    // container wrapping one is asking to draw a second card around the first.
+    // `hasCandidateDescendant` only sees candidates within a single scan, so a
+    // wrapper claimed by a later scan slipped past it: NY Post's sticky rail put a
+    // 300x603 card inside a 300x1250 one, both carrying the same note.
+    if (hasReplacedAncestor(element) || containsReplacedSlot(element)) {
+      return false;
+    }
+
     if (element === document.body || element === document.documentElement) {
       return false;
     }
@@ -3049,6 +3059,16 @@
 
     if (!element || element.dataset.attentionRedirectorReplaced === "true") {
       blocks.push("already replaced or invalid");
+      return blocks;
+    }
+
+    if (hasReplacedAncestor(element)) {
+      blocks.push("inside an already replaced slot");
+      return blocks;
+    }
+
+    if (containsReplacedSlot(element)) {
+      blocks.push("wraps an already replaced slot");
       return blocks;
     }
 
@@ -4194,6 +4214,22 @@
 
   function hasHardUnsafeAncestor(element) {
     return Boolean(closestAcrossRoots(element, HARD_UNSAFE_ANCESTOR_SELECTOR));
+  }
+
+  function hasReplacedAncestor(element) {
+    return Boolean(
+      element.parentElement &&
+        closestAcrossRoots(
+          element.parentElement,
+          "[data-attention-redirector-replaced='true']"
+        )
+    );
+  }
+
+  function containsReplacedSlot(element) {
+    return Boolean(
+      element.querySelector("[data-attention-redirector-replaced='true']")
+    );
   }
 
   function hasSoftUnsafeAncestor(element) {
