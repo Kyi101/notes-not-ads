@@ -173,6 +173,24 @@ const MUTATION_AD_SIGNAL_RE =
 const LARGE_DOM_ZERO_SCAN_THRESHOLD = 2500;
 const MUTATION_DESCENDANT_SCAN_LIMIT = 80;
 
+const CARD_FONT_STYLE_ID = "attention-redirector-font";
+
+// Both faces ship. Dropping the extended range would leave a note containing a
+// single accented letter rendering that letter in the fallback and the rest in
+// Space Grotesk, which looks like a bug rather than a fallback.
+const CARD_FONT_FILES = [
+  {
+    file: "fonts/space-grotesk-latin.woff2",
+    range:
+      "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+  },
+  {
+    file: "fonts/space-grotesk-latin-ext.woff2",
+    range:
+      "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF"
+  }
+];
+
 const SHADOW_ROOT_STYLE_TEXT = `
 .attention-redirector-slot {
   box-sizing: border-box !important;
@@ -199,29 +217,27 @@ const SHADOW_ROOT_STYLE_TEXT = `
   box-sizing: border-box !important;
 }
 .attention-redirector-card {
-  --ar-field-a: #d9e4d8;
-  --ar-field-b: #adc2ae;
-  --ar-field-c: #496555;
-  --ar-ink: #183027;
-  --ar-motion-delay: 0s;
+  --ar-surface: #e6ebe3;
+  --ar-ink: #20312a;
+  --ar-ring: rgba(32, 49, 42, 0.12);
   position: relative !important;
   display: flex !important;
   align-items: center !important;
-  justify-content: center !important;
+  justify-content: flex-start !important;
   isolation: isolate !important;
   contain: paint !important;
   width: 100% !important;
   min-height: inherit !important;
   height: 100% !important;
-  padding: clamp(22px, 6vw, 64px) !important;
+  padding: var(--ar-card-pad, clamp(22px, 6vw, 64px)) !important;
   overflow: hidden !important;
   border: 0 !important;
-  border-radius: 16px !important;
-  background: linear-gradient(145deg, var(--ar-field-a), var(--ar-field-b)) !important;
+  border-radius: 12px !important;
+  background: var(--ar-surface) !important;
   color: var(--ar-ink) !important;
-  font-family: Optima, Candara, "Trebuchet MS", sans-serif !important;
-  line-height: 1.08 !important;
-  text-align: center !important;
+  font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif !important;
+  font-weight: 500 !important;
+  text-align: left !important;
   white-space: normal !important;
   word-break: normal !important;
   hyphens: none !important;
@@ -232,32 +248,16 @@ const SHADOW_ROOT_STYLE_TEXT = `
   font-style: normal !important;
   font-variant: normal !important;
   -webkit-text-fill-color: currentColor !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48), 0 10px 32px rgba(73, 101, 85, 0.16) !important;
+  box-shadow: inset 0 0 0 1px var(--ar-ring) !important;
 }
-.attention-redirector-card::before,
-.attention-redirector-card::after {
-  content: "" !important;
-  position: absolute !important;
-  z-index: 0 !important;
-  display: block !important;
-  pointer-events: none !important;
+.attention-redirector-card[data-host-tone="dark"] {
+  --ar-surface: #1d2521;
+  --ar-ink: #dce4dd;
+  --ar-ring: rgba(220, 228, 221, 0.10);
 }
-.attention-redirector-card[data-ambient-variant="tide"]::before {
-  inset: -55% -20% !important;
-  border-radius: 44% !important;
-  background: linear-gradient(115deg, rgba(255, 255, 255, 0.24) 0%, rgba(217, 228, 216, 0.08) 42%, rgba(73, 101, 85, 0.2) 72%, rgba(255, 255, 255, 0.18) 100%) !important;
-  animation: attention-redirector-tide 32s ease-in-out infinite alternate !important;
-  animation-delay: var(--ar-motion-delay) !important;
-}
-.attention-redirector-card[data-ambient-variant="tide"]::after {
-  right: -18% !important;
-  bottom: -55% !important;
-  width: 66% !important;
-  aspect-ratio: 1 !important;
-  border-radius: 50% !important;
-  background: radial-gradient(circle, rgba(217, 104, 58, 0.18) 0%, rgba(217, 104, 58, 0.12) 42%, rgba(217, 104, 58, 0) 72%) !important;
-  animation: attention-redirector-tide-orb 30s ease-in-out infinite alternate !important;
-  animation-delay: var(--ar-motion-delay) !important;
+.attention-redirector-card[data-note-length="short"] {
+  justify-content: center !important;
+  text-align: center !important;
 }
 .attention-redirector-card__hide {
   appearance: none !important;
@@ -285,51 +285,37 @@ const SHADOW_ROOT_STYLE_TEXT = `
   position: relative !important;
   z-index: 2 !important;
   display: -webkit-box !important;
-  max-width: 820px !important;
+  max-width: min(100%, 30em) !important;
   margin: 0 !important;
   color: var(--ar-ink) !important;
   font: inherit !important;
-  font-size: var(--ar-card-font, clamp(22px, 3.7vw, 46px)) !important;
+  font-size: var(--ar-card-font, 20px) !important;
   font-weight: 500 !important;
-  letter-spacing: -0.035em !important;
-  line-height: 1.08 !important;
+  line-height: var(--ar-card-lh, 1.2) !important;
+  letter-spacing: var(--ar-card-track, 0em) !important;
+  /* Display leading is tighter than the font's own line box, so ascenders and
+     descenders sit outside it. overflow:hidden clips at this box, so without a
+     little room the clamp shaves the top and bottom of the note. How much is
+     owed depends on the leading, so fitCardText sets it alongside the size. */
+  padding-block: var(--ar-card-ink, 0.06em) !important;
   overflow-wrap: anywhere !important;
   -webkit-box-orient: vertical !important;
   -webkit-line-clamp: var(--ar-card-lines, 3) !important;
   overflow: hidden !important;
 }
+.attention-redirector-card[data-note-length="short"] .attention-redirector-card__body {
+  max-width: 100% !important;
+}
 .attention-redirector-card--compact {
   padding: 12px 34px 12px 16px !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
 }
 .attention-redirector-slot--short .attention-redirector-card {
   padding: 7px 36px 7px 14px !important;
   border-radius: 8px !important;
 }
-.attention-redirector-slot--narrow .attention-redirector-card {
-  text-align: left !important;
-}
-.attention-redirector-slot--narrow .attention-redirector-card__body,
-.attention-redirector-slot--tall .attention-redirector-card__body {
-  width: 100% !important;
-}
-.attention-redirector-slot--tall .attention-redirector-card__body {
-  line-height: 1.14 !important;
-}
-.attention-redirector-card--still,
-.attention-redirector-card--still[data-ambient-variant]::before,
-.attention-redirector-card--still[data-ambient-variant]::after,
-.attention-redirector-card--motion-paused[data-ambient-variant]::before,
-.attention-redirector-card--motion-paused[data-ambient-variant]::after {
+.attention-redirector-card--still {
   animation: none !important;
-}
-@keyframes attention-redirector-tide {
-  0% { transform: translate3d(-3%, -2%, 0) rotate(0deg) scale(1); }
-  100% { transform: translate3d(3%, 2%, 0) rotate(5deg) scale(1.04); }
-}
-@keyframes attention-redirector-tide-orb {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(-18%, -6%, 0) scale(1.08); }
 }
 `;
 
@@ -500,12 +486,10 @@ const state = {
     nextAttempt: 0
   },
   isScanning: false,
-  cardSequence: 0,
   cosmeticRules: [],
   domainCosmeticRules: [],
   cosmeticMatches: new WeakMap(),
   replacementGuards: new WeakMap(),
-  motionObserver: null,
   inspector: {
     active: false,
     overlay: null,

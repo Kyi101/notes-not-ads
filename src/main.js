@@ -16,7 +16,27 @@ async function init() {
     return;
   }
 
+  // Observation goes first and nothing is allowed in front of it. A shadow root
+  // that already exists by this line is watched, and an ad appearing in it later
+  // is carded within a frame; a root missed here is only found by a warmup scan,
+  // most of a second later. That is a race against the page's own scripts, so the
+  // work between document_end and this line has to stay near zero.
   startObserver();
+
+  ensureCardFont();
+  // The fit pass is a measurement, and any card placed before the face arrives is
+  // measured in the fallback: the default note is 256px wide at 16px in Helvetica
+  // and 281px in Space Grotesk, which on a mobile banner is the difference
+  // between one line and two. So refit once the face is really here.
+  //
+  // Asked for by name rather than waited on through document.fonts.ready, because
+  // a face is only fetched when something uses it and nothing does yet — ready
+  // resolves immediately, against the fallback, before the first card exists.
+  document.fonts
+    ?.load('500 1em "Space Grotesk"')
+    .then(refitAllCards)
+    .catch(() => {});
+
   const initialInserted = await runScan({ force: true });
   startWarmupScans({
     initialInserted,
@@ -536,6 +556,40 @@ function getContainingOpenShadowRoot(element) {
   return isOpenShadowRoot(root) ? root : null;
 }
 
+// A content script's stylesheet cannot name an extension resource: a relative
+// url() inside it resolves against the page, not the extension, so it 404s
+// whether or not the file is web-accessible. Injecting the face from script is
+// the only route that resolves, and the only one that survives a page CSP naming
+// font-src — an inlined data: URL is blocked by such a policy, a
+// chrome-extension: URL is not. The resource is declared with use_dynamic_url so
+// the URL is a per-session token rather than this install's stable id.
+//
+// @font-face has to land in the document even for cards inside a shadow root,
+// because a face declared inside a shadow tree is not applied.
+function ensureCardFont() {
+  const host = document.head || document.documentElement;
+  if (!host || document.getElementById(CARD_FONT_STYLE_ID)) {
+    return;
+  }
+
+  const style = document.createElement("style");
+  style.id = CARD_FONT_STYLE_ID;
+  // isExtensionElement recognises our nodes by class, so without this the page
+  // observer takes our own injection for page content and schedules a scan at it.
+  style.className = "attention-redirector-style";
+  style.textContent = CARD_FONT_FILES.map(
+    ({ file, range }) => `@font-face{
+  font-family:"Space Grotesk";
+  font-style:normal;
+  font-weight:400 700;
+  font-display:swap;
+  src:url(${JSON.stringify(chrome.runtime.getURL(file))}) format("woff2");
+  unicode-range:${range};
+}`
+  ).join("\n");
+  host.append(style);
+}
+
 function ensureShadowRootStyles(root) {
   if (!isOpenShadowRoot(root) || state.shadowStyleRoots.has(root)) {
     return;
@@ -609,8 +663,22 @@ function scheduleScan(delay) {
       state.pendingScanNodes.clear();
     }
 
-    window.requestAnimationFrame(() => {
+    // The scan reads layout, so it prefers to run inside a frame. But a page
+    // where nothing moves can go a long time without producing one — 650ms was
+    // measured here — and until the ambient was removed the cards' own animation
+    // was what kept the frames coming. Waiting on a frame that may never arrive
+    // turns a late ad into most of a second of unreplaced page, so take
+    // whichever arrives first.
+    let scanned = false;
+    const scan = () => {
+      if (scanned) {
+        return;
+      }
+      scanned = true;
       runScan({ force: false, contextNodes });
-    });
+    };
+
+    window.requestAnimationFrame(scan);
+    window.setTimeout(scan, 100);
   }, safeDelay);
 }

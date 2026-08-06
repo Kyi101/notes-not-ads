@@ -38,6 +38,14 @@
   },
   "web_accessible_resources": [
     {
+      "resources": [
+        "fonts/space-grotesk-latin.woff2",
+        "fonts/space-grotesk-latin-ext.woff2"
+      ],
+      "matches": ["<all_urls>"],
+      "use_dynamic_url": true
+    },
+    {
       "resources": ["src/youtube-prune-main.js"],
       "matches": [
         "https://www.youtube.com/*",

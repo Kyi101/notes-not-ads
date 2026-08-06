@@ -386,14 +386,18 @@ try {
     throw new Error(`Expected at least 3 Quiet cards, found ${quietCardCount}.`);
   }
 
-  const nonTideCardCount = await page
+  // Both attributes decide how the card draws — the tone picks the surface it
+  // sits on, the length picks centred against left. A card missing either one
+  // renders, so nothing else here would notice.
+  const unconfiguredCardCount = await page
     .locator(
-      ".attention-redirector-card:not([data-ambient-variant='tide'])"
+      ".attention-redirector-card:not([data-host-tone='light']):not([data-host-tone='dark'])," +
+        ".attention-redirector-card:not([data-note-length])"
     )
     .count();
-  if (nonTideCardCount !== 0) {
+  if (unconfiguredCardCount !== 0) {
     throw new Error(
-      `Expected Tide-only production cards, found ${nonTideCardCount} non-Tide cards.`
+      `Expected every card to carry a host tone and note length, found ${unconfiguredCardCount} without.`
     );
   }
 

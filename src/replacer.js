@@ -115,7 +115,7 @@ function renderReplacementSlot(slot) {
   }
 
   slot.dataset.attentionRedirectorPresentation = "ambient";
-  const card = buildCard(createCardModel(surfaceKey), rect);
+  const card = buildCard(createCardModel(surfaceKey), rect, slot);
   removeReplacementCards(slot);
   if (preservesSiteChildren) {
     slot.append(card);
@@ -123,7 +123,6 @@ function renderReplacementSlot(slot) {
     slot.replaceChildren(card);
   }
   fitCardText(card);
-  observeCardMotion(card);
   installReplacementGuard(slot, card);
 }
 
@@ -154,41 +153,7 @@ function ensureReplacementRootStyles(slot) {
 function removeReplacementCards(slot) {
   slot
     .querySelectorAll(":scope > .attention-redirector-card")
-    .forEach((card) => {
-      if (state.motionObserver) {
-        state.motionObserver.unobserve(card);
-      }
-      card.remove();
-    });
-}
-
-function observeCardMotion(card) {
-  if (
-    state.settings.reducedMotion === "still" ||
-    typeof IntersectionObserver !== "function"
-  ) {
-    return;
-  }
-
-  if (!state.motionObserver) {
-    state.motionObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          entry.target.classList.toggle(
-            "attention-redirector-card--motion-paused",
-            !entry.isIntersecting
-          );
-        });
-      },
-      {
-        rootMargin: "700px 0px",
-        threshold: 0
-      }
-    );
-  }
-
-  card.classList.add("attention-redirector-card--motion-paused");
-  state.motionObserver.observe(card);
+    .forEach((card) => card.remove());
 }
 
 function shouldVisualizeSurface(surfaceKey) {
@@ -288,12 +253,12 @@ function createReplacementSlot(element, rect) {
   return wrapper;
 }
 
-function buildCard(cardModel, rect) {
+function buildCard(cardModel, rect, slot) {
   const card = document.createElement("div");
   card.className = "attention-redirector-card";
   card.dataset.mode = cardModel.mode;
-  card.dataset.ambientVariant = "tide";
-  card.style.setProperty("--ar-motion-delay", `${cardModel.motionDelay}s`);
+  card.dataset.hostTone = detectHostTone(slot);
+  card.dataset.noteLength = countWords(cardModel.body) <= 2 ? "short" : "long";
   card.classList.toggle(
     "attention-redirector-card--still",
     state.settings.reducedMotion === "still"
@@ -315,7 +280,7 @@ function buildCard(cardModel, rect) {
   if (w && h) {
     const pad = Math.round(Math.min(Math.max(Math.min(w, h) * 0.1, 10), 48));
     card.style.setProperty("--ar-card-pad", `${pad}px`);
-    card.style.setProperty("--ar-card-font", `${cardFontCeiling(rect)}px`);
+    applyCardTypeScale(card, cardFontCeiling(rect, countWords(cardModel.body)));
   }
 
   const hideButton = document.createElement("button");
@@ -347,29 +312,138 @@ function buildCard(cardModel, rect) {
 // text that only looks like it fits.
 const CARD_FONT_FLOOR = 13;
 
+// state.shadowStyleRoots is a WeakSet and cannot be walked, so the roots are
+// collected the same way the scanner finds them.
+function refitAllCards() {
+  const roots = [document, ...collectOpenShadowRoots(document)];
+  roots.forEach((root) => {
+    root
+      .querySelectorAll(".attention-redirector-card")
+      .forEach((card) => fitCardText(card));
+  });
+}
+
+function countWords(note) {
+  const trimmed = String(note || "").trim();
+  return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
+// The number of ancestors worth asking. A slot whose whole chain up to this
+// depth is transparent is sitting on the page background, and the OS preference
+// is a better guess than any of the transparent boxes in between.
+const HOST_TONE_MAX_DEPTH = 12;
+
+// Relative luminance below this reads as a dark surface. Set below the midpoint
+// on purpose: a card that picks the dark variant on a mid-grey host is merely a
+// little flat, while one that picks light on a near-black host is a lit panel in
+// the corner of the eye.
+const HOST_TONE_DARK_LUMINANCE = 0.35;
+
+// The card is the same colour on every site, but sites are not. Walk up from the
+// slot for the first background that is actually painted, and take the side of
+// the pair that sits in it quietly.
+function detectHostTone(slot) {
+  let element = slot instanceof Element ? slot : null;
+  let depth = 0;
+
+  while (element && depth < HOST_TONE_MAX_DEPTH) {
+    const luminance = opaqueBackgroundLuminance(element);
+    if (luminance !== null) {
+      return luminance < HOST_TONE_DARK_LUMINANCE ? "dark" : "light";
+    }
+    element = element.parentElement;
+    depth += 1;
+  }
+
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+function opaqueBackgroundLuminance(element) {
+  const parsed = window
+    .getComputedStyle(element)
+    .backgroundColor.match(/[\d.]+/g);
+  if (!parsed || parsed.length < 3) {
+    return null;
+  }
+  // A transparent background is not this element's colour, it is whatever is
+  // behind it, so the walk has to keep going.
+  if (parsed.length > 3 && Number(parsed[3]) === 0) {
+    return null;
+  }
+
+  const [r, g, b] = parsed.slice(0, 3).map((value) => {
+    const channel = Number(value) / 255;
+    return channel <= 0.03928
+      ? channel / 12.92
+      : Math.pow((channel + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+// Leading and tracking are a function of size, not of the card. A note set at
+// 44px wants the lines close and the letters pulled in; the same note at 14px
+// wants neither, and applying the display setting to it makes it look broken.
+function cardLineHeight(size) {
+  return size >= 30 ? 1.12 : size >= 20 ? 1.2 : 1.3;
+}
+
+function cardTracking(size) {
+  return size >= 28 ? "-0.022em" : size >= 18 ? "-0.012em" : "0em";
+}
+
+// Space Grotesk's own line box is about this tall, so any leading tighter than
+// it leaves ascenders and descenders hanging outside the line, where the clamp's
+// overflow:hidden shaves them.
+const CARD_LINE_BOX_EM = 1.24;
+
+// Give that overhang back as padding on the body rather than loosening the
+// leading, which is the design's and not the metric's to choose. Loose leading
+// needs none of it, and on a 50px banner the room is a whole line of text.
+function cardInkRoom(size) {
+  return Math.max(0, (CARD_LINE_BOX_EM - cardLineHeight(size)) / 2);
+}
+
+function applyCardTypeScale(card, size) {
+  card.style.setProperty("--ar-card-font", `${size}px`);
+  card.style.setProperty("--ar-card-lh", String(cardLineHeight(size)));
+  card.style.setProperty("--ar-card-track", cardTracking(size));
+  card.style.setProperty("--ar-card-ink", `${cardInkRoom(size)}em`);
+}
+
 // The size a card would like to use if the note were short, by slot shape. The
 // fit pass only ever comes down from here, so a short note in a big slot still
 // renders at the size it always did.
-function cardFontCeiling(rect) {
+function cardFontCeiling(rect, wordCount) {
   const w = rect.width || 0;
   const h = rect.height || 0;
 
   if (!(w && h)) {
     return 44;
   }
-  if (h >= 320 && h > w * 1.8) {
-    return Math.round(Math.min(Math.max(w * 0.13, 18), 30));
+
+  const tall = h >= 320 && h > w * 1.8;
+  let ceiling;
+  if (tall) {
+    ceiling = Math.round(Math.min(Math.max(w * 0.13, 18), 30));
+  } else if (w < 420) {
+    ceiling = 20;
+  } else if (h < 90) {
+    ceiling = 15;
+  } else if (w < 260 || h < 110) {
+    ceiling = 17;
+  } else {
+    ceiling = Math.round(Math.min(Math.max(h * 0.22, 18), 44));
   }
-  if (w < 420) {
-    return 20;
+
+  // A sentence set at display size in a wide, shallow box reads as a headline
+  // shouting across the page, which is the thing the card exists to stop doing.
+  // A word or two is an object rather than a sentence and keeps the full size.
+  if (wordCount > 2 && ceiling > 24 && w < 728 && !tall) {
+    ceiling = Math.round(ceiling * 0.65);
   }
-  if (h < 90) {
-    return 15;
-  }
-  if (w < 260 || h < 110) {
-    return 17;
-  }
-  return Math.round(Math.min(Math.max(h * 0.22, 18), 44));
+  return ceiling;
 }
 
 // Sizing text from the slot's height alone cannot know how much text there is,
@@ -410,14 +484,22 @@ function fitCardText(card) {
   // will keep. Measuring against the raw box height instead lets a size through
   // whose last line the clamp then cuts.
   const measure = (size) => {
-    card.style.setProperty("--ar-card-font", `${size}px`);
-    const lineHeight =
-      parseFloat(window.getComputedStyle(body).lineHeight) || size * 1.08;
-    const lines = Math.max(1, Math.floor(availableHeight / lineHeight));
+    applyCardTypeScale(card, size);
+    // Computed from the same rule the stylesheet just took, rather than read
+    // back off the element: reading forces a style flush on every one of the
+    // seven probes this search makes.
+    const lineHeight = size * cardLineHeight(size);
+    // The ink room is padding on the body, so it comes out of the card before
+    // the lines get their share. Budgeting the full height instead lets a line
+    // through that then pushes the whole body outside the card it clips against.
+    const ink = 2 * size * cardInkRoom(size);
+    const lines = Math.max(1, Math.floor((availableHeight - ink) / lineHeight));
     return {
       lines,
       fits:
-        body.scrollHeight <= lines * lineHeight + 1 &&
+        // scrollHeight counts the padding, so the budget it is checked against
+        // has to as well.
+        body.scrollHeight <= lines * lineHeight + ink + 1 &&
         body.scrollWidth <= availableWidth + 1
     };
   };
@@ -453,18 +535,14 @@ function fitCardText(card) {
     bestLines = measure(floor).lines;
   }
 
-  card.style.setProperty("--ar-card-font", `${best}px`);
+  applyCardTypeScale(card, best);
   card.style.setProperty("--ar-card-lines", String(bestLines));
 }
 
 function createCardModel(surfaceKey) {
-  const sequence = state.cardSequence;
-  state.cardSequence += 1;
-
   return {
     mode: state.settings.mode,
-    body: selectAnchorNote(surfaceKey),
-    motionDelay: -(((hashString(surfaceKey) + sequence) % 6) * 5)
+    body: selectAnchorNote(surfaceKey)
   };
 }
 
