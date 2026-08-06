@@ -624,6 +624,42 @@ try {
   }
   await mixedPage.close();
 
+  // Every other pass runs at whatever width the browser window happens to be,
+  // which is always wide. Half a screen is a normal way to read, and the size
+  // predicates are all width-sensitive: text grows taller as it wraps, and
+  // overlay ads that size themselves off the viewport shrink.
+  await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
+  const narrowPage = await context.newPage();
+  await narrowPage.setViewportSize({ width: 600, height: 900 });
+  await narrowPage.goto(`${fixtureUrl}#narrow`);
+  await narrowPage.waitForLoadState("domcontentloaded");
+  await narrowPage
+    .locator(".attention-redirector-slot")
+    .first()
+    .waitFor({ state: "attached", timeout: 5000 });
+  await narrowPage.waitForTimeout(1200);
+  // A citation naming an advertising trade magazine carries an ad token in its
+  // id and stays under the height floor until the sentence wraps onto a third
+  // line, which is why no wide pass could see it.
+  const narrowProse = await narrowPage
+    .locator("#cite_note-Advertising_Age-9[data-attention-redirector-reason]")
+    .count();
+  if (narrowProse !== 0) {
+    throw new Error("A narrow viewport turned a citation into a slot.");
+  }
+  // The other direction: an overlay pinned across the viewport is 38px tall at
+  // this width and must still be claimed.
+  await narrowPage
+    .locator("#schulist-bottom-banner.attention-redirector-slot")
+    .waitFor({ state: "attached", timeout: 5000 });
+  const narrowSurvivors = await findCaptionSurvivors(narrowPage);
+  if (narrowSurvivors.length) {
+    throw new Error(
+      `A narrow viewport left ad captions readable: ${narrowSurvivors.join(", ")}.`
+    );
+  }
+  await narrowPage.close();
+
   await saveExtensionSettings(serviceWorker, {
     ...DEFAULT_EXTENSION_SETTINGS,
     enabled: false

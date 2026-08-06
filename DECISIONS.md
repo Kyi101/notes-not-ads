@@ -1489,3 +1489,21 @@ Widening a size threshold or adding `billboard` to a regex would have claimed th
 - `tests/fixtures/ad-clutter.html` carries the case in both shapes: with a caption, and blank. They sit outside `<main>` deliberately — inside the aside `isSidebarElement` claims them and they prove nothing. Verified to fail without the fix.
 - The walk is capped at three levels and the descendant sweep runs last in `getMatchReason`, after every cheaper test. `npm run benchmark:performance` is unchanged at p95 16.8ms.
 - One live survivor remains, on Yahoo, and is not this class.
+
+## 2026-08-06 - Half A Screen Is A Normal Way To Read
+
+**Decision**: `isProseBlock` narrows the `ad-like identifier` branch, and `isViewportEdgeAdOverlay` lets a viewport-spanning pinned overlay past the height floor. `scripts/test-extension.mjs` gets a 600px pass.
+
+**Why**: every harness ran at 1583px or wider, and every size predicate is width-sensitive. Sweeping the fixture from 1583 down to 600 found the two failures that only exist when the window narrows, in opposite directions.
+
+Text grows taller as it wraps, so an element that was under the height floor rises above it. A Wikipedia-style citation, `cite_note-Advertising_Age-9`, carries an ad token in its id because it names an advertising trade magazine; at 600px the sentence wraps onto a third line and it was replaced with a card. Wikipedia writes citation ids in exactly this form.
+
+Overlay ads size themselves off the viewport, so they shrink. A bar pinned across the bottom with `padding-top: 5%` is 45px tall at 900px and 38px at 768px, and at 38px it dropped under the same floor and stopped being claimed while remaining just as much in the way.
+
+**Consequences**:
+- The prose guard's first two forms were both wrong, and the live A/B is what caught them. Testing for media fails because commerce tiles lazy-load their images; testing for structure fails because a sponsored tile waiting to hydrate renders its own markup as text, giving it one child and 711 characters of "prose". Markup in the text is the signal that separates them. Measured on The A/B: TechRadar and Tom's Guide return exactly the 7 and 5 cards they had before the guard existed.
+- The two claims the guard does remove are both correct: `p#audio-ads-desc` and `p#video-ads-desc` on an adblock tester are descriptions of the test, not ads.
+- The overlay escape is deliberately narrow — pinned, spanning at least 90% of the viewport, and loading a creative from a known ad host. Nothing editorial matches all three. It is the only thing allowed past `isVisibleRect`.
+- `isVisibleRect`'s two literals are now `VISIBLE_MIN_WIDTH` and `VISIBLE_MIN_HEIGHT`, since three predicates were carrying their own copy of the same 40.
+- Both halves are gated at 600px and were each verified to fail alone: removing the prose guard turns the citation into a slot, removing the overlay escape times out waiting for the banner.
+- The 21-site run is otherwise unchanged and `npm run benchmark:performance` holds at p95 16.8ms.

@@ -364,7 +364,11 @@ function getMatchReason(element) {
   const hasScriptIframe = hasScriptAdIframe(element);
   const hasCommonSize = isCommonAdSize(rect);
 
-  if (hasAdIdentifier && !isContentImage(element, rect)) {
+  if (
+    hasAdIdentifier &&
+    !isContentImage(element, rect) &&
+    !isProseBlock(element)
+  ) {
     return "ad-like identifier";
   }
 
@@ -460,7 +464,7 @@ function safeToReplace(element) {
   }
 
   const rect = element.getBoundingClientRect();
-  if (!isVisibleRect(rect)) {
+  if (!isVisibleRect(rect) && !isViewportEdgeAdOverlay(element, rect)) {
     return false;
   }
 
@@ -543,6 +547,21 @@ function isExplicitAdSlot(element) {
 function isFixedOrSticky(element) {
   const style = window.getComputedStyle(element);
   return style.position === "fixed" || style.position === "sticky";
+}
+
+// Overlay ads size themselves off the viewport width, so a bar that is 45px tall
+// on a full-screen window is 38px on a half-screen one and drops under the
+// height floor. It is no less in the way. The floor stays where it is for
+// everything else; the escape is narrow on purpose, since nothing editorial is
+// pinned across the whole viewport with a creative loaded from an ad host.
+function isViewportEdgeAdOverlay(element, rect) {
+  return Boolean(
+    rect.height > 0 &&
+      rect.height < AD_OVERLAY_MIN_HEIGHT &&
+      rect.width >= window.innerWidth * 0.9 &&
+      isFixedOrSticky(element) &&
+      hasAdLikeSource(element)
+  );
 }
 
 function hasScriptAdIframe(element) {
@@ -930,7 +949,7 @@ function getSafetyBlocks(element) {
   }
 
   const rect = element.getBoundingClientRect();
-  if (!isVisibleRect(rect)) {
+  if (!isVisibleRect(rect) && !isViewportEdgeAdOverlay(element, rect)) {
     blocks.push("not visibly sized");
   }
 

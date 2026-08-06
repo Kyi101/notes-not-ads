@@ -412,13 +412,18 @@
     "i"
   );
 
-  // A wrapper this short is not a slot the scanner can see — isVisibleRect needs
-  // 40px — but it is still the marker for one, because a blocked creative leaves
-  // the wrapper behind at the height of its caption. The width floor matches
-  // isVisibleRect so a collapsed sliver of a sidebar tile is not mistaken for the
-  // remains of a full banner.
-  const AD_RESIDUE_MAX_HEIGHT = 40;
-  const AD_RESIDUE_MIN_WIDTH = 120;
+  // The floor that makes an element big enough for the scanner to rule on.
+  const VISIBLE_MIN_WIDTH = 120;
+  const VISIBLE_MIN_HEIGHT = 40;
+
+  // A wrapper under that floor is not a slot the scanner can see, but it is still
+  // the marker for one, because a blocked creative leaves the wrapper behind at
+  // the height of its caption. The width floor is the same one, so a collapsed
+  // sliver of a sidebar tile is not mistaken for the remains of a full banner.
+  const AD_RESIDUE_MAX_HEIGHT = VISIBLE_MIN_HEIGHT;
+  const AD_RESIDUE_MIN_WIDTH = VISIBLE_MIN_WIDTH;
+
+  const AD_OVERLAY_MIN_HEIGHT = VISIBLE_MIN_HEIGHT;
 
   // Three levels is what The Sun needs (wrapper -> section container -> module).
   // Deeper walks start meeting page-level containers, which the emptiness guard
@@ -432,6 +437,21 @@
   const AD_RESIDUE_STOP_SELECTOR = "html,body,main,article,nav,header,footer,form";
 
   const AD_RESIDUE_WRAPPER_SELECTOR = "div,section,aside,ins";
+
+  const PROSE_FLOW_SELECTOR = "li,p,blockquote,figcaption,cite,dd,dt,td,th";
+
+  // Measured, not guessed: the citation this guard exists for holds one link, an
+  // adblock-tester's description paragraph holds nothing, and the commerce tiles
+  // it must not touch hold ten to fourteen elements each.
+  const PROSE_MAX_ELEMENTS = 3;
+
+  // A sponsored slot waiting to hydrate shows its own markup as text, so it reads
+  // as one long paragraph with a single child — indistinguishable from prose by
+  // length or structure. Markup in the text is what gives it away.
+  const MARKUP_AS_TEXT_RE = /<[a-z][a-z0-9]*[\s>/]|\w+=["']/i;
+
+  const AD_MEDIA_SELECTOR =
+    "iframe,img,picture,video,canvas,ins,embed,object,amp-ad";
 
   const AD_SOURCE_RE =
     /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;
@@ -2462,7 +2482,11 @@
     const hasScriptIframe = hasScriptAdIframe(element);
     const hasCommonSize = isCommonAdSize(rect);
 
-    if (hasAdIdentifier && !isContentImage(element, rect)) {
+    if (
+      hasAdIdentifier &&
+      !isContentImage(element, rect) &&
+      !isProseBlock(element)
+    ) {
       return "ad-like identifier";
     }
 
@@ -2558,7 +2582,7 @@
     }
 
     const rect = element.getBoundingClientRect();
-    if (!isVisibleRect(rect)) {
+    if (!isVisibleRect(rect) && !isViewportEdgeAdOverlay(element, rect)) {
       return false;
     }
 
@@ -2641,6 +2665,21 @@
   function isFixedOrSticky(element) {
     const style = window.getComputedStyle(element);
     return style.position === "fixed" || style.position === "sticky";
+  }
+
+  // Overlay ads size themselves off the viewport width, so a bar that is 45px tall
+  // on a full-screen window is 38px on a half-screen one and drops under the
+  // height floor. It is no less in the way. The floor stays where it is for
+  // everything else; the escape is narrow on purpose, since nothing editorial is
+  // pinned across the whole viewport with a creative loaded from an ad host.
+  function isViewportEdgeAdOverlay(element, rect) {
+    return Boolean(
+      rect.height > 0 &&
+        rect.height < AD_OVERLAY_MIN_HEIGHT &&
+        rect.width >= window.innerWidth * 0.9 &&
+        isFixedOrSticky(element) &&
+        hasAdLikeSource(element)
+    );
   }
 
   function hasScriptAdIframe(element) {
@@ -3028,7 +3067,7 @@
     }
 
     const rect = element.getBoundingClientRect();
-    if (!isVisibleRect(rect)) {
+    if (!isVisibleRect(rect) && !isViewportEdgeAdOverlay(element, rect)) {
       blocks.push("not visibly sized");
     }
 
@@ -4066,7 +4105,7 @@
   }
 
   function isVisibleRect(rect) {
-    return rect.width >= 120 && rect.height >= 40;
+    return rect.width >= VISIBLE_MIN_WIDTH && rect.height >= VISIBLE_MIN_HEIGHT;
   }
 
   function isSmallContainer(rect) {
@@ -4193,6 +4232,30 @@
       !isCommonAdSize(rect) &&
       !hasAdLikeSource(element)
     );
+  }
+
+  // A citation, caption, or table cell naming an advertising publication carries
+  // an ad token in its identifier and nothing else that says "slot". It stays
+  // under the height floor at desktop widths, so nothing caught it until the page
+  // narrowed and the sentence wrapped onto a third line.
+  //
+  // Real slots live in these tags too — commerce tiles in a carousel are `li` with
+  // prose-length text — and the thing that separates them is structure, not media:
+  // a tile is a built layout of ten to fourteen elements, while a sentence holds a
+  // link at most. Media is the wrong test because tiles lazy-load their images,
+  // so at scan time they look as empty as prose does.
+  function isProseBlock(element) {
+    if (
+      !element.matches(PROSE_FLOW_SELECTOR) ||
+      element.querySelectorAll("*").length > PROSE_MAX_ELEMENTS ||
+      element.querySelector(AD_MEDIA_SELECTOR) ||
+      hasAdLikeSource(element)
+    ) {
+      return false;
+    }
+
+    const text = String(element.textContent || "").replace(/\s+/g, " ").trim();
+    return text.length > AD_LABEL_MAX_LENGTH && !MARKUP_AS_TEXT_RE.test(text);
   }
 
   function isSidebarElement(element) {

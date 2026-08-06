@@ -411,13 +411,18 @@ const AD_LABEL_RE = new RegExp(
   "i"
 );
 
-// A wrapper this short is not a slot the scanner can see — isVisibleRect needs
-// 40px — but it is still the marker for one, because a blocked creative leaves
-// the wrapper behind at the height of its caption. The width floor matches
-// isVisibleRect so a collapsed sliver of a sidebar tile is not mistaken for the
-// remains of a full banner.
-const AD_RESIDUE_MAX_HEIGHT = 40;
-const AD_RESIDUE_MIN_WIDTH = 120;
+// The floor that makes an element big enough for the scanner to rule on.
+const VISIBLE_MIN_WIDTH = 120;
+const VISIBLE_MIN_HEIGHT = 40;
+
+// A wrapper under that floor is not a slot the scanner can see, but it is still
+// the marker for one, because a blocked creative leaves the wrapper behind at
+// the height of its caption. The width floor is the same one, so a collapsed
+// sliver of a sidebar tile is not mistaken for the remains of a full banner.
+const AD_RESIDUE_MAX_HEIGHT = VISIBLE_MIN_HEIGHT;
+const AD_RESIDUE_MIN_WIDTH = VISIBLE_MIN_WIDTH;
+
+const AD_OVERLAY_MIN_HEIGHT = VISIBLE_MIN_HEIGHT;
 
 // Three levels is what The Sun needs (wrapper -> section container -> module).
 // Deeper walks start meeting page-level containers, which the emptiness guard
@@ -431,6 +436,21 @@ const AD_RESIDUE_CONTENT_SELECTOR =
 const AD_RESIDUE_STOP_SELECTOR = "html,body,main,article,nav,header,footer,form";
 
 const AD_RESIDUE_WRAPPER_SELECTOR = "div,section,aside,ins";
+
+const PROSE_FLOW_SELECTOR = "li,p,blockquote,figcaption,cite,dd,dt,td,th";
+
+// Measured, not guessed: the citation this guard exists for holds one link, an
+// adblock-tester's description paragraph holds nothing, and the commerce tiles
+// it must not touch hold ten to fourteen elements each.
+const PROSE_MAX_ELEMENTS = 3;
+
+// A sponsored slot waiting to hydrate shows its own markup as text, so it reads
+// as one long paragraph with a single child — indistinguishable from prose by
+// length or structure. Markup in the text is what gives it away.
+const MARKUP_AS_TEXT_RE = /<[a-z][a-z0-9]*[\s>/]|\w+=["']/i;
+
+const AD_MEDIA_SELECTOR =
+  "iframe,img,picture,video,canvas,ins,embed,object,amp-ad";
 
 const AD_SOURCE_RE =
   /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;

@@ -815,7 +815,7 @@ function hasSoftUnsafeAncestor(element) {
 }
 
 function isVisibleRect(rect) {
-  return rect.width >= 120 && rect.height >= 40;
+  return rect.width >= VISIBLE_MIN_WIDTH && rect.height >= VISIBLE_MIN_HEIGHT;
 }
 
 function isSmallContainer(rect) {
@@ -942,6 +942,30 @@ function isContentImage(element, rect) {
     !isCommonAdSize(rect) &&
     !hasAdLikeSource(element)
   );
+}
+
+// A citation, caption, or table cell naming an advertising publication carries
+// an ad token in its identifier and nothing else that says "slot". It stays
+// under the height floor at desktop widths, so nothing caught it until the page
+// narrowed and the sentence wrapped onto a third line.
+//
+// Real slots live in these tags too — commerce tiles in a carousel are `li` with
+// prose-length text — and the thing that separates them is structure, not media:
+// a tile is a built layout of ten to fourteen elements, while a sentence holds a
+// link at most. Media is the wrong test because tiles lazy-load their images,
+// so at scan time they look as empty as prose does.
+function isProseBlock(element) {
+  if (
+    !element.matches(PROSE_FLOW_SELECTOR) ||
+    element.querySelectorAll("*").length > PROSE_MAX_ELEMENTS ||
+    element.querySelector(AD_MEDIA_SELECTOR) ||
+    hasAdLikeSource(element)
+  ) {
+    return false;
+  }
+
+  const text = String(element.textContent || "").replace(/\s+/g, " ").trim();
+  return text.length > AD_LABEL_MAX_LENGTH && !MARKUP_AS_TEXT_RE.test(text);
 }
 
 function isSidebarElement(element) {
