@@ -1507,3 +1507,21 @@ Overlay ads size themselves off the viewport, so they shrink. A bar pinned acros
 - `isVisibleRect`'s two literals are now `VISIBLE_MIN_WIDTH` and `VISIBLE_MIN_HEIGHT`, since three predicates were carrying their own copy of the same 40.
 - Both halves are gated at 600px and were each verified to fail alone: removing the prose guard turns the citation into a slot, removing the overlay escape times out waiting for the banner.
 - The 21-site run is otherwise unchanged and `npm run benchmark:performance` holds at p95 16.8ms.
+
+## 2026-08-06 - Presence Is Derived, Not Chosen
+
+**Decision**: `visualPresence` and the Quiet/Anchor mode pair are both removed. A detected slot becomes a card when the user holds at least one note, and is removed when they hold none. Nothing else decides.
+
+**Why**: the flat-card redesign deletes the ambient field, and the ambient field was the whole of Quiet mode. `buildCard` only appends a body when the mode is `anchor` (`src/replacer.js:335`), so Quiet under the new surface draws an empty tinted rectangle with a close button in the corner — indistinguishable from a broken element or a lazy-load that failed. Quiet had nothing left to show.
+
+That leaves presence, whose reason expired in the same edit. Balanced was the compromise between wanting notes on the page and not wanting a drifting orb in the corner of your eye on every slot. A flat card does not drift. Once the card is quiet there is no argument for wanting only half of them, and Clean is already what "give me the space back" means.
+
+The rejected alternative was deriving presence from note *count* — none to clean, few to balanced, many to full ambient. It reads well and fails on the strongest use of the product, which is one sentence the user actually means appearing wherever the page tried to sell them something. Under that mapping the one real note shows on half the slots, and a user who writes nothing else is one edit from never seeing it. It also makes a text edit silently change page layout across every site, and puts the tighter layout behind deleting your own content.
+
+**Consequences**:
+- The zero case is not a heuristic, it is an entailment: with no note there is no card to draw, so the slot collapses and the page reflows. That is the behaviour `Clean` had, arrived at without a setting.
+- Zero notes is not currently a representable state. `normalizeAnchorNotes` falls back to `[DEFAULT_ANCHOR_NOTE]` when it is handed nothing, so deleting the last note snaps the default back. Making the empty list real is a prerequisite, not a detail — it is the only way to reach the collapse behaviour.
+- A first-run user therefore ships with the default note and sees cards, which is the right default for a product whose point is the note. Emptying the list is the deliberate act that turns the extension into a plain blocker.
+- Rotation needs more than one note, so a heavy page now shows the same sentence on every slot it finds — seven on The Sun. Repeated seven times, a sentence reads as broken rather than calm. The fix is a rule about repetition within a viewport, not a dial handed back to the user. It is not written yet, and it is the open risk in this decision.
+- Removal touches `popup.html`/`popup.js`, `options.html`/`options.js`, `welcome.html`, the `mode` and `visualPresence` defaults in `src/shared.js`, and the mode branch in `buildCard`. Installs already carrying both keys must be read past rather than schema-broken; the dogfood profiles all have them.
+- `scripts/audit-card-legibility.mjs` takes `--presence`, and the three-way sweep it drives comes out with the setting. The claim that flag bought — that a card is drawn identically whether or not the page reflowed under it — is no longer a claim anything can vary.
