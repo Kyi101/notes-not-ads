@@ -412,6 +412,27 @@
     "i"
   );
 
+  // A wrapper this short is not a slot the scanner can see — isVisibleRect needs
+  // 40px — but it is still the marker for one, because a blocked creative leaves
+  // the wrapper behind at the height of its caption. The width floor matches
+  // isVisibleRect so a collapsed sliver of a sidebar tile is not mistaken for the
+  // remains of a full banner.
+  const AD_RESIDUE_MAX_HEIGHT = 40;
+  const AD_RESIDUE_MIN_WIDTH = 120;
+
+  // Three levels is what The Sun needs (wrapper -> section container -> module).
+  // Deeper walks start meeting page-level containers, which the emptiness guard
+  // rejects anyway; the cap is there so a deeply nested empty tree cannot make the
+  // walk expensive.
+  const AD_RESIDUE_MAX_DEPTH = 3;
+
+  const AD_RESIDUE_CONTENT_SELECTOR =
+    "iframe,img,video,canvas,picture,svg,embed,object,form,input,textarea,select,a[href],[contenteditable='true']";
+
+  const AD_RESIDUE_STOP_SELECTOR = "html,body,main,article,nav,header,footer,form";
+
+  const AD_RESIDUE_WRAPPER_SELECTOR = "div,section,aside,ins";
+
   const AD_SOURCE_RE =
     /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;
 
@@ -2300,6 +2321,16 @@
       return brandingTakeover;
     }
 
+    // The collapsed wrapper is too short to be replaced on its own, and promoting
+    // it the usual way fails too: the box holding the gap open carries none of the
+    // ad's identifiers when the creative left no caption behind.
+    if (isBlockedAdResidue(node)) {
+      const gap = findReservedAdGap(node);
+      if (gap) {
+        return gap;
+      }
+    }
+
     let candidate = node;
 
     if (node.matches("iframe,img,embed,amp-ad")) {
@@ -2464,6 +2495,12 @@
       return "script iframe slot";
     }
 
+    // Last because it is the only branch that walks descendants. Everything a
+    // cheaper test can claim has been claimed by now.
+    if (isReservedAdGap(element)) {
+      return "reserved ad gap";
+    }
+
     return "";
   }
 
@@ -2533,7 +2570,8 @@
       isTooLargeForMvp(rect) &&
       !isBrandingTakeover(element) &&
       !canReplaceExplicitLargeAd(element, rect) &&
-      !canCollapseOversizedDomainCosmetic(element, rect)
+      !canCollapseOversizedDomainCosmetic(element, rect) &&
+      !isReservedAdGap(element)
     ) {
       return false;
     }
@@ -2713,6 +2751,102 @@
   function hasOwnAdIdentifier(element) {
     const identifiers = getIdentifierText(element);
     return AD_IDENTIFIER_RE.test(identifiers) || VIDEO_AD_IDENTIFIER_RE.test(identifiers);
+  }
+
+  // Our own network layer blocks the creative before it paints, so the site's ad
+  // wrapper collapses to whatever markup surrounded it — a caption, or nothing at
+  // all. What is left is under the 40px floor that makes an element visible to the
+  // scanner, so the wrapper is never claimed, while the module above it still
+  // holds the height the creative was going to fill. The blocker's success is what
+  // hides the slot, and the reader is left looking at the gap.
+  function isBlockedAdResidue(element) {
+    if (!(element instanceof HTMLElement) || isExtensionElement(element)) {
+      return false;
+    }
+
+    if (!hasOwnAdIdentifier(element)) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (
+      rect.width < AD_RESIDUE_MIN_WIDTH ||
+      rect.height <= 0 ||
+      rect.height >= AD_RESIDUE_MAX_HEIGHT
+    ) {
+      return false;
+    }
+
+    if (element.querySelector(AD_RESIDUE_CONTENT_SELECTOR)) {
+      return false;
+    }
+
+    return holdsNothingButResidue(element);
+  }
+
+  // The gap is only ours to claim while there is nothing in it but the collapsed
+  // wrapper. This is the guard that keeps page-level containers out: a site-content
+  // div or a body element wrapping the whole article also contains the residue, and
+  // replacing either would take the page with it.
+  function holdsNothingButResidue(element) {
+    if (element.querySelector(AD_RESIDUE_CONTENT_SELECTOR)) {
+      return false;
+    }
+
+    const text = String(element.textContent || "").replace(/\s+/g, " ").trim();
+    return text === "" || isAdLabelString(text);
+  }
+
+  // Walk up from the collapsed wrapper to the box that is actually holding the
+  // space open, and stop the moment an ancestor has anything else in it.
+  function findReservedAdGap(residue) {
+    let current = residue.parentElement;
+    let best = null;
+    let depth = 0;
+
+    while (current && depth < AD_RESIDUE_MAX_DEPTH) {
+      if (
+        !(current instanceof HTMLElement) ||
+        isExtensionElement(current) ||
+        current.matches(AD_RESIDUE_STOP_SELECTOR) ||
+        !holdsNothingButResidue(current)
+      ) {
+        break;
+      }
+
+      const rect = current.getBoundingClientRect();
+      if (rect.height >= AD_RESIDUE_MAX_HEIGHT && isVisibleRect(rect)) {
+        best = current;
+      }
+
+      current = current.parentElement;
+      depth += 1;
+    }
+
+    return best;
+  }
+
+  function isReservedAdGap(element) {
+    if (
+      !(element instanceof HTMLElement) ||
+      isExtensionElement(element) ||
+      element.matches(AD_RESIDUE_STOP_SELECTOR)
+    ) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (rect.height < AD_RESIDUE_MAX_HEIGHT || !isVisibleRect(rect)) {
+      return false;
+    }
+
+    if (!holdsNothingButResidue(element)) {
+      return false;
+    }
+
+    return Array.from(element.querySelectorAll(AD_RESIDUE_WRAPPER_SELECTOR)).some(
+      isBlockedAdResidue
+    );
   }
 
   function containsExplicitVideoAdLayer(element) {
@@ -2905,7 +3039,8 @@
     if (
       isTooLargeForMvp(rect) &&
       !canReplaceExplicitLargeAd(element, rect) &&
-      !canCollapseOversizedDomainCosmetic(element, rect)
+      !canCollapseOversizedDomainCosmetic(element, rect) &&
+      !isReservedAdGap(element)
     ) {
       blocks.push("too large for normal replacement");
     }

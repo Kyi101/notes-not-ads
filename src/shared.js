@@ -411,6 +411,27 @@ const AD_LABEL_RE = new RegExp(
   "i"
 );
 
+// A wrapper this short is not a slot the scanner can see — isVisibleRect needs
+// 40px — but it is still the marker for one, because a blocked creative leaves
+// the wrapper behind at the height of its caption. The width floor matches
+// isVisibleRect so a collapsed sliver of a sidebar tile is not mistaken for the
+// remains of a full banner.
+const AD_RESIDUE_MAX_HEIGHT = 40;
+const AD_RESIDUE_MIN_WIDTH = 120;
+
+// Three levels is what The Sun needs (wrapper -> section container -> module).
+// Deeper walks start meeting page-level containers, which the emptiness guard
+// rejects anyway; the cap is there so a deeply nested empty tree cannot make the
+// walk expensive.
+const AD_RESIDUE_MAX_DEPTH = 3;
+
+const AD_RESIDUE_CONTENT_SELECTOR =
+  "iframe,img,video,canvas,picture,svg,embed,object,form,input,textarea,select,a[href],[contenteditable='true']";
+
+const AD_RESIDUE_STOP_SELECTOR = "html,body,main,article,nav,header,footer,form";
+
+const AD_RESIDUE_WRAPPER_SELECTOR = "div,section,aside,ins";
+
 const AD_SOURCE_RE =
   /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;
 

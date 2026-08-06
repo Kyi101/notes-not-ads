@@ -217,6 +217,15 @@ try {
   await page
     .locator("#caption-link-slot.attention-redirector-slot")
     .waitFor({ timeout: 5000 });
+  // The module, not the wrapper inside it. The wrapper is what carries the ad's
+  // identifiers, but it collapsed when the creative was blocked; the module is
+  // what the reader can still see.
+  await page
+    .locator("#residue-module.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
+  await page
+    .locator("#residue-module-bare.attention-redirector-slot")
+    .waitFor({ timeout: 5000 });
   await page
     .locator("#brnd8e78c7f2c.attention-redirector-slot")
     .waitFor({ state: "attached", timeout: 5000 });
@@ -547,7 +556,15 @@ try {
   // The caption going quiet is only half of it: a wrapper that reserved height
   // for the creative leaves a blank box where the ad was.
   const cleanGaps = await cleanPage.evaluate(() =>
-    ["labelled-reserved-wrapper", "labelled-reserved-trailing"]
+    [
+      "labelled-reserved-wrapper",
+      "labelled-reserved-trailing",
+      // The two our own blocker creates: the creative never paints, the wrapper
+      // collapses under the scanner's height floor, and the module above it goes
+      // on holding the space.
+      "residue-module",
+      "residue-module-bare"
+    ]
       .map((id) => ({
         id,
         height: Math.round(

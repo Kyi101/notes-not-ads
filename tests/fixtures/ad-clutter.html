@@ -735,6 +735,35 @@
       </aside>
     </main>
 
+    <!-- Post-block residue, taken from The Sun. Our own DNR layer blocks the
+         creative, so the ad wrapper collapses to the height of its caption —
+         under the 40px floor that makes an element visible to the scanner —
+         while the module above it still holds the height the creative was going
+         to fill. The blocker's success is what hides the slot from the replacer,
+         and the reader is left with a captioned blank.
+
+         These sit outside <main> on purpose. Inside the aside they are claimed
+         by isSidebarElement and prove nothing; The Sun's is a full-width module
+         in the article flow, which is the case the size guards reject. -->
+    <div id="residue-module" style="width: 96vw; min-height: 330px;">
+      <div
+        id="residue-wrapper"
+        class="advert-wrapper advert-section-container"
+        style="width: 96vw;"
+      >
+        <span class="advert-wrapper__text">Advertisement</span>
+      </div>
+    </div>
+    <!-- The same collapse with nothing left to read. There is no caption to
+         catch, only a gap. -->
+    <div id="residue-module-bare" style="width: 96vw; min-height: 280px;">
+      <div
+        id="residue-wrapper-bare"
+        class="advert-wrapper advert-section-container"
+        style="width: 96vw; height: 24px;"
+      ></div>
+    </div>
+
     <div id="fp-gauntlet" class="fp-gauntlet">
       <h2>Reference list and teasers must never be replaced</h2>
       <ol id="fp-citation-list">
