@@ -22,7 +22,7 @@ This product overlaps with ad blockers, but its unique value is still the attent
 - Preserves the original slot height on cards where possible to reduce layout jumps.
 - Lets each inserted card be hidden.
 - Carries up to five user-written notes, rotated deterministically across detected surfaces.
-- Supports global enable/disable, current-site control, disabled domains, and reduced motion.
+- Supports global enable/disable, current-site control, and disabled domains.
 - Current-site disable and sensitive-page skips install high-priority DNR `allow` rules for requests initiated by those domains.
 - Draws a card only while the user holds at least one note. Empty the notes and every detected surface is removed and the page reflows, with blocking still on.
 - Opens a welcome page on first install and links to Options.
@@ -58,7 +58,7 @@ The selector strategy is deliberately conservative. Missing some ads is preferab
 
 ## Permissions
 
-- `storage`: saves the notes, motion preference, and disabled domains locally.
+- `storage`: saves the notes, theme preference, and disabled domains locally.
 - `activeTab`: lets the popup talk to the current page after the user opens it.
 - `scripting`: lets the popup inject the existing content script into the active tab if the page was already open before the extension loaded or updated.
 - `declarativeNetRequest`: blocks packaged ad-network request rules and installs per-site allow overrides.
@@ -91,7 +91,7 @@ npm run test:onboarding
 
 `test:onboarding` uses a fresh browser profile so `onInstalled` fires, then verifies that the welcome page auto-opens, that its CTA opens Options, and that a saved theme preference is applied.
 
-`test:extension` launches Chromium with the unpacked extension, serves `tests/fixtures/ad-clutter.html` from a local server, and verifies DNR blocking, site/global DNR allow behavior, replacement patterns, latency, framework-owned DOM reconciliation, note rotation across surfaces, the empty-note collapse, reduced motion, popup/options persistence, settings migration, user-facing missed-ad reporting, and inspector behavior.
+`test:extension` launches Chromium with the unpacked extension, serves `tests/fixtures/ad-clutter.html` from a local server, and verifies DNR blocking, site/global DNR allow behavior, replacement patterns, latency, framework-owned DOM reconciliation, note rotation across surfaces, the empty-note collapse, reduced-motion handling, popup/options persistence, settings migration, user-facing missed-ad reporting, and inspector behavior.
 
 The test starts a local `127.0.0.1` server and opens Chromium, so it may need permission in sandboxed agent sessions.
 
@@ -118,8 +118,8 @@ drafts live in `docs/`:
 
 ## Performance Benchmark
 
-Use the deterministic long-page benchmark to compare disabled, still, and
-default card rendering under the same continuous scroll workload:
+Use the deterministic long-page benchmark to compare a page with cards against
+the same page without them, under one continuous scroll workload:
 
 ```bash
 npm run benchmark:performance
@@ -265,7 +265,6 @@ The options page lets you:
 
 - Enable or disable the extension globally.
 - Set up to five local notes, or clear them all so nothing is drawn.
-- Follow the system reduced-motion preference or keep cards always still.
 - Add disabled domains.
 - Reset to defaults.
 
@@ -296,7 +295,7 @@ The popup is the everyday control surface for global state, the current site, no
   may still be wrapped.
 - Turning the extension or a site off hides existing replacement surfaces immediately, but restoring the original ad DOM still requires a refresh.
 - Cards carry no ambient motion. The only motion is a 140ms fade on insertion,
-  which the still setting and the OS reduced-motion preference both remove.
+  which the OS reduced-motion preference removes.
 
 ## Recommended Next Improvements
 

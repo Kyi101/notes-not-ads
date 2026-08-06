@@ -8,7 +8,6 @@ const DEFAULT_SETTINGS = {
   enabled: true,
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
-  reducedMotion: "system",
   themePreference: "system",
   disabledDomains: []
 };
@@ -306,7 +305,6 @@ function mergeSettings(value) {
     enabled: stored.enabled !== false,
     anchorNote: anchorNotes[0] || "",
     anchorNotes,
-    reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
     themePreference: ["system", "light", "dark"].includes(stored.themePreference)
       ? stored.themePreference
       : "system",

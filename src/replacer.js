@@ -249,10 +249,6 @@ function buildCard(cardModel, rect, slot) {
   card.className = "attention-redirector-card";
   card.dataset.hostTone = detectHostTone(slot);
   card.dataset.noteLength = countWords(cardModel.body) <= 2 ? "short" : "long";
-  card.classList.toggle(
-    "attention-redirector-card--still",
-    state.settings.reducedMotion === "still"
-  );
   card.setAttribute("role", "group");
   card.setAttribute("aria-label", `Attention anchor: ${cardModel.body}`);
 

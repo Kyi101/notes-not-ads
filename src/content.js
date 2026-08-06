@@ -14,7 +14,6 @@
     enabled: true,
     anchorNote: DEFAULT_ANCHOR_NOTE,
     anchorNotes: [DEFAULT_ANCHOR_NOTE],
-    reducedMotion: "system",
     disabledDomains: []
   };
 
@@ -322,9 +321,6 @@
   .attention-redirector-slot--short .attention-redirector-card {
     padding: 7px 36px 7px 14px !important;
     border-radius: 8px !important;
-  }
-  .attention-redirector-card--still {
-    animation: none !important;
   }
   `;
 
@@ -648,7 +644,6 @@
       enabled: stored.enabled !== false,
       anchorNote: anchorNotes[0] || "",
       anchorNotes,
-      reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
       disabledDomains: Array.isArray(stored.disabledDomains)
         ? stored.disabledDomains
         : []
@@ -3600,10 +3595,6 @@
     card.className = "attention-redirector-card";
     card.dataset.hostTone = detectHostTone(slot);
     card.dataset.noteLength = countWords(cardModel.body) <= 2 ? "short" : "long";
-    card.classList.toggle(
-      "attention-redirector-card--still",
-      state.settings.reducedMotion === "still"
-    );
     card.setAttribute("role", "group");
     card.setAttribute("aria-label", `Attention anchor: ${cardModel.body}`);
 

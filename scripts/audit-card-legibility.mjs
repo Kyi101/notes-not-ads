@@ -70,6 +70,9 @@ try {
 
   const serviceWorker = await findServiceWorker(context);
   const page = await context.newPage();
+  // Cards fade in over 140ms. The setting that used to freeze them is gone, so
+  // the preference that always drove it does the freezing directly.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize(VIEWPORT);
   const fixtureUrl = `http://127.0.0.1:${server.port}/card-matrix.html`;
 
@@ -80,7 +83,6 @@ try {
       enabled: true,
       anchorNote: note,
       anchorNotes: [note],
-      reducedMotion: "still",
       disabledDomains: []
     });
 
@@ -90,8 +92,8 @@ try {
       .locator("[data-attention-redirector-presentation]")
       .first()
       .waitFor({ state: "attached", timeout: 10000 });
-    // Cards fade in over 140ms and the tide layers animate; reducedMotion:still
-    // stops the latter, and this settles the former before we measure.
+    // The emulated reduced-motion preference removes the fade; this covers the
+    // replacer's own scheduling before we measure.
     await page.waitForTimeout(400);
 
     const measurements = await page.evaluate(measureCards);

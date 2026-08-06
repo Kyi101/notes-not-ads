@@ -18,7 +18,6 @@ const SETTINGS = {
   enabled: true,
   anchorNote: "Finish what deserves your attention.",
   anchorNotes: ["Finish what deserves your attention."],
-  reducedMotion: "still",
   themePreference: "light",
   disabledDomains: []
 };
@@ -77,6 +76,8 @@ try {
   console.log(`Shooting ${PAGE_URL}`);
 
   const page = context.pages()[0] || (await context.newPage());
+  // Screenshots must not catch a card mid-fade.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize(SHOT);
 
   await applySettings(serviceWorker, SETTINGS);

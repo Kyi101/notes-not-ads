@@ -6,7 +6,6 @@ const DEFAULT_SETTINGS = {
   enabled: true,
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
-  reducedMotion: "system",
   themePreference: "system",
   disabledDomains: []
 };
@@ -18,7 +17,6 @@ const enabledInput = document.getElementById("enabled");
 const anchorMessagesContainer = document.getElementById("anchorMessages");
 const addAnchorMessageButton = document.getElementById("addAnchorMessage");
 const anchorCount = document.getElementById("anchorCount");
-const reducedMotionInput = document.getElementById("reducedMotion");
 const themePreferenceInput = document.getElementById("themePreference");
 const disabledDomainsInput = document.getElementById("disabledDomains");
 const resetButton = document.getElementById("resetButton");
@@ -63,7 +61,6 @@ function renderSettings(value) {
   const settings = mergeSettings(value);
   enabledInput.checked = settings.enabled;
   renderAnchorMessages(settings.anchorNotes);
-  reducedMotionInput.value = settings.reducedMotion;
   themePreferenceInput.value = settings.themePreference;
   applyTheme(settings.themePreference);
   disabledDomainsInput.value = settings.disabledDomains.join("\n");
@@ -154,7 +151,6 @@ function readSettingsFromForm() {
     enabled: enabledInput.checked,
     anchorNote: anchorNotes[0] || "",
     anchorNotes,
-    reducedMotion: reducedMotionInput.value,
     themePreference: themePreferenceInput.value,
     disabledDomains: splitLines(disabledDomainsInput.value).map(normalizeDomain)
   });
@@ -239,7 +235,6 @@ function mergeSettings(value) {
     enabled: stored.enabled !== false,
     anchorNote: anchorNotes[0] || "",
     anchorNotes,
-    reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
     themePreference: ["system", "light", "dark"].includes(stored.themePreference)
       ? stored.themePreference
       : "system",

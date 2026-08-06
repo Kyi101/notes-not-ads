@@ -13,7 +13,6 @@ const DEFAULT_SETTINGS = {
   enabled: true,
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
-  reducedMotion: "system",
   disabledDomains: []
 };
 
@@ -321,9 +320,6 @@ const SHADOW_ROOT_STYLE_TEXT = `
 .attention-redirector-slot--short .attention-redirector-card {
   padding: 7px 36px 7px 14px !important;
   border-radius: 8px !important;
-}
-.attention-redirector-card--still {
-  animation: none !important;
 }
 `;
 

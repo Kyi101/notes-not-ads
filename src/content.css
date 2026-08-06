@@ -393,9 +393,3 @@
     transition: none !important;
   }
 }
-
-.attention-redirector-card--still,
-.attention-redirector-card--still .attention-redirector-card__hide {
-  animation: none !important;
-  transition: none !important;
-}

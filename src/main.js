@@ -129,7 +129,6 @@ function mergeSettings(value) {
     enabled: stored.enabled !== false,
     anchorNote: anchorNotes[0] || "",
     anchorNotes,
-    reducedMotion: stored.reducedMotion === "still" ? "still" : "system",
     disabledDomains: Array.isArray(stored.disabledDomains)
       ? stored.disabledDomains
       : []

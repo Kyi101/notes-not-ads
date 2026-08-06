@@ -15,7 +15,7 @@ The extension stores settings locally in Chrome's extension storage, including:
 
 - whether the extension is enabled
 - your notes
-- reduced-motion preference
+- theme preference
 - disabled site domains
 - locally saved inspector reports, if you choose to save them
 

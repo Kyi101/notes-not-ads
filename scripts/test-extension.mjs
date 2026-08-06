@@ -14,7 +14,6 @@ const DEFAULT_EXTENSION_SETTINGS = {
   enabled: true,
   anchorNote: "Finish what deserves your attention.",
   anchorNotes: ["Finish what deserves your attention."],
-  reducedMotion: "system",
   disabledDomains: []
 };
 
@@ -467,23 +466,25 @@ try {
   }
   await anchorPage.close();
 
-  await saveExtensionSettings(serviceWorker, {
-    ...DEFAULT_EXTENSION_SETTINGS,
-    reducedMotion: "still"
-  });
+  // Reduced motion is the OS preference's to decide, so this asserts against the
+  // emulated preference rather than a setting. The card's only motion is a 140ms
+  // fade on insertion and the hide button's hover transition; both must be off.
+  await saveExtensionSettings(serviceWorker, DEFAULT_EXTENSION_SETTINGS);
 
   const reducedMotionPage = await context.newPage();
+  await reducedMotionPage.emulateMedia({ reducedMotion: "reduce" });
   await reducedMotionPage.goto(`${fixtureUrl}#reduced-motion`);
   await reducedMotionPage.waitForLoadState("domcontentloaded");
   const reducedMotionCard = reducedMotionPage
-    .locator(".attention-redirector-card--still")
+    .locator(".attention-redirector-card")
     .first();
   await reducedMotionCard.waitFor({ timeout: 5000 });
   const reducedAnimations = await reducedMotionCard.evaluate((element) => {
+    const hide = element.querySelector(".attention-redirector-card__hide");
     return {
       card: getComputedStyle(element).animationName,
-      before: getComputedStyle(element, "::before").animationName,
-      after: getComputedStyle(element, "::after").animationName
+      cardTransition: getComputedStyle(element).transitionProperty,
+      hide: hide ? getComputedStyle(hide).transitionProperty : "none"
     };
   });
   if (Object.values(reducedAnimations).some((value) => value !== "none")) {
@@ -491,12 +492,24 @@ try {
       `Reduced motion left animations enabled: ${JSON.stringify(reducedAnimations)}`
     );
   }
-  const stillCardCount = await reducedMotionPage
-    .locator(".attention-redirector-card--still")
-    .count();
-  if (stillCardCount < 1) {
-    throw new Error("Always-still motion setting did not mark replacement cards.");
+
+  // The same card without the preference must still fade, or the check above
+  // would pass on a card that simply never animates.
+  const motionPage = await context.newPage();
+  await motionPage.emulateMedia({ reducedMotion: "no-preference" });
+  await motionPage.goto(`${fixtureUrl}#motion`);
+  await motionPage.waitForLoadState("domcontentloaded");
+  const motionCard = motionPage.locator(".attention-redirector-card").first();
+  await motionCard.waitFor({ timeout: 5000 });
+  const motionName = await motionCard.evaluate(
+    (element) => getComputedStyle(element).animationName
+  );
+  if (motionName === "none") {
+    throw new Error(
+      "Cards do not animate without the reduced-motion preference, so the reduced-motion check proves nothing."
+    );
   }
+  await motionPage.close();
   await reducedMotionPage.close();
 
   // No note means nothing to draw, so every detected surface collapses and the
@@ -764,10 +777,12 @@ try {
   await optionsPage.locator("#optionsForm").waitFor({ timeout: 5000 });
   if (
     await optionsPage
-      .locator("#categoryList, #frequency, [name='mode'], [name='visualPresence']")
+      .locator("#categoryList, #frequency, #reducedMotion, [name='mode'], [name='visualPresence']")
       .count()
   ) {
-    throw new Error("Options still exposes retired mode, presence, or frequency controls.");
+    throw new Error(
+      "Options still exposes retired mode, presence, frequency, or motion controls."
+    );
   }
   const renderedOptions = await optionsPage.evaluate(() => {
     return {
@@ -786,12 +801,12 @@ try {
     .locator(".anchor-message-input")
     .nth(1)
     .fill("Return to the work that matters.");
-  await optionsPage.locator("#reducedMotion").selectOption("still");
+  await optionsPage.locator("#themePreference").selectOption("dark");
   await optionsPage.getByRole("button", { name: "Save settings" }).click();
   await optionsPage.locator("#saveStatus").filter({ hasText: "Saved." }).waitFor();
   const optionsSettings = await loadExtensionSettings(serviceWorker);
   if (
-    optionsSettings.reducedMotion !== "still" ||
+    optionsSettings.themePreference !== "dark" ||
     optionsSettings.anchorNotes?.[0] !== "Protect the next hour." ||
     optionsSettings.anchorNotes?.[1] !== "Return to the work that matters."
   ) {

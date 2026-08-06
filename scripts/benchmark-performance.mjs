@@ -13,6 +13,11 @@ const fixturePath = path.join(
 );
 const runsRoot = path.join(projectRoot, "runs/performance");
 const args = parseArgs(process.argv.slice(2));
+// There were three scenarios while the card carried an ambient animation and a
+// setting to stop it. Both are gone: the card's only motion is a 140ms fade on
+// insertion, so "still" and "animated" measured the same page under a scroll
+// workload that runs for seconds. What is left is the question the benchmark was
+// always for — what carding a long page costs over not carding it.
 const scenarios = [
   {
     id: "disabled",
@@ -20,27 +25,15 @@ const scenarios = [
       enabled: false,
       anchorNote: "Finish what deserves your attention.",
       anchorNotes: ["Finish what deserves your attention."],
-      reducedMotion: "system",
       disabledDomains: []
     }
   },
   {
-    id: "still",
+    id: "enabled",
     settings: {
       enabled: true,
       anchorNote: "Finish what deserves your attention.",
       anchorNotes: ["Finish what deserves your attention."],
-      reducedMotion: "still",
-      disabledDomains: []
-    }
-  },
-  {
-    id: "animated",
-    settings: {
-      enabled: true,
-      anchorNote: "Finish what deserves your attention.",
-      anchorNotes: ["Finish what deserves your attention."],
-      reducedMotion: "system",
       disabledDomains: []
     }
   }
@@ -330,14 +323,12 @@ function summarize(results) {
   }
 
   summary.comparison = {
-    stillTaskOverheadPoints:
-      summary.still.taskUtilizationPercent -
+    taskOverheadPoints:
+      summary.enabled.taskUtilizationPercent -
       summary.disabled.taskUtilizationPercent,
-    animatedTaskOverheadPoints:
-      summary.animated.taskUtilizationPercent -
-      summary.still.taskUtilizationPercent,
-    animatedP95OverStillMs:
-      summary.animated.frameP95Ms - summary.still.frameP95Ms
+    p95OverDisabledMs: summary.enabled.frameP95Ms - summary.disabled.frameP95Ms,
+    heapOverheadMb:
+      summary.enabled.jsHeapUsedMb - summary.disabled.jsHeapUsedMb
   };
 
   return summary;
@@ -370,7 +361,7 @@ function printResult(result) {
 
 function printSummary(summary, runDir) {
   console.log("");
-  for (const id of ["disabled", "still", "animated"]) {
+  for (const { id } of scenarios) {
     const item = summary[id];
     console.log(
       [
@@ -385,11 +376,11 @@ function printSummary(summary, runDir) {
     );
   }
   console.log(
-    `animated vs still: task ${formatSigned(
-      summary.comparison.animatedTaskOverheadPoints
+    `enabled vs disabled: task ${formatSigned(
+      summary.comparison.taskOverheadPoints
     )} points, p95 ${formatSigned(
-      summary.comparison.animatedP95OverStillMs
-    )}ms`
+      summary.comparison.p95OverDisabledMs
+    )}ms, heap ${formatSigned(summary.comparison.heapOverheadMb)}MB`
   );
   console.log(`Report: ${runDir}`);
 }
@@ -408,7 +399,7 @@ function formatMarkdown(report) {
     "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"
   ];
 
-  for (const id of ["disabled", "still", "animated"]) {
+  for (const { id } of scenarios) {
     const item = report.summary[id];
     lines.push(
       `| ${id} | ${item.cards} | ${item.frameP95Ms.toFixed(1)} ms | ` +
@@ -420,12 +411,15 @@ function formatMarkdown(report) {
 
   lines.push(
     "",
-    `Animated versus still task overhead: ${formatSigned(
-      report.summary.comparison.animatedTaskOverheadPoints
+    `Enabled versus disabled task overhead: ${formatSigned(
+      report.summary.comparison.taskOverheadPoints
     )} percentage points.`,
-    `Animated versus still p95 delta: ${formatSigned(
-      report.summary.comparison.animatedP95OverStillMs
-    )} ms.`
+    `Enabled versus disabled p95 delta: ${formatSigned(
+      report.summary.comparison.p95OverDisabledMs
+    )} ms.`,
+    `Enabled versus disabled heap delta: ${formatSigned(
+      report.summary.comparison.heapOverheadMb
+    )} MB.`
   );
 
   return `${lines.join("\n")}\n`;
