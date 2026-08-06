@@ -22,39 +22,77 @@ const SETTINGS = {
   disabledDomains: []
 };
 
-// Reuses the icon gradient so the tile reads as the same object as the mark.
-const TILE_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg" width="440" height="280" viewBox="0 0 440 280">
-  <defs>
-    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#d9e4d8"/>
-      <stop offset="1" stop-color="#a5bca6"/>
-    </linearGradient>
-    <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="0.4">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.42"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <radialGradient id="ember" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#d9683a" stop-opacity="0.9"/>
-      <stop offset="0.55" stop-color="#d9683a" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#d9683a" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="440" height="280" fill="url(#field)"/>
-  <path d="M-20 196 C 90 156, 200 232, 470 168 L 470 300 L -20 300 Z"
-    fill="#496555" opacity="0.32"/>
-  <path d="M-20 224 C 110 188, 240 248, 470 206 L 470 300 L -20 300 Z"
-    fill="#2f4a3c" opacity="0.34"/>
-  <rect width="440" height="280" fill="url(#sweep)"/>
-  <circle cx="352" cy="86" r="70" fill="url(#ember)"/>
-  <text x="40" y="120" font-family="Inter, Helvetica Neue, Arial, sans-serif"
-    font-size="34" font-weight="600" fill="#22332a">Attention</text>
-  <text x="40" y="158" font-family="Inter, Helvetica Neue, Arial, sans-serif"
-    font-size="34" font-weight="600" fill="#22332a">Redirector</text>
-  <text x="40" y="196" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
-    font-size="14" letter-spacing="1.5" fill="#4a5f52">THE WEB, JUST QUIETER</text>
-</svg>
-`;
+// The tile is the icon at listing scale: the ink surround, and the card placed
+// in it carrying a real note in the real typeface. The card's own values —
+// surface, ink, radius, padding min(w, h) * 0.1, and the leading and tracking
+// the replacer.js ramps give at this size — so the tile is the product rather
+// than a picture of it. setContent has no base URL to resolve fonts against,
+// so the font ships inlined.
+const tileHtml = (fontBase64) => `
+<style>
+  @font-face {
+    font-family: "Space Grotesk";
+    font-weight: 400 700;
+    src: url(data:font/woff2;base64,${fontBase64}) format("woff2");
+  }
+  html, body { margin: 0; }
+  .tile {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    box-sizing: border-box;
+    width: 440px;
+    height: 280px;
+    padding: 34px;
+    background: #20312a;
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+  .wordmark {
+    margin: 0;
+    color: #e6ebe3;
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+  }
+  .tagline {
+    margin: 14px 0 0;
+    color: rgba(230, 235, 227, 0.58);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+  }
+  .card {
+    display: flex;
+    align-items: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 152px;
+    height: 127px;
+    padding: 13px;
+    border-radius: 12px;
+    background: #e6ebe3;
+    box-shadow: inset 0 0 0 1px rgba(32, 49, 42, 0.12);
+  }
+  .card p {
+    margin: 0;
+    max-width: min(100%, 30em);
+    color: #20312a;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+    text-align: left;
+  }
+</style>
+<div class="tile">
+  <div>
+    <h1 class="wordmark">Attention<br>Redirector</h1>
+    <p class="tagline">THE WEB, JUST QUIETER</p>
+  </div>
+  <div class="card"><p>${SETTINGS.anchorNotes[0]}</p></div>
+</div>`;
 
 const userDataDir = await mkdtemp(path.join(os.tmpdir(), "attention-redirector-store-"));
 await mkdir(outDir, { recursive: true });
@@ -189,10 +227,13 @@ async function shootExtensionPage(context, url, name) {
 }
 
 async function renderTile(context) {
+  const font = await readFile(
+    path.join(projectRoot, "fonts/space-grotesk-latin.woff2")
+  );
   const page = await context.newPage();
   await page.setViewportSize(TILE);
-  await page.setContent(`<body style="margin:0">${TILE_SVG}</body>`);
-  await page.waitForTimeout(400);
+  await page.setContent(tileHtml(font.toString("base64")));
+  await page.evaluate(() => document.fonts.ready);
   const name = "promo-tile-440x280.png";
   await page.screenshot({ path: path.join(outDir, name), clip: { x: 0, y: 0, ...TILE } });
   written.push(name);

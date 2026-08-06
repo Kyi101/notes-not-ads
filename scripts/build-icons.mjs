@@ -8,36 +8,24 @@ const projectRoot = path.resolve(__dirname, "..");
 const iconsDir = path.join(projectRoot, "icons");
 const ICON_SIZES = [16, 32, 48, 128];
 
-// Mirrors the Tide card: --ar-field-a/b gradient, light sweep, ember orb.
+// A card placed in a slot. The card is the product's light tone from
+// src/content.css — surface #e6ebe3, ink #20312a — at the 6/5 aspect the
+// welcome preview uses, with the note set left as the real one sets it.
+//
+// The surround is the ink, not more surface, because Chrome does not tint
+// extension icons: this one PNG lands on a #dee1e6 toolbar and a #292a2d one.
+// A mark in a single value disappears into one of them. Carrying both means
+// neither can swallow it — the ink holds the silhouette on the light toolbar,
+// the card holds it on the dark.
+//
+// Two note bars, at every size. A single bar survives 16px more cleanly but
+// reads as a minus sign, which says "removed" where the product says "replaced".
 const ICON_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <defs>
-    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#d9e4d8"/>
-      <stop offset="1" stop-color="#a5bca6"/>
-    </linearGradient>
-    <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="0.4">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.42"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <radialGradient id="ember" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#d9683a" stop-opacity="0.9"/>
-      <stop offset="0.55" stop-color="#d9683a" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#d9683a" stop-opacity="0"/>
-    </radialGradient>
-    <clipPath id="tile">
-      <rect x="0" y="0" width="128" height="128" rx="26"/>
-    </clipPath>
-  </defs>
-  <g clip-path="url(#tile)">
-    <rect width="128" height="128" fill="url(#field)"/>
-    <path d="M-20 96 C 24 74, 58 108, 148 78 L 148 148 L -20 148 Z"
-      fill="#496555" opacity="0.32"/>
-    <path d="M-20 108 C 30 90, 70 118, 148 94 L 148 148 L -20 148 Z"
-      fill="#2f4a3c" opacity="0.34"/>
-    <rect width="128" height="128" fill="url(#sweep)"/>
-    <circle cx="92" cy="44" r="34" fill="url(#ember)"/>
-  </g>
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="#20312a"/>
+  <rect x="24" y="31" width="80" height="67" rx="10" fill="#e6ebe3"/>
+  <rect x="37" y="52" width="54" height="9" rx="4.5" fill="#20312a"/>
+  <rect x="37" y="70" width="32" height="9" rx="4.5" fill="#20312a"/>
 </svg>
 `.trim();
 

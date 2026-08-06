@@ -1586,3 +1586,17 @@ The one page that reached two co-visible cards was not repeating at all. NY Post
 - `audit-card-legibility.mjs` and `build-store-assets.mjs` used the setting to freeze cards for capture; both now call `page.emulateMedia({ reducedMotion: "reduce" })`, which is the same mechanism the extension itself now relies on.
 - Existing installs need no migration. The merge in `shared.js`, `options.js`, and `popup.js` simply stops reading the key, and the first save drops it. Verified against a seeded old-shape install: options renders notes, theme, and domains with no Motion field, and the object written back has no `reducedMotion`.
 - Removing the Motion field made the Display section caption and the Appearance field caption say the same thing. The field-level `<small>` is gone; the section now reads "Theme for this extension's popup and settings. The in-page card takes its own tone from the site it lands on."
+
+## 2026-08-06 - The Mark Is A Card In A Slot
+
+**Decision**: the toolbar icon and the store promo tile are redrawn as an ink surround with the card placed in it, using the card's own light-tone values. The Tide field — gradient, wave paths, light sweep, ember orb — is gone from both.
+
+**Why**: the icon is the most-seen surface the project has, on the toolbar and at the top of the store listing, and it was a literal drawing of a product that no longer ships. The previews had already been held to the card; leaving the mark showing the old field would have made the store page contradict itself.
+
+**Consequences**:
+- Chrome does not tint extension icons, so one PNG has to hold on a `#dee1e6` toolbar and a `#292a2d` one. That constraint decided the design, not taste. Six candidates were rendered on both backgrounds at 16/32/48: a light card dissolves into the light toolbar, a dark card into the dark one, and only a two-tone mark — ink surround, pale card, ink note — carries its own figure and ground well enough that neither can swallow it.
+- Two note bars at every size, with no size hinting. A single bar is cleaner at 16px and was rendered to check, but it reads as a minus sign, which says "removed" where the product says "replaced". The two-bar version was legible enough at 16px to make the trade unnecessary.
+- The card in the mark is at 6/5, the aspect the welcome preview uses, so the icon, the onboarding preview, the options specimen, and the promo tile are now four drawings of one object.
+- The promo tile is the same mark at listing scale, and carries the real default note in the real typeface rather than placeholder bars — at 440x280 a note drawn as bars looks like a wireframe. Space Grotesk is inlined as base64 because `setContent` gives the page no base URL to resolve `fonts/` against.
+- The tile's card uses the card's values: padding `min(w, h) * 0.1`, and the leading and tracking `cardLineHeight` / `cardTracking` give at 18px. It is a fifth hand-synced copy of the card's look. The case for generating them all from `content.css` keeps growing and is still unbuilt.
+- `--url about:blank` renders the tile without fetching a live page. `loadPage` already tolerates finding no cards, so no flag had to be added to iterate on the tile offline.
