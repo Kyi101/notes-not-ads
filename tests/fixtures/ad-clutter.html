@@ -322,6 +322,28 @@
         margin-top: 18px;
       }
 
+      /* A dark region holding two slots that paint no background of their own:
+         one in the light DOM, one behind a shadow boundary. Both sit on this
+         section, so both cards must read the same tone from it. */
+      .dark-surround {
+        background: #0d0f0e;
+        color: #cfd6d1;
+        padding: 18px;
+        margin-top: 18px;
+      }
+
+      .dark-surround .bare-slot {
+        width: 300px;
+        height: 250px;
+      }
+
+      bare-shadow-ad {
+        display: block;
+        width: 300px;
+        min-height: 250px;
+        margin-top: 18px;
+      }
+
       .portal-rail {
         width: 200px;
         min-height: 820px;
@@ -678,6 +700,32 @@
           Oversized domain-scoped cosmetic ad
         </div>
         <shadow-ad-widget id="shadow-ad-widget"></shadow-ad-widget>
+        <section class="dark-surround">
+          <h3>Night mode feature story</h3>
+          <p>
+            A dark section of editorial copy, long enough that the section reads
+            as an article rather than as a wrapper around an advertisement. A
+            wrapper holding nothing but ad slots is itself claimed as the ad, and
+            then the slots inside it are skipped as nested.
+          </p>
+          <div
+            id="dark-bare-ad"
+            class="bare-slot ad-wrapper"
+            data-ad-slot="dark-bare-rectangle"
+          >
+            <span>Advertisement</span>
+            <iframe title="Advertisement" srcdoc="<p>creative</p>"></iframe>
+          </div>
+          <p>
+            More editorial copy between the two slots, so neither of them is the
+            only substantial thing this section contains.
+          </p>
+          <bare-shadow-ad id="dark-shadow-host"></bare-shadow-ad>
+          <p>
+            Closing editorial copy for the night mode feature story, keeping the
+            section weighted toward text.
+          </p>
+        </section>
         <div id="portal-rail" class="portal-rail">
           <strong>Useful links</strong>
           <a href="#news">News and weather</a>
@@ -909,6 +957,38 @@
       <input type="password" value="hidden-modal-password">
     </div>
     <script>
+      // Deliberately paints nothing: the card's tone has to be read from the
+      // dark section outside the shadow boundary, not from anything in here.
+      customElements.define("bare-shadow-ad", class extends HTMLElement {
+        connectedCallback() {
+          if (this.shadowRoot) {
+            return;
+          }
+
+          const root = this.attachShadow({ mode: "open" });
+          const style = document.createElement("style");
+          style.textContent = `
+            .bare-shadow-frame {
+              width: 300px;
+              height: 250px;
+              display: grid;
+              place-items: center;
+            }
+          `;
+
+          const slot = document.createElement("div");
+          slot.id = "dark-bare-shadow-ad";
+          slot.className = "bare-shadow-frame ad-wrapper";
+          slot.dataset.adSlot = "dark-bare-shadow-rectangle";
+          slot.innerHTML = `
+            <span>Advertisement</span>
+            <iframe title="Advertisement" srcdoc="<p>creative</p>"></iframe>
+          `;
+
+          root.append(style, slot);
+        }
+      });
+
       customElements.define("shadow-ad-widget", class extends HTMLElement {
         connectedCallback() {
           if (this.shadowRoot) {

@@ -395,6 +395,33 @@ try {
     );
   }
 
+  // Carrying a tone is not the same as carrying the right one. These two slots
+  // sit on the same dark section and paint nothing themselves; one of them is
+  // behind a shadow boundary, where walking up parentElement runs out of
+  // ancestors before it reaches the page. Compared against each other rather
+  // than against a literal, so the pair still means something if the tone
+  // thresholds are ever retuned.
+  const darkSurroundTones = await page.evaluate(() => {
+    const toneOf = (card) => card?.dataset.hostTone || "(no card)";
+    const shadowRoot = document.querySelector("#dark-shadow-host")?.shadowRoot;
+    return {
+      lightDom: toneOf(
+        document.querySelector("#dark-bare-ad .attention-redirector-card")
+      ),
+      shadow: toneOf(
+        shadowRoot?.querySelector("#dark-bare-shadow-ad .attention-redirector-card")
+      )
+    };
+  });
+  if (
+    darkSurroundTones.lightDom !== "dark" ||
+    darkSurroundTones.shadow !== darkSurroundTones.lightDom
+  ) {
+    throw new Error(
+      `Slots on the same dark section disagree on host tone: ${JSON.stringify(darkSurroundTones)}`
+    );
+  }
+
   // One card per nesting chain. A card inside another card shows the note twice
   // in one box, and the inner slot's min-height inflates the wrapper that the
   // outer card is then sized against, so the pair also produces a card far

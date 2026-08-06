@@ -1600,3 +1600,17 @@ The one page that reached two co-visible cards was not repeating at all. NY Post
 - The promo tile is the same mark at listing scale, and carries the real default note in the real typeface rather than placeholder bars — at 440x280 a note drawn as bars looks like a wireframe. Space Grotesk is inlined as base64 because `setContent` gives the page no base URL to resolve `fonts/` against.
 - The tile's card uses the card's values: padding `min(w, h) * 0.1`, and the leading and tracking `cardLineHeight` / `cardTracking` give at 18px. It is a fifth hand-synced copy of the card's look. The case for generating them all from `content.css` keeps growing and is still unbuilt.
 - `--url about:blank` renders the tile without fetching a live page. `loadPage` already tolerates finding no cards, so no flag had to be added to iterate on the tile offline.
+
+## 2026-08-06 - Host Tone Is Read Across Shadow Boundaries
+
+**Decision**: `detectHostTone` crosses open shadow boundaries when walking up for the first painted background, stepping from a shadow tree's top-level element to its host. The suite now asserts that the tone is correct, not merely present.
+
+**Why**: `parentElement` is null at the top of a shadow tree, so a slot inside one exhausted the walk without ever reaching the page and fell through to the OS preference. On a dark page viewed with a light-side OS that produced a pale card — the "lit panel in the corner of the eye" the threshold comment was written to prevent — in exactly the place the page is least able to absorb it.
+
+**Consequences**:
+- `main.js` already crossed roots this way in `closestAcrossRoots`, and both `isOpenShadowRoot` and `getContainingOpenShadowRoot` are function declarations sharing the bundle's IIFE scope, so `replacer.js` needed no new machinery. Closed roots are unreachable and irrelevant: the extension never cards inside one.
+- A slot that paints its own background still wins, in the shadow DOM as in the light DOM. A card in a light box on a dark page stays light because it is sitting in the box, not on the page. Only the transparent case changed.
+- The existing assertion required every card to carry `data-host-tone`, which a wrong tone satisfies. That is the general shape of the miss: a check that an attribute exists is not a check that it is right, and it reads as coverage.
+- The new fixture case compares a light-DOM slot and a shadow slot on the same dark section against each other rather than against `"dark"`, so retuning `HOST_TONE_DARK_LUMINANCE` cannot silently invalidate it.
+- The first version of that fixture wrapped both slots in a bare dark `<section>`, which the detector claimed as the ad itself — correctly, since a container holding nothing but ad slots is the ad — leaving the inner slots skipped as nested and the control card missing entirely. The section needs real editorial copy to read as an article. A fixture for a rendering question still has to survive detection first.
+- This is the first visual read of shadow-root cards since `SHADOW_ROOT_STYLE_TEXT` was rewritten. They match light-DOM cards on font, surface, ring, radius, and hide button, which also confirms the document-level `@font-face` reaches into shadow trees as `ensureCardFont` claims.

@@ -3676,7 +3676,10 @@
       if (luminance !== null) {
         return luminance < HOST_TONE_DARK_LUMINANCE ? "dark" : "light";
       }
-      element = element.parentElement;
+      // parentElement is null at the top of a shadow tree, so a slot inside one
+      // would otherwise fall through to the OS preference having never seen the
+      // page it is sitting on. Step to the host and keep walking.
+      element = element.parentElement || getContainingOpenShadowRoot(element)?.host || null;
       depth += 1;
     }
 
