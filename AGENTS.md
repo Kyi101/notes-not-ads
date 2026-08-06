@@ -26,7 +26,7 @@ calm Tide field and an optional user-written intention.
 - Diagnose controlled adblock testers: `npm run diagnose:controlled-testers`
 - Build clean release ZIP: `npm run package:release`
 - Multi-card scroll benchmark: `npm run benchmark:performance`
-- Quiet/Anchor UI prototype: `npm run prototype:modes`
+- Card prototype server: `npm run prototype:modes` (`/` typography, `/modes` history)
 - Validate manifest JSON: `node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"`
 - Paired-change check against a base ref: `node scripts/check-paired-change.mjs --base origin/main`
 - Manual test: load unpacked from `chrome://extensions`
@@ -78,8 +78,9 @@ calm Tide field and an optional user-written intention.
 - `docs/chrome-web-store.md` - draft store listing, permission explanations, reviewer instructions, and asset checklist.
 - `docs/site-risk-policy.md` - risk-tiered blocking protocol contract for protected, standard, ad-heavy, and hostile pages.
 - `prompts/antigravity-stock-search-affiliate-sweep.md` - reusable Antigravity/Gemini Flash prompt for stock/search affiliate-ad discovery reports.
-- `prototypes/attention-modes.html` - throwaway Ambient motion comparison with Breath, Tide, and Lumen plus Ambient/Editorial Anchor typography.
-- `prototypes/attention-modes-compare.html` - side-by-side Breath/Tide/Lumen review surface with shared mode and palette controls.
+- `prototypes/card-typography.html` - current card type-scale surface for the flat card.
+- `prototypes/attention-modes.html` - history only: the retired Ambient motion comparison (Breath, Tide, Lumen) and the Ambient/Editorial Anchor typography pair. Every concept in it has been superseded.
+- `prototypes/attention-modes-compare.html` - history only: side-by-side Breath/Tide/Lumen review surface.
 - `evals/live-sites.json` - regression, discovery, controlled, and manual-only URL cases for the live eval runner, including track/category metadata and authored site-policy expectations where useful.
 - `tests/fixtures/ad-clutter.html` - deterministic clutter/ad fixture page.
 - `tests/fixtures/performance-scroll.html` - long deterministic page for sustained multi-card performance measurement.
