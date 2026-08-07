@@ -28,6 +28,17 @@
   box-sizing: border-box !important;
 }
 
+/* Sites caption their ad slots with generated content on the slot's inner
+ * divs, and our card becomes one of those divs: Forbes paints
+ * "Advertisement" across the card's own surface this way. The captions are
+ * ordinary declarations, so one !important reset outranks them everywhere. */
+.attention-redirector-card::before,
+.attention-redirector-card::after,
+.attention-redirector-card *::before,
+.attention-redirector-card *::after {
+  content: none !important;
+}
+
 .attention-redirector-card {
   --ar-surface: #e6ebe3;
   --ar-ink: #20312a;
@@ -79,10 +90,11 @@
   --ar-ring: rgba(220, 228, 221, 0.10);
 }
 
-/* A note of a word or two is an object, not a sentence: it gets the middle of
-   the card and the largest size that fits. Anything longer is read rather than
-   looked at, so it sets left like text. */
-.attention-redirector-card[data-note-length="short"] {
+/* Up to three lines is a statement taken in at a glance, and it gets the middle
+   of the card. Past that the note is a block read downward, where a straight
+   left edge is what makes it readable. fitCardText counts the lines, because
+   the same note sets to one in a leaderboard and to ten in a skyscraper. */
+.attention-redirector-card[data-note-lines="few"] {
   justify-content: center !important;
   text-align: center !important;
 }
@@ -148,11 +160,6 @@
   -webkit-box-orient: vertical !important;
   -webkit-line-clamp: var(--ar-card-lines, 3) !important;
   overflow: hidden !important;
-}
-
-.attention-redirector-card[data-note-length="short"]
-  .attention-redirector-card__body {
-  max-width: 100% !important;
 }
 
 /* Font size, leading, and tracking are all measured against the real box in

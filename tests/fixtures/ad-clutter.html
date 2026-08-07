@@ -71,6 +71,19 @@
         background: #fff2d9;
       }
 
+      /* A column narrow enough that an ordinary note wraps past three lines.
+         Every other slot here is wide, so without one the left-aligned half of
+         the alignment rule never renders. */
+      .ad-skyscraper {
+        width: 160px;
+        height: 600px;
+        margin: 18px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed #b67b2b;
+        background: #fff2d9;
+      }
+
       .generic-placeholder {
         width: 300px;
         height: 250px;
@@ -337,6 +350,41 @@
         height: 250px;
       }
 
+      .hostile-css-surround {
+        padding: 18px;
+        margin-top: 18px;
+      }
+
+      .hostile-ad-frame {
+        position: relative;
+        width: 320px;
+        height: 250px;
+      }
+
+      /* The rule Forbes ships on its ad containers, reproduced. It is one class
+         and one type, so it outranks every single-class rule in content.css and
+         !important does not break the tie. The card's layout has to survive it
+         without relying on specificity. */
+      .hostile-ad-frame div,
+      .hostile-ad-frame iframe {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        inset: 0 !important;
+      }
+
+      /* The caption Forbes paints on the same containers, reproduced. It is
+         more specific than the reset in content.css but carries no
+         !important, which is the only reason the reset can win. */
+      .hostile-ad-frame div::before {
+        content: "Advertisement";
+        position: absolute;
+        left: 50%;
+        margin-top: -20px;
+        text-transform: uppercase;
+        transform: translate(-50%);
+      }
+
       bare-shadow-ad {
         display: block;
         width: 300px;
@@ -567,6 +615,10 @@
       Advertisement refreshing leaderboard
     </div>
 
+    <div id="rail-skyscraper" class="ad-skyscraper" data-ad-slot="skyscraper">
+      Advertisement skyscraper
+    </div>
+
     <div id="commerce-showcase" class="partial-ad-unit">
       <span class="partial-ad-unit__label">Advertisement</span>
       <div class="partial-ad-unit__frame">
@@ -724,6 +776,27 @@
           <p>
             Closing editorial copy for the night mode feature story, keeping the
             section weighted toward text.
+          </p>
+        </section>
+        <section class="hostile-css-surround">
+          <h3>Layout-hostile ad frame</h3>
+          <p>
+            Editorial copy so this section reads as an article rather than as a
+            wrapper around an advertisement, which would be claimed as the ad
+            itself and leave the slot inside it skipped as nested.
+          </p>
+          <div id="hostile-css-frame" class="hostile-ad-frame">
+            <div
+              id="hostile-css-ad"
+              class="ad-wrapper"
+              data-ad-slot="hostile-css-rectangle"
+            >
+              <span>Advertisement</span>
+              <iframe title="Advertisement" srcdoc="<p>creative</p>"></iframe>
+            </div>
+          </div>
+          <p>
+            Closing editorial copy, keeping this section weighted toward text.
           </p>
         </section>
         <div id="portal-rail" class="portal-rail">

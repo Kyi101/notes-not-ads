@@ -262,7 +262,7 @@ const SHADOW_ROOT_STYLE_TEXT = `
   --ar-ink: #dce4dd;
   --ar-ring: rgba(220, 228, 221, 0.10);
 }
-.attention-redirector-card[data-note-length="short"] {
+.attention-redirector-card[data-note-lines="few"] {
   justify-content: center !important;
   text-align: center !important;
 }
@@ -309,9 +309,6 @@ const SHADOW_ROOT_STYLE_TEXT = `
   -webkit-box-orient: vertical !important;
   -webkit-line-clamp: var(--ar-card-lines, 3) !important;
   overflow: hidden !important;
-}
-.attention-redirector-card[data-note-length="short"] .attention-redirector-card__body {
-  max-width: 100% !important;
 }
 .attention-redirector-card--compact {
   padding: 12px 34px 12px 16px !important;
@@ -494,6 +491,7 @@ const state = {
   domainCosmeticRules: [],
   cosmeticMatches: new WeakMap(),
   replacementGuards: new WeakMap(),
+  noteCursor: null,
   inspector: {
     active: false,
     overlay: null,

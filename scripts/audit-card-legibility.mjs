@@ -199,6 +199,43 @@ function measureCards() {
       const bodyRect = body.getBoundingClientRect();
       const bodyStyle = getComputedStyle(body);
 
+      // Host CSS reaches the card by matching it directly, not only by
+      // inheriting into it: a rule written for the ad container's inner divs
+      // matches ours, because the card is one of them once it is appended.
+      // Generated content is the axis no box measurement here would notice — it
+      // paints the site's caption across the note without moving anything, which
+      // is how "ADVERTISEMENT" survived on every Forbes card.
+      for (const [element, name] of [
+        [card, "card"],
+        [body, "body"]
+      ]) {
+        for (const pseudo of ["::before", "::after"]) {
+          const generated = getComputedStyle(element, pseudo).content;
+          if (generated && generated !== "none" && generated !== "normal") {
+            problems.push(`host-content-on-${name}`);
+          }
+        }
+      }
+
+      // A rule that stopped matching would leave the cell passing empty, so the
+      // declaration is read back off a control the card's defences do not cover.
+      const probe = slot.dataset.matrixProbe;
+      if (probe) {
+        const control = slot.querySelector(".matrix-control");
+        const [target, wanted] = probe.split("=");
+        const [pseudo, property] = target.startsWith("::")
+          ? target.split(" ")
+          : [null, target];
+        const live =
+          control &&
+          getComputedStyle(control, pseudo)
+            .getPropertyValue(property)
+            .includes(wanted);
+        if (!live) {
+          problems.push("hostile-rule-not-live");
+        }
+      }
+
       // A note nobody can see is a worse failure than a cropped one, and none of
       // the box measurements below would notice it.
       const fill = bodyStyle.webkitTextFillColor || bodyStyle.color;

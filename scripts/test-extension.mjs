@@ -381,17 +381,56 @@ try {
   }
 
   // Both attributes decide how the card draws — the tone picks the surface it
-  // sits on, the length picks centred against left. A card missing either one
-  // renders, so nothing else here would notice.
+  // sits on, the line count picks centred against left. A card missing either
+  // one renders, so nothing else here would notice.
   const unconfiguredCardCount = await page
     .locator(
       ".attention-redirector-card:not([data-host-tone='light']):not([data-host-tone='dark'])," +
-        ".attention-redirector-card:not([data-note-length])"
+        ".attention-redirector-card:not([data-note-lines])"
     )
     .count();
   if (unconfiguredCardCount !== 0) {
     throw new Error(
-      `Expected every card to carry a host tone and note length, found ${unconfiguredCardCount} without.`
+      `Expected every card to carry a host tone and line count, found ${unconfiguredCardCount} without.`
+    );
+  }
+
+  // Carrying an alignment is not the same as carrying the right one. Each card
+  // is checked against the lines it actually shows, and both classes have to
+  // turn up — a fixture that drifted to one shape would otherwise leave half
+  // the rule untested while still passing.
+  const alignments = await page.evaluate(() => {
+    return [...document.querySelectorAll(".attention-redirector-card")].map(
+      (card) => {
+        const body = card.querySelector(".attention-redirector-card__body");
+        const bodyStyle = getComputedStyle(body);
+        const lineHeight = Number.parseFloat(bodyStyle.lineHeight);
+        const ink = 2 * Number.parseFloat(bodyStyle.paddingTop);
+        return {
+          lines: Math.max(
+            1,
+            Math.round((body.scrollHeight - ink) / lineHeight)
+          ),
+          kind: card.dataset.noteLines,
+          align: getComputedStyle(card).textAlign
+        };
+      }
+    );
+  });
+  const misaligned = alignments.filter((entry) => {
+    const expectedKind = entry.lines > 3 ? "many" : "few";
+    const expectedAlign = entry.lines > 3 ? "left" : "center";
+    return entry.kind !== expectedKind || entry.align !== expectedAlign;
+  });
+  if (misaligned.length) {
+    throw new Error(
+      `Cards aligned against their line count: ${JSON.stringify(misaligned.slice(0, 4))}`
+    );
+  }
+  const kinds = new Set(alignments.map((entry) => entry.kind));
+  if (!(kinds.has("few") && kinds.has("many"))) {
+    throw new Error(
+      `The fixture no longer produces both alignments, so the rule is half tested: ${JSON.stringify([...kinds])}`
     );
   }
 
@@ -419,6 +458,71 @@ try {
   ) {
     throw new Error(
       `Slots on the same dark section disagree on host tone: ${JSON.stringify(darkSurroundTones)}`
+    );
+  }
+
+  // A site rule of the shape `.their-wrapper div` is one class and one type, so
+  // it outranks every single-class rule in content.css and !important cannot
+  // break the tie. Forbes ships one, and it pulled the note to the card's top
+  // left corner, out of the padding box and out of flex centring, while
+  // stretching it to the full card so the text fitter measured the wrong box.
+  // Measured against the card's own computed padding rather than a literal, so
+  // the check still means something when the padding ramps are retuned.
+  const hostileCssCard = await page.evaluate(() => {
+    const card = document.querySelector(
+      "#hostile-css-frame > .attention-redirector-card"
+    );
+    const body = card?.querySelector(".attention-redirector-card__body");
+    if (!card || !body) {
+      return { missing: true };
+    }
+    const cardRect = card.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    const style = getComputedStyle(card);
+    return {
+      padLeft: Number.parseFloat(style.paddingLeft),
+      padTop: Number.parseFloat(style.paddingTop),
+      offsetLeft: Math.round(bodyRect.left - cardRect.left),
+      offsetTop: Math.round(bodyRect.top - cardRect.top),
+      bodyHeight: Math.round(bodyRect.height),
+      cardHeight: Math.round(cardRect.height)
+    };
+  });
+  if (
+    hostileCssCard.missing ||
+    hostileCssCard.offsetLeft < hostileCssCard.padLeft ||
+    hostileCssCard.offsetTop < hostileCssCard.padTop ||
+    hostileCssCard.bodyHeight >= hostileCssCard.cardHeight
+  ) {
+    throw new Error(
+      `Host CSS captured the card's layout: ${JSON.stringify(hostileCssCard)}`
+    );
+  }
+
+  // Sites caption their ad slots with generated content on the slot's inner
+  // divs, and the card becomes one of those divs: on Forbes "ADVERTISEMENT"
+  // printed across the card's own surface. The slot's own child is read
+  // alongside the card, so a fixture rule that quietly stopped matching would
+  // fail here instead of leaving the reset untested.
+  const captions = await page.evaluate(() => {
+    const read = (selector) => {
+      const node = document.querySelector(selector);
+      return node ? getComputedStyle(node, "::before").content : "missing";
+    };
+    return {
+      card: read("#hostile-css-frame > .attention-redirector-card"),
+      body: read("#hostile-css-frame .attention-redirector-card__body"),
+      control: read("#hostile-css-ad")
+    };
+  });
+  if (!/advertisement/i.test(captions.control)) {
+    throw new Error(
+      `Fixture caption rule is not live, so nothing tests the reset: ${JSON.stringify(captions)}`
+    );
+  }
+  if (captions.card !== "none" || captions.body !== "none") {
+    throw new Error(
+      `Host caption printed on the card: ${JSON.stringify(captions)}`
     );
   }
 
@@ -472,9 +576,21 @@ try {
     )
     .waitFor({ timeout: 5000 });
 
+  // Sorted down the page, not by document order. "The same note twice in a row"
+  // is a claim about what a reader meets while scrolling, and the two orders
+  // differ here: the fixture's overlay slot is late in the markup and first on
+  // the screen.
   const anchorTexts = await anchorPage
     .locator(".attention-redirector-card__body")
-    .evaluateAll((nodes) => nodes.map((node) => node.textContent.trim()));
+    .evaluateAll((nodes) =>
+      nodes
+        .map((node) => ({
+          text: node.textContent.trim(),
+          top: node.getBoundingClientRect().top
+        }))
+        .sort((a, b) => a.top - b.top)
+        .map((entry) => entry.text)
+    );
   const expectedAnchorTexts = new Set([
     "Finish what deserves your attention.",
     "Protect the next hour.",
@@ -486,9 +602,22 @@ try {
   ) {
     throw new Error(`Unexpected Anchor texts: ${JSON.stringify(anchorTexts)}`);
   }
-  if (new Set(anchorTexts).size < 2) {
+  // Two distinct notes somewhere on the page is not rotation: the same sentence
+  // could still land on two cards running, which is the thing that makes a page
+  // read as stuck rather than calm, and it is what shipped. Assert the property
+  // that was actually wanted — a reader going down the page never meets the
+  // same sentence twice in succession.
+  const repeatedNeighbour = anchorTexts.findIndex(
+    (text, index) => index > 0 && text === anchorTexts[index - 1]
+  );
+  if (repeatedNeighbour > 0) {
     throw new Error(
-      `Anchor messages did not rotate across fixture surfaces: ${JSON.stringify(anchorTexts)}`
+      `The same note landed on two cards running at index ${repeatedNeighbour}: ${JSON.stringify(anchorTexts)}`
+    );
+  }
+  if (new Set(anchorTexts).size < Math.min(expectedAnchorTexts.size, anchorTexts.length)) {
+    throw new Error(
+      `Notes repeated before the list was spent: ${JSON.stringify(anchorTexts)}`
     );
   }
   await anchorPage.close();

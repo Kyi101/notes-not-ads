@@ -20,16 +20,28 @@ async function runScan({ force, contextNodes = [document] }) {
     );
     state.lastScanCandidateCount = candidates.length;
 
+    const claimed = [];
     for (const candidate of candidates) {
       if (!force && inserted >= 6) {
         break;
       }
 
-      if (replaceCandidate(candidate)) {
+      const slot = replaceCandidate(candidate);
+      if (slot) {
+        claimed.push(slot);
         inserted += 1;
         state.inserted += 1;
       }
     }
+
+    // Rendered down the page rather than in the order the slots were claimed,
+    // because those are not the same order: candidates are sorted by area, and
+    // the note rotation is drawn in render order. On the ad-clutter fixture the
+    // claim order reached a slot at y=1052 before one at y=755, which put
+    // neighbouring cards on distant points of the rotation. Rects are read for
+    // the whole batch before the first card lands, so every slot is measured
+    // against the same layout.
+    renderInReadingOrder(claimed);
 
     if (inserted === 0 && candidates.length === 0) {
       state.zeroScanStreak += 1;

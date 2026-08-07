@@ -1614,3 +1614,94 @@ The one page that reached two co-visible cards was not repeating at all. NY Post
 - The new fixture case compares a light-DOM slot and a shadow slot on the same dark section against each other rather than against `"dark"`, so retuning `HOST_TONE_DARK_LUMINANCE` cannot silently invalidate it.
 - The first version of that fixture wrapped both slots in a bare dark `<section>`, which the detector claimed as the ad itself — correctly, since a container holding nothing but ad slots is the ad — leaving the inner slots skipped as nested and the control card missing entirely. The section needs real editorial copy to read as an article. A fixture for a rendering question still has to survive detection first.
 - This is the first visual read of shadow-root cards since `SHADOW_ROOT_STYLE_TEXT` was rewritten. They match light-DOM cards on font, surface, ring, radius, and hide button, which also confirms the document-level `@font-face` reaches into shadow trees as `ensureCardFont` claims.
+
+## 2026-08-06 - The Card's Layout Is Pinned Against Host CSS
+
+**Decision**: the properties that decide where a note sits inside a card — `position`, `inset`, `display`, `float`, `transform` on the card and on the body — are written inline with `!important` in `buildCard`, rather than left to `src/content.css`.
+
+**Why**: first manual smoke on Forbes produced a card whose note sat clipped at the top-left of its box instead of centred in it. Forbes ships `._8mPtn1sX div, ._8mPtn1sX iframe { position: absolute !important; top: 0 !important; left: 0 !important; inset: 0 !important }` in an inline stylesheet, and `_8mPtn1sX` is a class on the slot itself. `!important` does not decide that contest — the site's declaration is important too, so specificity breaks the tie, and every card rule in `content.css` is one class deep (0,1,0) against the site's (0,1,1).
+
+One rule caused three symptoms at once. An absolutely positioned child resolves `top/left: 0` against the padding box, so the note left the card's padding; it dropped out of flex centring for the same reason; and `fitCardText` then measured a body stretched to `inset: 0`, so it sized the type against the wrong box. The card itself survived only because `--preserve-children` is (0,2,0).
+
+**Consequences**:
+- Specificity is a race the host page can always win, and raising `content.css` to (0,2,0) only moves the finish line. Inline `!important` is the one declaration no author rule of any specificity outranks, so the handful of properties that decide placement are pinned there. Everything else — colour, radius, ring, type ramp — stays in the stylesheet, where a site overriding it is a cosmetic loss rather than a broken card.
+- The body is pinned to `display: -webkit-box`, not `block`. `-webkit-box` is what carries `-webkit-line-clamp`; blockifying the body would silently drop the clamp, and a note would end mid-word with no ellipsis instead of being clipped.
+- `tests/fixtures/ad-clutter.html` carries the Forbes rule verbatim on a `.hostile-ad-frame`, and the suite asserts the body sits inside the card's padding and is shorter than the card. Falsified by removing the pin: the assertion fails with `offsetLeft 0, offsetTop 0, bodyHeight 250, cardHeight 250` against `padLeft 25, padTop 25`.
+- The fixture needed an `id` on the frame and editorial copy around it. A `div` holding nothing but an ad slot is itself claimed as the ad, which left the inner slot skipped as nested — the same trap the shadow-tone fixture hit. The assertion targets `#hostile-css-frame > .attention-redirector-card`.
+- Live verification on a Forbes article, before and after: `bodyOffset 0,0 / bodySize 248x116` became `bodyOffset 12,16 / bodySize 198x92`. `benchmark:performance` unmoved at 16.7ms p95 over 60 cards.
+- This says nothing about the second Forbes symptom, the host's "Advertisement" caption on every card. That is resolved separately in "The Card Resets Generated Content On Itself" below. The conclusion reached here — that the caption comes from an ad stack which never initialises in an automated session — was wrong, and wrong in a way worth keeping: those runs searched the slot and its ancestors, and the caption was on the card.
+
+## 2026-08-06 - Notes Rotate Down The Page, Reversing The No-Repetition Decision
+
+**Decision**: each card takes the next note in the list, dealt in the order the cards appear down the page. This reverses the same day's "One Card Per Nesting Chain, And No Repetition Rule", which dropped the rotation as unnecessary.
+
+**Why**: the earlier decision measured co-visibility — how many cards share one screen — found the answer was one, and concluded "there is no reader with the problem the rule was for". The measurement was right and the inference was wrong. On first manual smoke of Bloomberg the repeats were reported as "one after another as I scrolled": the reader is the one continuous observer of a page, and a refrain met sequentially is still a refrain. Co-visibility was never the property that mattered.
+
+Two facts the prior round did not have. Coverage was poor on its own terms: four cards on a Forbes article drew three notes out of five, two of them running. And the stability premise was weak — the surface key included rect coordinates, so two identical loads of the same page produced different assignments.
+
+**Consequences**:
+- The number is drawn when the card is built, not when the slot is claimed, because a claimed slot does not always become a card — overlays and oversized cosmetics collapse instead. Numbering those too left holes in the rotation, and a hole as wide as the note list reproduces the exact symptom through the fix meant to remove it. That version measured 1 adjacent repeat on the fixture; numbering only rendered cards measures 0.
+- `runScan` now claims every slot first and renders the batch afterwards, sorted by vertical position. Claim order is not reading order: candidates are sorted by area and slots arrive across several passes, so the claim order on the fixture reached a slot at y=1052 before one at y=755. Rects for the batch are read before the first card lands, so every slot is measured against one layout.
+- `replaceCandidate` returns the slot instead of `true`, and no longer renders. It is called from one place.
+- The number sticks to the slot in `data-attention-redirector-note`, so the re-render on every settings change does not change the note under a reader looking at it. `createSurfaceKey` is deleted; the page's hash now only chooses where the rotation starts, so two pages do not both open on the first note.
+- The gate asserts no two cards *in vertical order* carry the same note, and that the list is spent before any note repeats. Ordering the assertion by document order instead was the first version and it is wrong: the fixture's overlay slot is late in the markup and first on the screen. Falsified by rendering in claim order — 5 adjacent repeats over 25 cards with 3 notes.
+- Cost is one batched `getBoundingClientRect` per newly claimed slot per scan. `benchmark:performance` unmoved at 16.7ms p95 over 60 cards, 0 frames past 32ms; `audit:cards` 126/126.
+- A slot found in a later scan that lands above existing cards still takes a later number, so it can match the card above it. Lazy-loaded ads arrive below what is already carded, so this is not the Bloomberg case; it is left unhandled rather than guessed at.
+
+## 2026-08-06 - The Card Resets Generated Content On Itself
+
+**Decision**: `src/content.css` sets `content: none !important` on `::before` and `::after` of `.attention-redirector-card` and of everything inside it.
+
+**Why**: first manual smoke on Forbes showed "ADVERTISEMENT" printed across every replacement card, centred on the card's own surface. Sites caption their ad slots with generated content on the slot's *inner* divs, and the card — appended into the slot — becomes one of those divs. The caption was our own element's `::before`, inherited from a rule written for the ad that used to be there.
+
+The rule, read over CDP because Forbes' stylesheets are cross-origin and `cssRules` throws: `content: "Advertisement"; position: absolute; left: 50%; margin-top: -20px; transform: translate(-50%); text-transform: uppercase`. Not one declaration is `!important`.
+
+**Consequences**:
+- Because the caption is an ordinary declaration, one `!important` reset outranks it whatever its specificity, so this does not become the specificity race that "The Card's Layout Is Pinned Against Host CSS" had to escape by going inline. Inline styles cannot address a pseudo-element at all, so the stylesheet was the only surface available — and here it is enough.
+- The reset is safe to apply blanket because the card's design uses no generated content of its own: the hide button's `×` is a text node, and every `content` in `content.css` before this was part of a `box-sizing` reset.
+- Scoped to the card and its subtree, not to `.attention-redirector-slot *`. The site's own preserved children keep their captions; they are already at `opacity: 0` and hidden, and stripping generated content from parts of the page we did not replace is a wider blast radius than the symptom needs.
+- `tests/fixtures/ad-clutter.html` carries the caption rule on the same `.hostile-ad-frame` as the layout rule, deliberately at higher specificity than the reset and deliberately without `!important` — that pairing is the whole reason the reset works, so the fixture has to hold it. The gate reads the card, the card body, and `#hostile-css-ad`, a slot child the reset does not cover. The control has to still say "Advertisement" or the fixture rule has silently stopped matching and the gate proves nothing. Falsified by disabling the reset: `{"card":"\"Advertisement\"","body":"\"Advertisement\"","control":"\"Advertisement\""}`.
+- Verified live on Forbes before and after, at the reporting viewport of 1585px: a full-document scan that recurses into shadow roots and same-origin frames found the caption as `::before` on three of four cards, and after the reset on none of them. Screenshots of the same card carry the caption and then do not.
+- The diagnostic lesson is the durable part. Three automated probes and a console scan run by hand all missed this, because each searched the slot and its ancestors, plus the light DOM for a text node. The caption was on neither axis: a pseudo-element, on a descendant, on an element we injected. Searching for a symptom's source should start at the element the symptom is drawn on, and generated content on our own nodes is a thing host CSS can reach.
+- `audit:cards` 126/126, `test:extension`, `check`, `test:dnr-match`, `test:onboarding` and `test:site-policy` all pass. `benchmark:performance` p95/p99 unchanged at 16.8ms; the count of frames past 32ms read 1-2 across runs where it read 0 earlier, varying run to run on a loaded machine, which is not a signal a `content` reset could produce.
+
+## 2026-08-07 - The Note Is Centred Or Left-Set By Rendered Lines, Not Word Count
+
+**Decision**: a card centres its note at three rendered lines or fewer and sets it left at four or more. The count is taken in `fitCardText`, after the note has been measured against the real box, and written to `data-note-lines` as `few` or `many`. This replaces `data-note-length`, which was decided in `buildCard` from `countWords(body) <= 2`.
+
+**Why**: manual smoke showed "Every Second Counts" stranded at the far left of a 1583px Forbes strip card, three words adrift in a full-width box. Word count cannot see the box it is setting text into. The same three words are one line in a leaderboard and three lines in a 160px skyscraper; the same eighteen-word note is two lines in the strip and ten in the skyscraper. What decides whether a note reads as a statement taken at a glance or as a block read downward is the number of lines the reader meets, and only the fit pass knows that.
+
+The threshold was set by rendering both notes across the shape matrix and reading them, not by argument. A first proposal keyed on whether the note wrapped at all; Hlib rejected it for the skyscraper, and the render agreed — three words wrapped to three lines in a 160px column still want the middle of the card. Left only starts winning at four:
+
+| shape | note | lines | reads better |
+| --- | --- | --- | --- |
+| leaderboard 728x90 | 3 words | 1 | centre |
+| full-width strip 1583x319 | 18 words | 2 | centre |
+| skyscraper 160x600 | 3 words | 3 | centre |
+| halfpage 300x600 | 18 words | 6 | left |
+| skyscraper 160x600 | 18 words | 10 | left |
+
+**Consequences**:
+- `buildCard` still writes `data-note-lines="few"` so the attribute always exists, but the value is provisional: `fitCardText` is called synchronously from `replaceCandidate` in the same task as insertion, so no card ever paints holding it.
+- The count is read from `body.scrollHeight` minus the ink room, divided by the line height, and then capped by the clamp. That is deliberately the lines *on screen* rather than the lines the note would take unclamped — a note clipped to four lines is read as four.
+- `.attention-redirector-card[data-note-length="short"] .attention-redirector-card__body { max-width: 100% }` is deleted. Alignment must not change wrapping, or the decision becomes circular: the measurement that picks the alignment would be invalidated by applying it.
+- The rule lives in `src/content.css` and in the `SHADOW_ROOT_STYLE_TEXT` copy in `src/shared.js`, which is the surface for cards inside shadow roots. Both carry it.
+- The gate checks each card's alignment against the lines that card actually shows, not against a literal, and fails if the fixture stops producing both classes — a matrix that drifted to one shape would otherwise leave half the rule untested while passing. `tests/fixtures/ad-clutter.html` gained a 160x600 `#rail-skyscraper` for the `many` side, as a top-level sibling: a wrapper holding nothing but the slot is claimed as the ad itself and the inner slot is skipped as nested.
+- Falsified by restoring the word-count rule: `Cards aligned against their line count: [{"lines":1,"kind":"many","align":"left"},...]`, which is the reported Forbes symptom.
+- `check`, `test:extension`, `test:onboarding`, `test:dnr-match`, `test:site-policy` all pass; `audit:cards` 126/126; `benchmark:performance` p95/p99 16.8ms, 0 frames past 32ms.
+
+## 2026-08-07 - Host CSS Is Audited On Two Axes, Not One
+
+**Decision**: `tests/fixtures/card-matrix.html` carries a second hostile list, `HOSTILE_DESCENDANT_CSS`, holding stylesheet rules that target the slot's *descendants* rather than the slot. `audit:cards` renders a card under each one and gained two checks: generated content on the card or its body, and a liveness probe read off a control div the card's defences do not cover. `AGENTS.md` states the two axes as a convention.
+
+**Why**: both Forbes bugs came from the same axis and the matrix could not see it. Every entry in the existing `HOSTILE_SLOT_CSS` is an inline style on the slot, so all of them test one thing — properties inheriting down into the card. The bugs came from the other: the card is appended into the site's ad container, so a rule the site wrote for the ad that used to be there, `.their-wrapper div { … }`, matches our card directly. Inheritance and direct matching are different mechanisms with different defences, and the fixture only exercised the first. Both bugs shipped past a green matrix.
+
+Generated content is the sharper half. A caption painted on the card moves nothing, so every box measurement in the audit passes while the reader sees "ADVERTISEMENT" across the note. Nothing in the suite looked at a pseudo-element until now.
+
+**Consequences**:
+- Four entries, chosen so each fails somewhere different: `caption` is the Forbes `::before` verbatim, `captured` the Forbes `position: absolute !important; inset: 0 !important` verbatim, `blockified` a `display: block !important` that drops the line clamp, `ghosted` an ordinary `color: transparent`. The first and last are ordinary declarations, which our one-class `!important` rules outrank at any specificity; the middle two are important at (0,1,1), which only the inline pins survive. Both flavours are present because they fail in different places.
+- Each entry carries a probe — `"::before content=Advertisement"`, `"position=absolute"` — read off a `.matrix-control` div left inside the slot. Without it a rule that quietly stopped matching would leave six cells passing empty, which is the same failure mode the ad-clutter caption gate uses a control to avoid.
+- All three new checks were falsified before being trusted, each scoped to its own slot: disabling the content reset fails `hostile-caption` on `host-content-on-card, host-content-on-body`; dropping the body colour to non-important fails `hostile-ghosted` on `note-invisible`; no-oping `pinAgainstHostCss` fails `hostile-captured` on `note-overflows-card` and `hostile-blockified` on `note-off-centre-vertically`; renaming the fixture selectors from `div` to `span` fails both probed slots on `hostile-rule-not-live`.
+- Cost is four slots, so `audit:cards` goes from 126 cells to 150. The hostile entries stay at one shape, 540x230, as the inherited list already does — these rules break the card the same way in every box, and crossing them with twelve shapes would triple the run for no new signal.
+- The convention in `AGENTS.md` is the part that outlives the fixture: anything added to the card has to be added to both lists, and the note that inline pins cannot reach a pseudo-element, so generated content can only be fought from the stylesheet.
+- `check`, `test:extension`, `test:onboarding`, `test:dnr-match`, `test:site-policy` pass; `audit:cards` 150 of 150.

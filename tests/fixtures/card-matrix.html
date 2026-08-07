@@ -38,6 +38,45 @@
       .host-stylesheet-hidden {
         visibility: hidden;
       }
+
+      /* Host CSS reaches the card on two axes, and HOSTILE_SLOT_CSS below only
+         covers one: properties that inherit down from the slot. The rules here
+         are the other axis, the one that produced both Forbes bugs — a rule
+         written for the ad container's inner divs matches our card directly,
+         because once it is appended into the slot it is one of those divs. They
+         have to be stylesheet rules; an inline style cannot address a
+         descendant, which is exactly why this axis was missing.
+
+         Each pair is deliberate about !important. Where the site declaration is
+         ordinary, our one-class !important rule in content.css wins whatever
+         the specificity. Where it is important at (0,1,1) it beats every rule
+         in content.css, and only the inline pins in buildCard survive it. Both
+         cases are here because they fail in different places. */
+      .host-descendant-caption div::before {
+        content: "Advertisement";
+        position: absolute;
+        left: 50%;
+        margin-top: -20px;
+        text-transform: uppercase;
+        transform: translate(-50%);
+      }
+
+      .host-descendant-captured div {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        inset: 0 !important;
+      }
+
+      /* -webkit-box is what carries the line clamp, so blockifying the body
+         drops it: the note runs past the card instead of ending in an ellipsis. */
+      .host-descendant-blockified div {
+        display: block !important;
+      }
+
+      .host-descendant-ghosted div {
+        color: transparent;
+      }
     </style>
   </head>
   <body>
@@ -84,11 +123,23 @@
         ["stylesheet-hidden", "host-stylesheet-hidden", "no-card"]
       ];
 
+      // The other axis: rules that match the card element itself. The probe is
+      // read off a control div left inside the slot, which the rule matches and
+      // the card's defences do not cover. Without it a rule that quietly stopped
+      // matching — a renamed class, a selector the replacer's own markup no
+      // longer satisfies — would leave every one of these cells passing empty.
+      const HOSTILE_DESCENDANT_CSS = [
+        ["caption", "host-descendant-caption", "::before content=Advertisement"],
+        ["captured", "host-descendant-captured", "position=absolute"],
+        ["blockified", "host-descendant-blockified", "display=block"],
+        ["ghosted", "host-descendant-ghosted", "color=rgba(0, 0, 0, 0)"]
+      ];
+
       // Slots are direct children of body on purpose. A wrapper element that
       // contains both the caption and the slot is itself a legitimate ad
       // container, so the scanner claims the wrapper and the card stops landing
       // on the box whose size we are auditing.
-      function addSlot(label, width, height, extraCss, extraClass, expect) {
+      function addSlot(label, width, height, extraCss, extraClass, expect, probe) {
         const caption = document.createElement("p");
         caption.className = "matrix-caption";
         caption.textContent = `${label} — ${width}x${height}`;
@@ -107,6 +158,14 @@
         slot.style.cssText = `width:${width}px;height:${height}px;${extraCss || ""}`;
         slot.textContent = "Advertisement";
 
+        if (probe) {
+          slot.dataset.matrixProbe = probe;
+          const control = document.createElement("div");
+          control.className = "matrix-control";
+          control.textContent = "creative";
+          slot.append(control);
+        }
+
         document.body.append(slot);
       }
 
@@ -120,6 +179,10 @@
 
       for (const [name, className, expect] of HOSTILE_SLOT_CLASSES) {
         addSlot(`hostile-${name}`, 540, 230, "", className, expect);
+      }
+
+      for (const [name, className, probe] of HOSTILE_DESCENDANT_CSS) {
+        addSlot(`hostile-${name}`, 540, 230, "", className, "", probe);
       }
     </script>
   </body>

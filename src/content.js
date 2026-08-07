@@ -263,7 +263,7 @@
     --ar-ink: #dce4dd;
     --ar-ring: rgba(220, 228, 221, 0.10);
   }
-  .attention-redirector-card[data-note-length="short"] {
+  .attention-redirector-card[data-note-lines="few"] {
     justify-content: center !important;
     text-align: center !important;
   }
@@ -310,9 +310,6 @@
     -webkit-box-orient: vertical !important;
     -webkit-line-clamp: var(--ar-card-lines, 3) !important;
     overflow: hidden !important;
-  }
-  .attention-redirector-card[data-note-length="short"] .attention-redirector-card__body {
-    max-width: 100% !important;
   }
   .attention-redirector-card--compact {
     padding: 12px 34px 12px 16px !important;
@@ -495,6 +492,7 @@
     domainCosmeticRules: [],
     cosmeticMatches: new WeakMap(),
     replacementGuards: new WeakMap(),
+    noteCursor: null,
     inspector: {
       active: false,
       overlay: null,
@@ -2174,16 +2172,28 @@
       );
       state.lastScanCandidateCount = candidates.length;
 
+      const claimed = [];
       for (const candidate of candidates) {
         if (!force && inserted >= 6) {
           break;
         }
 
-        if (replaceCandidate(candidate)) {
+        const slot = replaceCandidate(candidate);
+        if (slot) {
+          claimed.push(slot);
           inserted += 1;
           state.inserted += 1;
         }
       }
+
+      // Rendered down the page rather than in the order the slots were claimed,
+      // because those are not the same order: candidates are sorted by area, and
+      // the note rotation is drawn in render order. On the ad-clutter fixture the
+      // claim order reached a slot at y=1052 before one at y=755, which put
+      // neighbouring cards on distant points of the rotation. Rects are read for
+      // the whole batch before the first card lands, so every slot is measured
+      // against the same layout.
+      renderInReadingOrder(claimed);
 
       if (inserted === 0 && candidates.length === 0) {
         state.zeroScanStreak += 1;
@@ -3344,22 +3354,23 @@
     return hostname.replace(/^www\./, "");
   }
 
+  // Returns the prepared slot rather than rendering it. The note a slot shows
+  // depends on where its neighbours sit, which is only knowable once the whole
+  // batch exists, so the scan claims every slot first and renders afterwards.
   function replaceCandidate(element) {
     if (!safeToReplace(element)) {
-      return false;
+      return null;
     }
 
     const rect = element.getBoundingClientRect();
     const minHeight = Math.max(48, Math.round(rect.height));
     const slot = createReplacementSlot(element, rect);
-    const surfaceKey = createSurfaceKey(element, rect);
     const preservesSiteChildren = slot === element;
     const isFixedOverlay = window.getComputedStyle(element).position === "fixed";
     const collapseOversizedCosmetic = canCollapseOversizedDomainCosmetic(element, rect);
 
     ensureReplacementRootStyles(slot);
     slot.dataset.attentionRedirectorReplaced = "true";
-    slot.dataset.attentionRedirectorSurfaceKey = surfaceKey;
     slot.dataset.attentionRedirectorWidth = String(Math.round(rect.width));
     slot.dataset.attentionRedirectorHeight = String(Math.round(rect.height));
     // Capture overlay status before slot classes apply position overrides
@@ -3390,8 +3401,14 @@
       slot.classList.add("attention-redirector-slot--tall");
     }
 
-    renderReplacementSlot(slot);
-    return true;
+    return slot;
+  }
+
+  function renderInReadingOrder(slots) {
+    slots
+      .map((slot) => ({ slot, top: slot.getBoundingClientRect().top }))
+      .sort((a, b) => a.top - b.top)
+      .forEach(({ slot }) => renderReplacementSlot(slot));
   }
 
   function applySettingsToReplacedSlots() {
@@ -3409,9 +3426,6 @@
       width: width || slot.getBoundingClientRect().width,
       height: height || slot.getBoundingClientRect().height
     };
-    const surfaceKey =
-      slot.dataset.attentionRedirectorSurfaceKey ||
-      createSurfaceKey(slot, slot.getBoundingClientRect());
     const existingGuard = state.replacementGuards.get(slot);
     const preservesSiteChildren = slot.classList.contains(
       "attention-redirector-slot--preserve-children"
@@ -3463,7 +3477,7 @@
     }
 
     slot.dataset.attentionRedirectorPresentation = "ambient";
-    const card = buildCard(createCardModel(surfaceKey), rect, slot);
+    const card = buildCard(createCardModel(slot), rect, slot);
     removeReplacementCards(slot);
     if (preservesSiteChildren) {
       slot.append(card);
@@ -3502,18 +3516,6 @@
     slot
       .querySelectorAll(":scope > .attention-redirector-card")
       .forEach((card) => card.remove());
-  }
-
-  function createSurfaceKey(element, rect) {
-    return [
-      location.hostname,
-      location.pathname,
-      getElementSignature(element),
-      Math.round(rect.left || 0),
-      Math.round(rect.top || 0),
-      Math.round(rect.width || 0),
-      Math.round(rect.height || 0)
-    ].join(":");
   }
 
   function installReplacementGuard(slot, card) {
@@ -3590,11 +3592,39 @@
     return wrapper;
   }
 
+  // Every card rule in content.css is one class deep, so any site rule of the
+  // shape `.their-wrapper div` outranks it on specificity — !important does not
+  // help, because the site's declaration is important too and specificity breaks
+  // the tie. Forbes ships `._8mPtn1sX div { position: absolute !important; inset:
+  // 0 !important }` on its ad containers, which pulled the note out of the card's
+  // padding box and out of flex centring, and left fitCardText measuring a body
+  // stretched to the full card. Specificity is a race the host page can always
+  // win, so the few properties that decide where the note sits are pinned inline,
+  // which no author rule of any specificity outranks.
+  function pinAgainstHostCss(element, declarations) {
+    Object.entries(declarations).forEach(([property, value]) => {
+      element.style.setProperty(property, value, "important");
+    });
+  }
+
   function buildCard(cardModel, rect, slot) {
     const card = document.createElement("div");
     card.className = "attention-redirector-card";
     card.dataset.hostTone = detectHostTone(slot);
-    card.dataset.noteLength = countWords(cardModel.body) <= 2 ? "short" : "long";
+    const preservesSiteChildren = slot.classList.contains(
+      "attention-redirector-slot--preserve-children"
+    );
+    pinAgainstHostCss(card, {
+      position: preservesSiteChildren ? "absolute" : "relative",
+      inset: preservesSiteChildren ? "0" : "auto",
+      display: "flex",
+      float: "none",
+      transform: "none"
+    });
+    // Provisional, so the attribute always exists. fitCardText decides it for
+    // real once the note has been measured against the box, which happens in this
+    // same task — the card never paints holding this value.
+    card.dataset.noteLines = "few";
     card.setAttribute("role", "group");
     card.setAttribute("aria-label", `Attention anchor: ${cardModel.body}`);
 
@@ -3627,6 +3657,16 @@
     const body = document.createElement("div");
     body.className = "attention-redirector-card__body";
     body.textContent = cardModel.body;
+    pinAgainstHostCss(body, {
+      position: "relative",
+      inset: "auto",
+      // -webkit-box is what carries the line clamp; blockifying the body by
+      // positioning it also silently drops the clamp.
+      display: "-webkit-box",
+      margin: "0",
+      float: "none",
+      transform: "none"
+    });
     card.append(body);
 
     return card;
@@ -3864,16 +3904,58 @@
     }
 
     applyCardTypeScale(card, best);
+
+    // Alignment follows the number of lines the reader actually meets, not the
+    // note's word count. Word count cannot see the box: three words set to one
+    // line in a leaderboard and to three in a 160px column, and both want the
+    // middle of the card. Past three lines the note is a block read downward, and
+    // a straight left edge is what makes it readable. Counted here because this is
+    // where the note has been measured against the real box, and read before the
+    // clamp goes back on, then capped by it — what matters is the lines on screen.
+    const lineHeight = best * cardLineHeight(best);
+    const ink = 2 * best * cardInkRoom(best);
+    const shownLines = Math.min(
+      Math.max(1, Math.round((body.scrollHeight - ink) / lineHeight)),
+      bestLines
+    );
     card.style.setProperty("--ar-card-lines", String(bestLines));
+    card.dataset.noteLines = shownLines > 3 ? "many" : "few";
   }
 
-  function createCardModel(surfaceKey) {
-    return { body: selectAnchorNote(surfaceKey) };
+  function createCardModel(slot) {
+    return { body: selectAnchorNote(slot) };
   }
 
-  function selectAnchorNote(surfaceKey) {
+  // Hashing each slot independently gave neighbours no reason to differ: four
+  // cards on a Forbes article drew three notes out of five, two of them running.
+  // Reading the same sentence twice in a row is what makes a refrain read as a
+  // stuck page rather than a calm one, so the notes are dealt in a rotation that
+  // spends the list before repeating any of it.
+  //
+  // The number is drawn here rather than when the slot is claimed, because a
+  // claimed slot does not always become a card: overlays and oversized cosmetics
+  // collapse instead. Numbering those too left holes in the rotation, and a hole
+  // as wide as the note list puts the same sentence on two cards running — which
+  // is exactly the symptom, reappearing through the fix meant to remove it.
+  //
+  // The number sticks to the slot so that re-rendering, which happens on every
+  // settings change, does not change the note under a reader looking at it. The
+  // page's own key only chooses where the rotation starts, so two pages do not
+  // both open on the first note.
+  function selectAnchorNote(slot) {
     const notes = state.settings.anchorNotes;
-    return notes[hashString(surfaceKey) % notes.length];
+    const stored = Number.parseInt(slot.dataset.attentionRedirectorNote, 10);
+    if (!Number.isInteger(stored)) {
+      if (state.noteCursor === null) {
+        state.noteCursor = hashString(location.hostname + location.pathname);
+      }
+      slot.dataset.attentionRedirectorNote = String(state.noteCursor);
+      state.noteCursor += 1;
+    }
+
+    return notes[
+      Number.parseInt(slot.dataset.attentionRedirectorNote, 10) % notes.length
+    ];
   }
 
   function hashString(value) {
