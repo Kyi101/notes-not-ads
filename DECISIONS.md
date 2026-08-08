@@ -1705,3 +1705,76 @@ Generated content is the sharper half. A caption painted on the card moves nothi
 - Cost is four slots, so `audit:cards` goes from 126 cells to 150. The hostile entries stay at one shape, 540x230, as the inherited list already does — these rules break the card the same way in every box, and crossing them with twelve shapes would triple the run for no new signal.
 - The convention in `AGENTS.md` is the part that outlives the fixture: anything added to the card has to be added to both lists, and the note that inline pins cannot reach a pseudo-element, so generated content can only be fought from the stylesheet.
 - `check`, `test:extension`, `test:onboarding`, `test:dnr-match`, `test:site-policy` pass; `audit:cards` 150 of 150.
+
+## 2026-08-07 - The Extension's Own Chrome Is Cut From The Card
+
+**Decision**: Delete the Tide-era palette from `popup.css`, `options.css`, and `welcome.css` and replace it with one shared token layer, `chrome.css`, derived from the card in `src/content.css`. The gradients, the blurred `body::before` drift, and the `--sea` accent go with it. Both in-page card previews now share a `.card-preview` primitive holding the card's own surface, ink, ring, and radius.
+
+**Why**: the first manual smoke made the mismatch obvious. The card had already been settled as one flat surface, one ink, one hairline ring, no gradient and no shadow — that flatness is the product's argument. The chrome around it still wore three stacked radial gradients over `--page-base: #c7d6c7` with a blurred drift layer, which is the argument the card was built to reject. Type was never the problem: Space Grotesk was already bundled on every surface. The mismatch was atmosphere, and the settings page was showing a preview of a card that did not look like the card.
+
+Each page also carried its own near-duplicate copy of the same token stack — three `:root` blocks, three `prefers-color-scheme` blocks, three forced-dark blocks — so any change to the palette was a three-file edit that could half-land.
+
+**Consequences**:
+- The page colour is a step off the card in the same direction on both sides, 1.12 either way, so the card reads as an object without a shadow to say so. Light page `#f4f7f1` against the card's `#e6ebe3`; dark page `#141a17`. Three materials and no more: page, raised, card.
+- Every text pair clears AA: ink 12.7 light / 13.6 dark, muted 5.5 / 6.4, accent 5.2 / 7.5.
+- `--card-surface`, `--card-ink`, and `--card-ring` are the daylight values on *both* sides of the theme and are deliberately not overridden in the dark blocks. The in-page card takes its tone from the site it lands on, not from this extension's theme, so a preview that followed the chrome would claim the theme setting controls it. This is visible and intended in `options-dark.png`.
+- `.card-preview *  { color: inherit }` is load-bearing. An element rule anywhere on the page — `options.css` sets a colour on bare `p` — beats inheritance from the preview container, so the card's ink has to be claimed rather than passed down. The first draft rendered the specimen note in muted grey.
+- The primary button now fills with ink rather than sea-green, and `.brand-dot` is card material with an ink ring instead of a radial-gradient ball.
+- The dark token block is duplicated once, between the `prefers-color-scheme` query and the `[data-theme="dark"]` override. That is the only duplication left and the file says so.
+- Net 365 deletions against 83 insertions across the three page stylesheets.
+
+## 2026-08-07 - The Release Allowlist Is Checked Against The Pages
+
+**Decision**: `scripts/test-release-contract.mjs` reads every local `href`/`src` out of `popup.html`, `options.html`, and `welcome.html` and fails if the referenced asset is absent from the `requiredReleasePaths` allowlist in `scripts/package-release.mjs`.
+
+**Why**: `chrome.css` was linked from all three pages and would have shipped in no build at all. The packager archives an explicit allowlist rather than the working tree, and every gate in the suite runs the extension *unpacked*, straight off disk, where the file is present. There is no local signal for this class of failure — the first evidence would have been a store build with three unstyled pages.
+
+**Consequences**:
+- The check parses the two path lists out of the packager's source rather than importing it, because importing that module writes a ZIP. A rename of either list fails loudly instead of silently checking nothing.
+- Falsified three ways: removing `chrome.css` from the allowlist fails on `popup.html loads chrome.css`; adding a reference to an unshipped file fails on that file; renaming `requiredReleasePaths` fails on `cannot read requiredReleasePaths from the release packager`.
+- Verified end to end — `npm run package:release` now writes 27 runtime files and the ZIP contains `chrome.css`.
+- Absolute URLs, protocol-relative URLs, and fragments are skipped; anything under the optional directories (`fonts`, `icons`, `_locales`) is accepted because the packager walks those whole.
+
+## 2026-08-08 - The Toolbar Mark Is A Bare Crescent, Not A Tile
+
+**Decision**: Draw the toolbar icon as a single crescent in `#c2542b` on
+transparency, with no rounded-square tile behind it. Exempt the icon from the
+card's flat rule.
+
+**Why**: Chrome does not tint extension icons, so one PNG lands on both a
+`#dee1e6` toolbar and a `#292a2d` one. The product's own values each disappear
+into one of them — ink `#20312a` measures 1.05:1 on dark, surface `#e6ebe3`
+measures 1.08:1 on light. Ten rejected candidates across three rounds had all
+carried a tile, and the tile was doing exactly one job: holding ink and card
+together so neither toolbar could swallow the mark. Measuring the palette showed
+a saturated mid-tone does that alone — `#c2542b` is 3.48:1 light and 3.14:1
+dark, clearing 3:1 on both — so the tile was never load-bearing, only assumed.
+The flat rule is a separate question: the card is flat so it does not fight the
+host page it lands in, and the toolbar icon has no host page, so the rule does
+not reach it. Applying it anyway is what produced the rejected card-in-a-slot.
+
+**Alternatives**: A twelve-variant round crossed four bite directions with three
+thicknesses. Rotating the bite away from up-right sheds the dark-mode moon
+association, but at 16px the other three orientations read as a comma or a hook
+— the up-right crescent is the only one whose horns land symmetrically about the
+mass, and that symmetry is what makes it legible. Five non-crescent concepts
+were also drawn bare and full-bleed; four died of borrowed meaning rather than
+legibility (water drop, refresh spinner, play glyph, flag), which is the real
+constraint at this size: UI has already claimed nearly every one-mass silhouette.
+
+**Consequences**:
+- Geometry is solved, not eyeballed — outer disc R 62, horn opening 115 degrees,
+  mass 52 units — then translated so the crescent's own bounding box is centred.
+  Centring the disc instead pushes the mark five units past the right edge and
+  shaves the lower horn; the twelve-variant sheet was judged with that clipping
+  present and the fix was applied before the mark shipped.
+- 52 units is 6.5px of ink at 16px. Fat and medium (43 units) quantise to nearly
+  the same raster, so the extra mass is free; slim (33 units) visibly washes out
+  on the dark toolbar, where the mark has the least contrast to spend.
+- `scripts/build-store-assets.mjs` embeds `icons/icon-128.png` in the promo tile
+  rather than holding a second copy of the geometry, so `build:icons` has to run
+  before `build:store-assets` when the mark changes. The mark measures 3.00:1 on
+  the tile's ink field, which is a floor for a graphic that size, not a text
+  contrast claim.
+- The listing tile keeps the ink field and the real card beside the mark, so it
+  still shows the product rather than repeating the icon.

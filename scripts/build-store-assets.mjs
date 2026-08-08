@@ -22,13 +22,19 @@ const SETTINGS = {
   disabledDomains: []
 };
 
-// The tile is the icon at listing scale: the ink surround, and the card placed
-// in it carrying a real note in the real typeface. The card's own values —
-// surface, ink, radius, padding min(w, h) * 0.1, and the leading and tracking
-// the replacer.js ramps give at this size — so the tile is the product rather
-// than a picture of it. setContent has no base URL to resolve fonts against,
-// so the font ships inlined.
-const tileHtml = (fontBase64) => `
+// The tile carries the toolbar mark over the ink field, and a card beside it
+// holding a real note in the real typeface. The card's own values — surface,
+// ink, radius, padding min(w, h) * 0.1, and the leading and tracking the
+// replacer.js ramps give at this size — so the tile is the product rather than
+// a picture of it. The mark measures 3.00:1 against the ink field, which is a
+// floor for a graphic this size and not a text contrast claim.
+//
+// The mark is icons/icon-128.png rather than a second copy of the crescent
+// geometry, so run build:icons before build:store-assets when the mark changes.
+//
+// setContent has no base URL to resolve fonts against, so neither the font nor
+// the mark can be referenced by path; both ship inlined.
+const tileHtml = (fontBase64, markBase64) => `
 <style>
   @font-face {
     font-family: "Space Grotesk";
@@ -46,6 +52,12 @@ const tileHtml = (fontBase64) => `
     padding: 34px;
     background: #20312a;
     font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+  .mark {
+    display: block;
+    width: 46px;
+    height: 46px;
+    margin: 0 0 18px;
   }
   .wordmark {
     margin: 0;
@@ -88,6 +100,7 @@ const tileHtml = (fontBase64) => `
 </style>
 <div class="tile">
   <div>
+    <img class="mark" alt="" src="data:image/png;base64,${markBase64}">
     <h1 class="wordmark">Attention<br>Redirector</h1>
     <p class="tagline">THE WEB, JUST QUIETER</p>
   </div>
@@ -230,9 +243,12 @@ async function renderTile(context) {
   const font = await readFile(
     path.join(projectRoot, "fonts/space-grotesk-latin.woff2")
   );
+  const mark = await readFile(path.join(projectRoot, "icons/icon-128.png"));
   const page = await context.newPage();
   await page.setViewportSize(TILE);
-  await page.setContent(tileHtml(font.toString("base64")));
+  await page.setContent(
+    tileHtml(font.toString("base64"), mark.toString("base64"))
+  );
   await page.evaluate(() => document.fonts.ready);
   const name = "promo-tile-440x280.png";
   await page.screenshot({ path: path.join(outDir, name), clip: { x: 0, y: 0, ...TILE } });

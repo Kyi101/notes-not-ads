@@ -8,24 +8,33 @@ const projectRoot = path.resolve(__dirname, "..");
 const iconsDir = path.join(projectRoot, "icons");
 const ICON_SIZES = [16, 32, 48, 128];
 
-// A card placed in a slot. The card is the product's light tone from
-// src/content.css — surface #e6ebe3, ink #20312a — at the 6/5 aspect the
-// welcome preview uses, with the note set left as the real one sets it.
+// One crescent, bare on transparency.
 //
-// The surround is the ink, not more surface, because Chrome does not tint
-// extension icons: this one PNG lands on a #dee1e6 toolbar and a #292a2d one.
-// A mark in a single value disappears into one of them. Carrying both means
-// neither can swallow it — the ink holds the silhouette on the light toolbar,
-// the card holds it on the dark.
+// Chrome does not tint extension icons, so this one PNG lands on a #dee1e6
+// toolbar and a #292a2d one. The product's own values cannot cover both: ink
+// #20312a measures 1.05:1 on the dark toolbar and surface #e6ebe3 measures
+// 1.08:1 on the light one, so each is invisible on one of the two. Earlier
+// marks paired them inside a rounded-square tile for that reason. #c2542b
+// needs no partner — 3.48:1 light, 3.14:1 dark — so there is no tile here.
 //
-// Two note bars, at every size. A single bar survives 16px more cleanly but
-// reads as a minus sign, which says "removed" where the product says "replaced".
+// The icon is exempt from the card's flat rule. The card is flat so it does not
+// fight the host page it lands in; the toolbar icon has no host page.
+//
+// Geometry is solved rather than eyeballed: outer disc R 62, horn opening 115
+// degrees, mass 52 units thick, then translated so the crescent's own bounding
+// box is centred. Centring the disc instead pushes the mark five units past the
+// right edge and shaves the lower horn. 52 units is 6.5px of ink at 16px; below
+// about 5px the horn tips go wispy and anti-aliasing washes the mark out on the
+// dark toolbar, where it has the least contrast to spend.
 const ICON_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect x="4" y="4" width="120" height="120" rx="24" fill="#20312a"/>
-  <rect x="24" y="31" width="80" height="67" rx="10" fill="#e6ebe3"/>
-  <rect x="37" y="52" width="54" height="9" rx="4.5" fill="#20312a"/>
-  <rect x="37" y="70" width="32" height="9" rx="4.5" fill="#20312a"/>
+  <defs>
+    <mask id="bite">
+      <circle cx="64" cy="60.24" r="62" fill="#fff"/>
+      <circle cx="84.95" cy="22.44" r="53.22" fill="#000"/>
+    </mask>
+  </defs>
+  <circle cx="64" cy="60.24" r="62" fill="#c2542b" mask="url(#bite)"/>
 </svg>
 `.trim();
 
