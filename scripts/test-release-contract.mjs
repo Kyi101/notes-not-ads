@@ -148,7 +148,52 @@ if (
   );
 }
 
+// The packager ships an explicit allowlist rather than the working tree, so an
+// asset added to a page but not to that list is simply absent from the store
+// build and the page loads unstyled. Nothing local notices: the unpacked
+// extension loads the file straight off disk, and every gate here runs unpacked.
+const packagerSource = await readFile(
+  path.join(projectRoot, "scripts/package-release.mjs"),
+  "utf8"
+);
+const packagedPaths = readStringList(packagerSource, "requiredReleasePaths");
+const packagedDirs = readStringList(packagerSource, "optionalReleaseDirs");
+
+for (const page of ["popup.html", "options.html", "welcome.html"]) {
+  const pageSource = await readFile(path.join(projectRoot, page), "utf8");
+  const references = Array.from(
+    pageSource.matchAll(/(?:href|src)="([^"]+)"/g),
+    (match) => match[1]
+  ).filter((reference) => !/^(?:[a-z]+:|\/\/|#)/i.test(reference));
+
+  for (const reference of references) {
+    const asset = reference.replace(/^\.\//, "").split(/[?#]/)[0];
+    const shipped =
+      packagedPaths.has(asset) ||
+      [...packagedDirs].some((dir) => asset.startsWith(`${dir}/`));
+    if (!shipped) {
+      throw new Error(
+        `Release contract violation: ${page} loads ${asset}, which scripts/package-release.mjs does not ship.`
+      );
+    }
+  }
+}
+
 console.log("PASS release product contract");
+
+function readStringList(source, name) {
+  const declaration = source.match(
+    new RegExp(`const ${name} = \\[([^\\]]*)\\]`)
+  );
+  if (!declaration) {
+    throw new Error(
+      `Release contract violation: cannot read ${name} from the release packager.`
+    );
+  }
+  return new Set(
+    Array.from(declaration[1].matchAll(/"([^"]+)"/g), (match) => match[1])
+  );
+}
 
 function assertRulesInclude(rules, urlFilters, label) {
   const actualFilters = new Set(

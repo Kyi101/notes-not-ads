@@ -1,118 +1,9 @@
-:root {
-  color-scheme: light;
-  /* Shallows — the daylight side of the extension chrome, shared with the popup */
-  --page-base: #c7d6c7;
-  --grad:
-    radial-gradient(60% 40% at 18% 0%, rgba(255, 255, 255, 0.6), transparent 72%),
-    radial-gradient(58% 40% at 92% 100%, rgba(63, 102, 83, 0.2), transparent 72%),
-    linear-gradient(158deg, #dde7dc, #b7cab8);
-  --drift:
-    radial-gradient(40% 34% at 24% 14%, rgba(255, 255, 255, 0.55), transparent 72%),
-    radial-gradient(34% 30% at 82% 78%, rgba(214, 120, 74, 0.12), transparent 72%);
-  --drift-opacity: 0.6;
-  --heading: #183027;
-  --text: #234034;
-  --muted: #46614f;
-  --hairline: rgba(24, 48, 39, 0.16);
-  --hairline-strong: rgba(24, 48, 39, 0.32);
-  --panel: rgba(255, 255, 255, 0.4);
-  --panel-border: rgba(24, 48, 39, 0.12);
-  --fill: #183027;
-  --on-fill: #f3f7f1;
-  --sea: #3f6653;
-  --focus: rgba(24, 48, 39, 0.5);
-}
-
-/* Deep Water — the dark side of the same palette. System-dark by default
-   (unless Options forced light), plus an explicit override. Keep in sync. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page-base: #0c1a15;
-    --grad:
-      radial-gradient(58% 30% at 16% 0%, rgba(63, 102, 83, 0.4), transparent 70%),
-      linear-gradient(180deg, #1c332a 0%, #122420 40%, #0c1a15 100%);
-    --drift:
-      radial-gradient(42% 34% at 26% 16%, rgba(173, 194, 174, 0.32), transparent 70%),
-      radial-gradient(34% 28% at 84% 82%, rgba(214, 120, 74, 0.14), transparent 70%);
-    --drift-opacity: 1;
-    --heading: #eef3ec;
-    --text: #cfdccf;
-    --muted: #8fa697;
-    --hairline: rgba(207, 220, 207, 0.16);
-    --hairline-strong: rgba(207, 220, 207, 0.3);
-    --panel: rgba(238, 243, 236, 0.05);
-    --panel-border: rgba(207, 220, 207, 0.16);
-    --fill: #eef3ec;
-    --on-fill: #0c1a15;
-    --sea: #6f9682;
-    --focus: rgba(238, 243, 236, 0.55);
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page-base: #0c1a15;
-  --grad:
-    radial-gradient(58% 30% at 16% 0%, rgba(63, 102, 83, 0.4), transparent 70%),
-    linear-gradient(180deg, #1c332a 0%, #122420 40%, #0c1a15 100%);
-  --drift:
-    radial-gradient(42% 34% at 26% 16%, rgba(173, 194, 174, 0.32), transparent 70%),
-    radial-gradient(34% 28% at 84% 82%, rgba(214, 120, 74, 0.14), transparent 70%);
-  --drift-opacity: 1;
-  --heading: #eef3ec;
-  --text: #cfdccf;
-  --muted: #8fa697;
-  --hairline: rgba(207, 220, 207, 0.16);
-  --hairline-strong: rgba(207, 220, 207, 0.3);
-  --panel: rgba(238, 243, 236, 0.05);
-  --panel-border: rgba(207, 220, 207, 0.16);
-  --fill: #eef3ec;
-  --on-fill: #0c1a15;
-  --sea: #6f9682;
-  --focus: rgba(238, 243, 236, 0.55);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  background: var(--page-base);
-}
-
 body {
-  position: relative;
   min-height: 100vh;
-  margin: 0;
-  overflow-x: hidden;
-  background: var(--grad);
-  background-attachment: fixed;
-  color: var(--text);
-  font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* One still highlight, the same one the popup carries. It used to drift on a 48s
-   loop behind a 46px blur — the ambient idea the card itself dropped. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -40% -30%;
-  z-index: 0;
-  pointer-events: none;
-  background: var(--drift);
-  opacity: var(--drift-opacity);
-  filter: blur(46px);
-}
-
-button {
-  font: inherit;
-}
-
 .welcome-shell {
-  position: relative;
-  z-index: 1;
   width: min(960px, 100%);
   margin: 0 auto;
   padding: 40px 28px 88px;
@@ -126,11 +17,11 @@ button {
 }
 
 .brand-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 30%, #d9e4d8, #3f6653 78%);
-  box-shadow: 0 0 0 4px rgba(63, 102, 83, 0.14);
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: var(--card-surface);
+  box-shadow: inset 0 0 0 1.5px var(--fill);
 }
 
 .brand-name {
@@ -143,7 +34,7 @@ button {
 
 .kicker {
   margin: 0 0 18px;
-  color: var(--sea);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.3em;
@@ -259,20 +150,13 @@ button {
 }
 
 /* The "after". This is the first card anyone sees, so it has to be the card they
-   will actually get. Surface, ink, hairline, radius, and the left-set long note
-   are the light-tone values from src/content.css. Padding there is
-   min(w, h) * 0.1; at 6/5 the height is the short side, so h/10 is w/12, and
-   percentage padding resolves against width — 8.333% holds at any column width
-   this page produces. */
+   will actually get; material and alignment come from .card-preview in
+   chrome.css. Padding there is min(w, h) * 0.1; at 6/5 the height is the short
+   side, so h/10 is w/12, and percentage padding resolves against width — 8.333%
+   holds at any column width this page produces. */
 .note-card {
-  display: flex;
-  align-items: center;
   aspect-ratio: 6 / 5;
   padding: 8.333%;
-  border-radius: 12px;
-  background: #e6ebe3;
-  color: #20312a;
-  box-shadow: inset 0 0 0 1px rgba(32, 49, 42, 0.12);
 }
 
 /* Leading and tracking come off the ramps in replacer.js (cardLineHeight,
@@ -286,7 +170,6 @@ button {
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.012em;
-  text-align: left;
 }
 
 .points {
@@ -298,16 +181,16 @@ button {
 
 .point {
   padding: 22px 22px 26px;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--hairline);
   border-radius: 16px;
-  background: var(--panel);
+  background: var(--raised);
   backdrop-filter: blur(6px);
 }
 
 .point__mark {
   display: inline-block;
   margin-bottom: 12px;
-  color: var(--sea);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -365,9 +248,9 @@ button {
 
 .pin-tip {
   padding: 18px 20px;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--hairline);
   border-radius: 14px;
-  background: var(--panel);
+  background: var(--raised);
 }
 
 .pin-tip strong {

@@ -1,94 +1,5 @@
-:root {
-  color-scheme: light;
-  /* Shallows (light) — mirrors the popup token system */
-  --page-base: #c7d6c7;
-  --grad:
-    radial-gradient(60% 22rem at 20% 0%, rgba(173, 194, 174, 0.32), transparent),
-    linear-gradient(180deg, #e9efe6 0, #f5f7f2 30rem);
-  --heading: #183027;
-  --text: #183027;
-  --muted: #3c5548;
-  --hairline: rgba(24, 48, 39, 0.14);
-  --hairline-strong: rgba(24, 48, 39, 0.3);
-  --knob: #3c5548;
-  --knob-on: #f3f7f1;
-  --fill: #183027;
-  --on-fill: #f3f7f1;
-  --sea: #3f6653;
-  --sea-deep: #2c4c3d;
-  --input-bg: #fdfdfa;
-  --input-border: rgba(24, 48, 39, 0.2);
-  --chip-active-bg: #d9e4d8;
-  --note-bg: rgba(217, 228, 216, 0.4);
-  --focus: rgba(24, 48, 39, 0.45);
-}
-
-/* Deep Water (dark). Applied when the OS is dark (unless the user forced light),
-   and duplicated for an explicit dark override. Keep the two token blocks in sync. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page-base: #0c1a15;
-    --grad:
-      radial-gradient(60% 22rem at 20% 0%, rgba(173, 194, 174, 0.14), transparent),
-      linear-gradient(180deg, #1c332a 0, #0c1a15 34rem);
-    --heading: #eef3ec;
-    --text: #cfdccf;
-    --muted: #8fa697;
-    --hairline: rgba(207, 220, 207, 0.14);
-    --hairline-strong: rgba(207, 220, 207, 0.28);
-    --knob: #8fa697;
-    --knob-on: #eef3ec;
-    --fill: #eef3ec;
-    --on-fill: #0c1a15;
-    --sea: #3f6653;
-    --sea-deep: #6f9682;
-    --input-bg: rgba(238, 243, 236, 0.06);
-    --input-border: rgba(207, 220, 207, 0.22);
-    --chip-active-bg: rgba(63, 102, 83, 0.32);
-    --note-bg: rgba(63, 102, 83, 0.16);
-    --focus: rgba(238, 243, 236, 0.5);
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page-base: #0c1a15;
-  --grad:
-    radial-gradient(60% 22rem at 20% 0%, rgba(173, 194, 174, 0.14), transparent),
-    linear-gradient(180deg, #1c332a 0, #0c1a15 34rem);
-  --heading: #eef3ec;
-  --text: #cfdccf;
-  --muted: #8fa697;
-  --hairline: rgba(207, 220, 207, 0.14);
-  --hairline-strong: rgba(207, 220, 207, 0.28);
-  --knob: #8fa697;
-  --knob-on: #eef3ec;
-  --fill: #eef3ec;
-  --on-fill: #0c1a15;
-  --sea: #3f6653;
-  --sea-deep: #6f9682;
-  --input-bg: rgba(238, 243, 236, 0.06);
-  --input-border: rgba(207, 220, 207, 0.22);
-  --chip-active-bg: rgba(63, 102, 83, 0.32);
-  --note-bg: rgba(63, 102, 83, 0.16);
-  --focus: rgba(238, 243, 236, 0.5);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  background: var(--page-base);
-}
-
 body {
   min-width: 320px;
-  margin: 0;
-  background: var(--grad);
-  color: var(--text);
-  font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
 button,
@@ -140,31 +51,21 @@ h1 {
   line-height: 1.55;
 }
 
-/* A preview is only worth showing if it is the thing. Surface, ink, hairline,
-   radius, and alignment are the light-tone values from src/content.css; a long
-   note sets left there, so it sets left here. Padding is min(w, h) * 0.1 on the
-   138px short side; leading and tracking are what the replacer.js ramps give at
-   16px. Held to the daylight side whatever theme this page is in, because that is
-   the side a light host page gets. */
+/* Material and alignment come from .card-preview in chrome.css. Padding is the
+   card's own min(w, h) * 0.1 on the 138px short side; leading and tracking are
+   what the replacer.js ramps give at 16px. */
 .note-specimen {
-  display: flex;
-  align-items: center;
   width: 216px;
   min-height: 138px;
   padding: 14px;
-  border-radius: 12px;
-  background: #e6ebe3;
-  box-shadow: inset 0 0 0 1px rgba(32, 49, 42, 0.12);
 }
 
 .note-specimen p {
   margin: 0;
-  color: #20312a;
   font-size: 16px;
   font-weight: 500;
   line-height: 1.3;
   letter-spacing: 0;
-  text-align: left;
 }
 
 .settings-section {
@@ -247,18 +148,18 @@ input[role="switch"]::after {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--knob);
+  background: var(--muted);
   content: "";
   transition: transform 140ms ease, background 140ms ease;
 }
 
 input[role="switch"]:checked {
-  border-color: var(--sea);
-  background: var(--sea);
+  border-color: var(--fill);
+  background: var(--fill);
 }
 
 input[role="switch"]:checked::after {
-  background: var(--knob-on);
+  background: var(--on-fill);
   transform: translateX(20px);
 }
 
@@ -303,9 +204,9 @@ input[type="text"],
 select,
 textarea {
   width: 100%;
-  border: 1px solid var(--input-border);
+  border: 1px solid var(--hairline-strong);
   border-radius: 9px;
-  background: var(--input-bg);
+  background: var(--raised);
   color: var(--text);
   font-size: 14px;
 }
@@ -347,8 +248,8 @@ textarea {
 .plain-note {
   margin-top: 22px;
   padding: 14px 16px;
-  border-left: 2px solid var(--sea);
-  background: var(--note-bg);
+  border-left: 2px solid var(--accent);
+  background: var(--raised);
 }
 
 .plain-note strong {
@@ -377,7 +278,7 @@ textarea {
 }
 
 .summary-mark {
-  color: var(--sea);
+  color: var(--accent);
   font-size: 22px;
   line-height: 1;
   transition: transform 140ms ease;
@@ -432,7 +333,7 @@ button {
 
 .save-status {
   min-width: 74px;
-  color: var(--sea-deep);
+  color: var(--accent);
   font-size: 13px;
   font-weight: 600;
 }

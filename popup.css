@@ -1,116 +1,8 @@
-:root {
-  color-scheme: light;
-  /* Shallows — the daylight side of the extension chrome */
-  --page-base: #c7d6c7;
-  --grad:
-    radial-gradient(70% 40% at 22% 0%, rgba(255, 255, 255, 0.55), transparent 75%),
-    radial-gradient(60% 34% at 90% 100%, rgba(63, 102, 83, 0.18), transparent 70%),
-    linear-gradient(160deg, #dde7dc, #b7cab8);
-  --drift: radial-gradient(44% 36% at 26% 12%, rgba(255, 255, 255, 0.55), transparent 72%);
-  --drift-opacity: 0.6;
-  --heading: #183027;
-  --text: #183027;
-  --muted: #3c5548;
-  --hairline: rgba(24, 48, 39, 0.18);
-  --hairline-strong: rgba(24, 48, 39, 0.34);
-  --knob: #3c5548;
-  --knob-on: #f3f7f1;
-  --fill: #183027;
-  --on-fill: #f3f7f1;
-  --track: rgba(243, 247, 241, 0.4);
-  --sea: #3f6653;
-  --focus: rgba(24, 48, 39, 0.5);
-}
-
-/* Deep Water — the dark side of the same palette. Applied when the OS is dark
-   (unless the user forced light in Options), and duplicated for an explicit dark
-   override. Keep the two token blocks in sync. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page-base: #0c1a15;
-    --grad: linear-gradient(180deg, #1c332a 0%, #132620 34%, #0c1a15 100%);
-    --drift:
-      radial-gradient(42% 34% at 28% 18%, rgba(173, 194, 174, 0.34), transparent 70%),
-      radial-gradient(36% 30% at 78% 8%, rgba(217, 228, 216, 0.16), transparent 70%),
-      radial-gradient(30% 26% at 82% 86%, rgba(214, 120, 74, 0.1), transparent 70%);
-    --drift-opacity: 1;
-    --heading: #eef3ec;
-    --text: #cfdccf;
-    --muted: #8fa697;
-    --hairline: rgba(207, 220, 207, 0.16);
-    --hairline-strong: rgba(207, 220, 207, 0.3);
-    --knob: #8fa697;
-    --knob-on: #eef3ec;
-    --fill: #eef3ec;
-    --on-fill: #0c1a15;
-    --track: rgba(12, 26, 21, 0.4);
-    --focus: rgba(238, 243, 236, 0.55);
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page-base: #0c1a15;
-  --grad: linear-gradient(180deg, #1c332a 0%, #132620 34%, #0c1a15 100%);
-  --drift:
-    radial-gradient(42% 34% at 28% 18%, rgba(173, 194, 174, 0.34), transparent 70%),
-    radial-gradient(36% 30% at 78% 8%, rgba(217, 228, 216, 0.16), transparent 70%),
-    radial-gradient(30% 26% at 82% 86%, rgba(214, 120, 74, 0.1), transparent 70%);
-  --drift-opacity: 1;
-  --heading: #eef3ec;
-  --text: #cfdccf;
-  --muted: #8fa697;
-  --hairline: rgba(207, 220, 207, 0.16);
-  --hairline-strong: rgba(207, 220, 207, 0.3);
-  --knob: #8fa697;
-  --knob-on: #eef3ec;
-  --fill: #eef3ec;
-  --on-fill: #0c1a15;
-  --track: rgba(12, 26, 21, 0.4);
-  --focus: rgba(238, 243, 236, 0.55);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  background: var(--page-base);
-}
-
 body {
-  position: relative;
   width: 368px;
-  margin: 0;
-  overflow-x: hidden;
-  background: var(--grad);
-  color: var(--text);
-  font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", sans-serif;
-}
-
-/* One still highlight. It used to drift on a 45s loop behind a 34px blur, which
-   was the same ambient idea the card itself dropped — and a compositor layer
-   held alive for as long as the popup is open, to say nothing. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -45% -35%;
-  z-index: 0;
-  pointer-events: none;
-  background: var(--drift);
-  opacity: var(--drift-opacity);
-  filter: blur(34px);
-}
-
-button,
-input {
-  font: inherit;
 }
 
 .popup-shell {
-  position: relative;
-  z-index: 1;
   padding: 0 20px 14px;
 }
 
@@ -194,17 +86,17 @@ input[role="switch"]::after {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--knob);
+  background: var(--muted);
   transition: transform 140ms ease, background 140ms ease;
 }
 
 input[role="switch"]:checked {
-  border-color: var(--sea);
-  background: var(--sea);
+  border-color: var(--fill);
+  background: var(--fill);
 }
 
 input[role="switch"]:checked::after {
-  background: var(--knob-on);
+  background: var(--on-fill);
   transform: translateX(18px);
 }
 
@@ -346,11 +238,4 @@ button {
   color: var(--muted);
   font-size: 10px;
   line-height: 1.35;
-}
-
-button:focus-visible,
-input:focus-visible,
-summary:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
 }

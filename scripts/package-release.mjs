@@ -17,6 +17,7 @@ const ZIP_METHOD_STORE = 0;
 const ZIP_METHOD_DEFLATE = 8;
 const requiredReleasePaths = [
   "manifest.json",
+  "chrome.css",
   "popup.html",
   "popup.css",
   "popup.js",

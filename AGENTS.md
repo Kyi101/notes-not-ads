@@ -47,8 +47,10 @@ quiet card carrying one of the user's own notes.
 - `src/youtube-prune-loader.js` - YouTube-only document-start loader that respects extension/site disable before injecting player-response pruning.
 - `src/youtube-prune-main.js` - YouTube-only main-world player-response pruner for `adPlacements`, `adSlots`, and `playerAds`.
 - `src/content.css` - injected replacement card styling.
+- `chrome.css` - theme tokens and shared primitives for every extension-owned page, derived from the card in `src/content.css`.
 - `popup.html`, `popup.css`, `popup.js` - browser action popup.
 - `options.html`, `options.css`, `options.js` - settings UI.
+- `welcome.html`, `welcome.css`, `welcome.js` - post-install onboarding page.
 - `scripts/test-extension.mjs` - Playwright extension smoke test.
 - `scripts/test-cosmetic-filters.mjs` - Node smoke for cosmetic filter parsing and domain/exclusion behavior.
 - `scripts/test-site-policy.mjs` - deterministic risk-tier classifier precedence tests.
@@ -104,6 +106,8 @@ quiet card carrying one of the user's own notes.
 - The card lives inside the site's own ad container, so host CSS reaches it on two axes: properties that **inherit** down from the slot, and rules that **match the card element directly**, because `.their-wrapper div { … }` is written for the ad that used to be there and our card is now one of those divs. The second axis is the one that gets forgotten, and it is where both Forbes bugs came from. Anything new added to the card - an element, a pseudo-element, a property the design depends on - has to be added to both hostile lists in `tests/fixtures/card-matrix.html`: `HOSTILE_SLOT_CSS` for inheritance, `HOSTILE_DESCENDANT_CSS` for direct matches. A descendant entry carries a probe read off a control div, so a rule that stops matching fails loudly instead of passing empty.
 - Against an ordinary host declaration, one `!important` rule in `src/content.css` wins at any specificity. Against an important one, specificity decides and the host can always outrank us, so the few properties that decide where the note sits are pinned inline in `buildCard`. Inline styles cannot address a pseudo-element, so generated content can only be fought from the stylesheet.
 - `src/content.css` has a second copy inside `SHADOW_ROOT_STYLE_TEXT` in `src/shared.js`, for cards in shadow roots that author stylesheets do not reach. A card rule added to one belongs in both.
+- The extension's own pages take colour from `chrome.css` and own only layout. The tokens there are the card's material, so the popup and options read as sheets of the same stuff the card is cut from; a page that wants a colour of its own is a design decision, not a local override.
+- `scripts/package-release.mjs` ships an explicit allowlist, not the working tree, so an asset referenced by a page but missing from that list is absent from the store build while every local gate still passes on the unpacked extension. `scripts/test-release-contract.mjs` reads the page markup back against that list; add new root assets to the packager.
 - Keep selectors readable and auditable.
 - Store user settings only in `chrome.storage.local`.
 - Use `scripting` only for injecting this extension's existing content script into the active tab when popup messaging finds no listener.
