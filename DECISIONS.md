@@ -1828,10 +1828,11 @@ on "Ad Block" were dropped over Eyeo GmbH's trademark enforcement history.
 - The promo tile wordmark is now one line at 44px instead of two at 32px, since
   the name no longer needs a hard wrap.
 
-## 2026-08-11 - The Product Is Named Notes Not Ads, And The Mark Is A Pinned Note
+## 2026-08-11 - The Product Is Named Notes Not Ads, And The Mark Is A Billboard
 
 **Decision**: Reverse the 2026-08-08 entry above. The product is **Notes Not
-Ads**, no comma. The toolbar mark is a pinned note, replacing the crescent. The
+Ads**, no comma. The toolbar mark is an empty billboard — a panel on two posts —
+replacing the crescent. The
 display-name-only scope from the reversed entry is unchanged: the
 `attention-redirector-` CSS prefix, the `attentionRedirector*` storage keys, and
 the `Kyi101/attention-redirector` repo slug all keep the original string.
@@ -1862,31 +1863,39 @@ Not Ads" describes the *result*. The comma in the reviewer's "Notes, Not Ads" wa
 dropped: it is a rhetorical pause that costs a character in every slug, title,
 and store field for nothing.
 
-**Why a pinned note**: A car or bicycle mark was explicitly on the table and
-would have been fine as decoration, but the name was chosen to be understood in
-one second and an unrelated mark spends that second on a riddle. The note now
-carries the same meaning as the name.
+**Why a billboard**: A pinned note was drawn first and shipped, and Hlib rejected
+it on sight — *"at that size it doesn't read like a note. it reads too generic."*
+He was right, and the reason generalises past this mark. **At 16px a note is a
+blob, and every centred symmetric blob is already claimed** by file, tag, and
+document icons. The note rounds had optimised the wrong variable: each successive
+version was more legible than the last and no more distinctive, because
+legibility was never what was failing. A mark at this size is read as a
+silhouette, so something has to stick out of it. The billboard's legs do that,
+and they carry the meaning at the same time — a panel on posts is the one object
+that says "ad space" using no interior detail, which is the only kind of detail
+available here. An empty one is the product: the ad surface, taken over.
 
-**Alternatives on the mark**: Fifteen variants across three rounds. Two masses —
-a pin disc above a note body — was the obvious construction and is unusable: a
-disc above a rounded rectangle is a profile glyph, and it read as an avatar at
-every size tried, off-centre included. Rotating the note by 8 degrees dissolved
-into anti-aliasing at 16px, the same failure the crescent round had already
-found. A bare document silhouette with no pin survived but is a generic file
-icon. The winner is subtractive: one mass, cut corner, hole punched through.
+**Alternatives on the mark**: Twenty-nine variants across five rounds. The note
+family died as described. A car and a bicycle were explicitly offered by Hlib and
+were tested rather than argued away, which was the right call in one direction
+and not the other: the car is unmistakable at 128 and an unreadable hump at 16,
+so it fails on legibility rather than on relevance. A pencil and a speech bubble
+both survive 16px trivially and are the strongest silhouettes in the whole set,
+but they mean *edit* and *comment* — borrowed meaning is the binding constraint
+at this size, not draughtsmanship. A single-post sign works but reads as a
+generic sign; two posts are what make it a billboard.
 
 **Consequences**:
-- The hole is transparent rather than a second colour by necessity, not
-  preference. `#c2542b` at 3.48:1 light and 3.14:1 dark is the only palette value
-  clearing 3:1 on both toolbars, so a drawn gap has nothing to be drawn in.
-- Shipped at R 16 for the hole, about 2px at 16px. At R 13 it rasterises to one
-  soft pixel and reads as a smudge rather than a hole. Verified from the
-  generated PNGs at 16/32/48/128 on `#dee1e6` and `#292a2d`, not from the SVG
-  prototypes.
-- The silhouette spans x 10-118 and y 12-116 so it fills the 16px cell rather
-  than floating inside it. The crescent's geometry comment in
-  `scripts/build-icons.mjs` and the crescent reference in
-  `scripts/build-store-assets.mjs` were both rewritten.
+- Legs are 19 units wide with a 30-unit gap, about 2.4px and 3.75px at 16px, so
+  the legs and the gap between them both survive rasterisation. Falsified in
+  three directions: at 16 units the legs wash out on the dark toolbar, at the
+  panel corners the shape reads as a table, and splayed it reads as an easel.
+- No interior detail is possible, which rules out the obvious literal version —
+  a billboard with note lines on the panel. At 16px that smears to a grey mass.
+- Verified from the generated PNGs at 16/32/48/128 on `#dee1e6` and `#292a2d`,
+  not from the SVG prototypes, since rasterisation is the thing being tested.
+- The crescent's geometry comment in `scripts/build-icons.mjs` and the crescent
+  reference in `scripts/build-store-assets.mjs` were both rewritten.
 - The promo tile wordmark returns to two lines, at 40px, since the name wraps
   again. The reversed entry's last consequence line is void.
 - `22fc618`, the Notturn rename commit, is left in history rather than reverted.

@@ -8,7 +8,7 @@ const projectRoot = path.resolve(__dirname, "..");
 const iconsDir = path.join(projectRoot, "icons");
 const ICON_SIZES = [16, 32, 48, 128];
 
-// A pinned note: one mass with a cut corner and a punched hole.
+// An empty billboard: the ad surface the extension takes over.
 //
 // Chrome does not tint extension icons, so this one PNG lands on a #dee1e6
 // toolbar and a #292a2d one. The product's own values cannot cover both: ink
@@ -16,29 +16,28 @@ const ICON_SIZES = [16, 32, 48, 128];
 // 1.08:1 on the light one, so each is invisible on one of the two. #c2542b
 // needs no partner — 3.48:1 light, 3.14:1 dark — so there is no tile here.
 //
-// That single-value constraint is also why the pin is a hole rather than a
-// second disc: a gap between two masses would have to be drawn in a colour,
-// and no second colour survives both toolbars. Punched through, the gap is
-// whatever the toolbar already is.
+// The legs are the whole point. At 16px a mark has to be read as a silhouette,
+// and every centred symmetric blob — rounded square, disc, document, tag — is
+// already generic. Earlier rounds drew notes, and a note is exactly that blob:
+// legible but indistinguishable from a file icon. Something has to stick out.
+// The legs are also what carries the meaning, since a panel on posts is the one
+// object that says "ad space" without any interior detail.
 //
 // The icon is exempt from the card's flat rule. The card is flat so it does not
 // fight the host page it lands in; the toolbar icon has no host page.
 //
-// Sized against the 16px cell, where roughly 14 pixels are usable. The
-// silhouette spans x 10-118 and y 12-116 so it fills that cell rather than
-// floating in it, and the hole is R 16 — about 2px at 16px. At R 13 the hole
-// rasterises to one soft pixel and reads as a smudge; R 16 stays a hole. Two
-// separate bodies were tried first and a disc above a rounded rectangle reads
-// as an avatar at any size, which is why the pin is subtractive.
+// Sized against the 16px cell, where roughly 14 pixels are usable. Legs run 19
+// units wide with a 30-unit gap — about 2.4px and 3.75px at 16px, so both the
+// legs and the gap between them survive rasterisation. Thinner legs or a wider
+// stance both fail: at 16 units the legs wash out on the dark toolbar, and
+// moving them to the panel corners reads as a table. Splaying them reads as an
+// easel. Interior detail of any kind, including note lines on the panel, is
+// impossible here — it smears into a single grey mass.
 const ICON_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <defs>
-    <mask id="pinhole">
-      <rect width="128" height="128" fill="#fff"/>
-      <circle cx="43" cy="41" r="16" fill="#000"/>
-    </mask>
-  </defs>
-  <path d="M23 12 h65 l30 30 v61 a13 13 0 0 1 -13 13 h-82 a13 13 0 0 1 -13 -13 v-78 a13 13 0 0 1 13 -13 z" fill="#c2542b" mask="url(#pinhole)"/>
+  <rect x="6" y="12" width="116" height="56" rx="9" fill="#c2542b"/>
+  <rect x="30" y="68" width="19" height="48" fill="#c2542b"/>
+  <rect x="79" y="68" width="19" height="48" fill="#c2542b"/>
 </svg>
 `.trim();
 
