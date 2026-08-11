@@ -1,6 +1,6 @@
 # Security Policy
 
-Notturn runs on every page the user visits and can read and modify
+Notes Not Ads runs on every page the user visits and can read and modify
 the DOM. A vulnerability here is a vulnerability in a privileged runtime, so it
 must not arrive as a public issue.
 

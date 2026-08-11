@@ -1827,3 +1827,70 @@ on "Ad Block" were dropped over Eyeo GmbH's trademark enforcement history.
   true when they were written.
 - The promo tile wordmark is now one line at 44px instead of two at 32px, since
   the name no longer needs a hard wrap.
+
+## 2026-08-11 - The Product Is Named Notes Not Ads, And The Mark Is A Pinned Note
+
+**Decision**: Reverse the 2026-08-08 entry above. The product is **Notes Not
+Ads**, no comma. The toolbar mark is a pinned note, replacing the crescent. The
+display-name-only scope from the reversed entry is unchanged: the
+`attention-redirector-` CSS prefix, the `attentionRedirector*` storage keys, and
+the `Kyi101/attention-redirector` repo slug all keep the original string.
+
+**Why the reversal**: Notturn was locked on an availability pass that looked
+clean and was not. An independent reviewing agent killed it in one pass —
+*Notturn Alley* is the canonical Italian localization of Knockturn Alley. The
+runners-up recorded as clean in that entry died on the same check: Marginia is a
+live AI e-commerce service at marginia.org, Tacen is a suburb of Ljubljana with
+an Olympic whitewater course. Two distinct method failures caused this. The
+bare-word search returned results about Windows startup programs and a note app
+called Notability — the engine found nothing and padded — and that was banked as
+a negative result, which it is not. And the registries checked (npm, PyPI,
+GitHub, DNS, store, trademark) are machine namespaces that cannot detect a
+fictional location, a foreign town, or slang. That cultural layer is the one Hlib
+cannot screen as a non-native speaker and had explicitly delegated, so skipping
+it failed the actual job.
+
+**Why this name**: A third round of road and vehicle words produced Layby, which
+Hlib rejected as too abstract. The governing constraint he stated is that a
+portfolio piece has no follower base and no store search traffic, so a stranger
+either understands it in the first second or there is no second. "Notes Not Ads"
+says the mechanism and the trade in three words. This is knowingly inconsistent
+with the reversed entry's rejection of "Attention Redirector" for being
+descriptive — the difference is that a description a stranger parses instantly is
+an asset here, and "Attention Redirector" describes the *mechanism* while "Notes
+Not Ads" describes the *result*. The comma in the reviewer's "Notes, Not Ads" was
+dropped: it is a rhetorical pause that costs a character in every slug, title,
+and store field for nothing.
+
+**Why a pinned note**: A car or bicycle mark was explicitly on the table and
+would have been fine as decoration, but the name was chosen to be understood in
+one second and an unrelated mark spends that second on a riddle. The note now
+carries the same meaning as the name.
+
+**Alternatives on the mark**: Fifteen variants across three rounds. Two masses —
+a pin disc above a note body — was the obvious construction and is unusable: a
+disc above a rounded rectangle is a profile glyph, and it read as an avatar at
+every size tried, off-centre included. Rotating the note by 8 degrees dissolved
+into anti-aliasing at 16px, the same failure the crescent round had already
+found. A bare document silhouette with no pin survived but is a generic file
+icon. The winner is subtractive: one mass, cut corner, hole punched through.
+
+**Consequences**:
+- The hole is transparent rather than a second colour by necessity, not
+  preference. `#c2542b` at 3.48:1 light and 3.14:1 dark is the only palette value
+  clearing 3:1 on both toolbars, so a drawn gap has nothing to be drawn in.
+- Shipped at R 16 for the hole, about 2px at 16px. At R 13 it rasterises to one
+  soft pixel and reads as a smudge rather than a hole. Verified from the
+  generated PNGs at 16/32/48/128 on `#dee1e6` and `#292a2d`, not from the SVG
+  prototypes.
+- The silhouette spans x 10-118 and y 12-116 so it fills the 16px cell rather
+  than floating inside it. The crescent's geometry comment in
+  `scripts/build-icons.mjs` and the crescent reference in
+  `scripts/build-store-assets.mjs` were both rewritten.
+- The promo tile wordmark returns to two lines, at 40px, since the name wraps
+  again. The reversed entry's last consequence line is void.
+- `22fc618`, the Notturn rename commit, is left in history rather than reverted.
+  A squash before the repo goes public is still available and would remove it.
+- The naming method that produced this is in durable memory, not just here: a
+  registry pass and a cultural pass are separate passes, and a search that
+  returns off-topic results has not returned a negative result.

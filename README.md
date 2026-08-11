@@ -1,6 +1,6 @@
-# Notturn
+# Notes Not Ads
 
-Notturn is a Manifest V3 Chrome Extension release candidate that blocks common ad-network requests and replaces obvious ad/clutter surfaces with a quiet card carrying a note the user wrote. With no notes it removes them instead.
+Notes Not Ads is a Manifest V3 Chrome Extension release candidate that blocks common ad-network requests and replaces obvious ad/clutter surfaces with a quiet card carrying a note the user wrote. With no notes it removes them instead.
 
 This product overlaps with ad blockers, but its unique value is still the attention surface: blocked or removed ad space becomes quiet, user-owned space instead of another feed. The network layer is intentionally bounded: static MV3 `declarativeNetRequest` rules for common ad requests, with DOM/cosmetic replacement and safety checks handling the visible surface.
 
@@ -11,7 +11,7 @@ This product overlaps with ad blockers, but its unique value is still the attent
 - Blocks common ad-network requests with packaged `declarativeNetRequest` static rules.
 - Looks for likely ad/clutter containers using conservative DOM heuristics.
 - Parses a conservative subset of EasyList/uBlock-style cosmetic `##` selectors.
-- Applies local cosmetic rules plus a generated cosmetic snapshot, with every match still passing Notturn safety checks.
+- Applies local cosmetic rules plus a generated cosmetic snapshot, with every match still passing Notes Not Ads safety checks.
 - Promotes obvious ad children to their larger ad wrapper before replacing, to avoid partial ad-card sidecars.
 - Handles common DOM ad patterns such as safeframe/footer ads and Google IMA-style video ad overlays.
 - Starts at `document_end` and reacts to newly inserted slots on a short
@@ -152,8 +152,8 @@ The script opens Chromium with the unpacked extension, waits for the tester page
 - the required minimum score
 - service-by-service check details
 - selected network request outcomes
-- Notturn cards inserted
-- visible Notturn slots/cards
+- Notes Not Ads cards inserted
+- visible Notes Not Ads slots/cards
 - failed or warning checks from the page text
 
 Interpret the result by category:
@@ -193,7 +193,7 @@ Cases live in `evals/live-sites.json`. Reports are written to `runs/live-site-ev
 The runner records:
 
 - page load status
-- Notturn card/slot counts
+- Notes Not Ads card/slot counts
 - remaining visible ad-like suspects
 - compact suspect signatures and rects
 - site-risk tier/protocol classification and authored policy mismatches
@@ -234,7 +234,7 @@ Use the popup status and visual inspection. For the first proof, success means i
 
 ## Missed Ad Reports
 
-Use the popup's **Report missed ad** button when a banner, popup, animated rectangle, or sponsored block is missed. It opens a simple page overlay: click the missed ad, and Notturn saves a compact local report and copies it for sending.
+Use the popup's **Report missed ad** button when a banner, popup, animated rectangle, or sponsored block is missed. It opens a simple page overlay: click the missed ad, and Notes Not Ads saves a compact local report and copies it for sending.
 
 The report flow does not upload anything. Reports stay in `chrome.storage.local` and are capped at 75 recent reports.
 
@@ -257,7 +257,7 @@ Inspector mode:
 
 Good selector-tuning reports usually include repeated patterns, not one-off weird pages. If a copied report says `Would replace now: no`, check `Safety blocks` first. That is often the reason the release candidate skipped it.
 
-If a report targets a very large rail or column that already contains Notturn cards, it is usually too broad. Use Manual pick or Use parent/child selection to capture the smallest repeated ad slot instead of the whole rail.
+If a report targets a very large rail or column that already contains Notes Not Ads cards, it is usually too broad. Use Manual pick or Use parent/child selection to capture the smallest repeated ad slot instead of the whole rail.
 
 ## Options
 
@@ -303,7 +303,7 @@ The popup is the everyday control surface for global state, the current site, no
   - rank or curate common ad-network hosts instead of taking the first simple EasyList rules
   - keep each static DNR ruleset below the MV3 30,000-rule cap
   - keep generated rules auditable and disableable
-  - continue running every cosmetic match through Notturn safety checks
+  - continue running every cosmetic match through Notes Not Ads safety checks
 - Expand the local fixture page as new missed ad/popup patterns are found.
 - Use inspector reports to tune safety and wrapper selection, not as the only source of ad detection truth.
 - Consider per-site note overrides only if dogfooding shows global defaults are too coarse.

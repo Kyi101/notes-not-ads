@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "description": "Real-world, controlled, discovery, and manual-protected eval cases for Notturn.",
+  "description": "Real-world, controlled, discovery, and manual-protected eval cases for Notes Not Ads.",
   "tracks": {
     "regression": "Small automated set for bugs and site classes that have already mattered during dogfooding.",
     "discovery": "Broad non-gating sweep for finding new missed ads, false positives, breakage, and performance patterns.",

@@ -29,7 +29,7 @@ const SETTINGS = {
 // a picture of it. The mark measures 3.00:1 against the ink field, which is a
 // floor for a graphic this size and not a text contrast claim.
 //
-// The mark is icons/icon-128.png rather than a second copy of the crescent
+// The mark is icons/icon-128.png rather than a second copy of the pinned-note
 // geometry, so run build:icons before build:store-assets when the mark changes.
 //
 // setContent has no base URL to resolve fonts against, so neither the font nor
@@ -62,7 +62,7 @@ const tileHtml = (fontBase64, markBase64) => `
   .wordmark {
     margin: 0;
     color: #e6ebe3;
-    font-size: 44px;
+    font-size: 40px;
     font-weight: 600;
     line-height: 1.08;
     letter-spacing: -0.02em;
@@ -101,7 +101,7 @@ const tileHtml = (fontBase64, markBase64) => `
 <div class="tile">
   <div>
     <img class="mark" alt="" src="data:image/png;base64,${markBase64}">
-    <h1 class="wordmark">Notturn</h1>
+    <h1 class="wordmark">Notes<br>Not Ads</h1>
     <p class="tagline">THE WEB, JUST QUIETER</p>
   </div>
   <div class="card"><p>${SETTINGS.anchorNotes[0]}</p></div>

@@ -7,7 +7,7 @@ blocking behavior is unchanged until protocol wiring is implemented.
 
 ## Diagnostic Job
 
-**User**: a person browsing with Notturn enabled.
+**User**: a person browsing with Notes Not Ads enabled.
 
 **Situation**: the extension needs to decide how strongly to block or replace
 ad/clutter surfaces on the current page without breaking important workflows.

@@ -8,33 +8,37 @@ const projectRoot = path.resolve(__dirname, "..");
 const iconsDir = path.join(projectRoot, "icons");
 const ICON_SIZES = [16, 32, 48, 128];
 
-// One crescent, bare on transparency.
+// A pinned note: one mass with a cut corner and a punched hole.
 //
 // Chrome does not tint extension icons, so this one PNG lands on a #dee1e6
 // toolbar and a #292a2d one. The product's own values cannot cover both: ink
 // #20312a measures 1.05:1 on the dark toolbar and surface #e6ebe3 measures
-// 1.08:1 on the light one, so each is invisible on one of the two. Earlier
-// marks paired them inside a rounded-square tile for that reason. #c2542b
+// 1.08:1 on the light one, so each is invisible on one of the two. #c2542b
 // needs no partner — 3.48:1 light, 3.14:1 dark — so there is no tile here.
+//
+// That single-value constraint is also why the pin is a hole rather than a
+// second disc: a gap between two masses would have to be drawn in a colour,
+// and no second colour survives both toolbars. Punched through, the gap is
+// whatever the toolbar already is.
 //
 // The icon is exempt from the card's flat rule. The card is flat so it does not
 // fight the host page it lands in; the toolbar icon has no host page.
 //
-// Geometry is solved rather than eyeballed: outer disc R 62, horn opening 115
-// degrees, mass 52 units thick, then translated so the crescent's own bounding
-// box is centred. Centring the disc instead pushes the mark five units past the
-// right edge and shaves the lower horn. 52 units is 6.5px of ink at 16px; below
-// about 5px the horn tips go wispy and anti-aliasing washes the mark out on the
-// dark toolbar, where it has the least contrast to spend.
+// Sized against the 16px cell, where roughly 14 pixels are usable. The
+// silhouette spans x 10-118 and y 12-116 so it fills that cell rather than
+// floating in it, and the hole is R 16 — about 2px at 16px. At R 13 the hole
+// rasterises to one soft pixel and reads as a smudge; R 16 stays a hole. Two
+// separate bodies were tried first and a disc above a rounded rectangle reads
+// as an avatar at any size, which is why the pin is subtractive.
 const ICON_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
   <defs>
-    <mask id="bite">
-      <circle cx="64" cy="60.24" r="62" fill="#fff"/>
-      <circle cx="84.95" cy="22.44" r="53.22" fill="#000"/>
+    <mask id="pinhole">
+      <rect width="128" height="128" fill="#fff"/>
+      <circle cx="43" cy="41" r="16" fill="#000"/>
     </mask>
   </defs>
-  <circle cx="64" cy="60.24" r="62" fill="#c2542b" mask="url(#bite)"/>
+  <path d="M23 12 h65 l30 30 v61 a13 13 0 0 1 -13 13 h-82 a13 13 0 0 1 -13 -13 v-78 a13 13 0 0 1 13 -13 z" fill="#c2542b" mask="url(#pinhole)"/>
 </svg>
 `.trim();
 

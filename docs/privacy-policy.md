@@ -1,14 +1,14 @@
-# Notturn Privacy Policy Draft
+# Notes Not Ads Privacy Policy Draft
 
 Effective date: June 19, 2026
 
-Notturn is designed to run locally in your browser. The extension
+Notes Not Ads is designed to run locally in your browser. The extension
 does not create an account, does not include analytics, and does not send your
 browsing activity, settings, notes, or diagnostic reports to the developer.
 
 ## Data Collection
 
-Notturn does not collect, sell, share, or transmit user data to the
+Notes Not Ads does not collect, sell, share, or transmit user data to the
 developer.
 
 The extension stores settings locally in Chrome's extension storage, including:
@@ -24,7 +24,7 @@ reset them.
 
 ## Browser Activity
 
-Notturn needs access to normal webpages so it can detect likely ad
+Notes Not Ads needs access to normal webpages so it can detect likely ad
 and clutter surfaces, replace or collapse them, and block common ad/tracker
 requests with packaged static rules.
 
@@ -51,7 +51,7 @@ during normal browsing.
 
 ## Permissions
 
-Notturn uses these Chrome permissions:
+Notes Not Ads uses these Chrome permissions:
 
 - `storage`: save local settings and optional local inspector reports
 - `activeTab`: let the popup communicate with the current tab after you open it
@@ -70,7 +70,7 @@ not injected when the extension is disabled globally or for YouTube.
 
 ## Future Changes
 
-If Notturn ever adds optional reporting or telemetry, it must be
+If Notes Not Ads ever adds optional reporting or telemetry, it must be
 explicitly user-triggered, disclosed in the product UI, and reflected in an
 updated privacy policy before release.
 

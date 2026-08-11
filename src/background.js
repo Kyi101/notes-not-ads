@@ -174,7 +174,7 @@ function syncFromStorage() {
   loadSettings()
     .then(syncNetRequestState)
     .catch((error) => {
-      console.error("Notturn DNR sync failed", error);
+      console.error("Notes Not Ads DNR sync failed", error);
     });
 }
 
@@ -184,7 +184,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 
   syncNetRequestState(changes[STORAGE_KEY].newValue || {}).catch((error) => {
-    console.error("Notturn DNR sync failed", error);
+    console.error("Notes Not Ads DNR sync failed", error);
   });
 });
 
@@ -198,7 +198,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ ok: true });
     })
     .catch((error) => {
-      console.error("Notturn tab DNR sync failed", error);
+      console.error("Notes Not Ads tab DNR sync failed", error);
       sendResponse({ ok: false, error: String(error && error.message || error) });
     });
 
@@ -207,7 +207,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   syncTabDnrAllowRule(tabId, false).catch((error) => {
-    console.error("Notturn tab DNR cleanup failed", error);
+    console.error("Notes Not Ads tab DNR cleanup failed", error);
   });
 });
 

@@ -1,7 +1,7 @@
 (() => {
   const DEFAULT_COSMETIC_FILTER_TEXT = [
     "",
-    "! Notturn seed rules plus a local cosmetic snapshot.",
+    "! Notes Not Ads seed rules plus a local cosmetic snapshot.",
     "! DNR network rules live in rules/*.json; every cosmetic match still passes safety checks.",
     "##.adsbygoogle",
     "##ins.adsbygoogle",

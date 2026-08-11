@@ -24,7 +24,7 @@ function form(pairs) {
 }
 
 const INSPECTOR_REPORT = [
-  "Notturn Missed Clutter Report",
+  "Notes Not Ads Missed Clutter Report",
   "Generated: 2026-08-04T10:00:00.000Z",
   "Page: https://example.com/news/article",
   "Host: example.com",

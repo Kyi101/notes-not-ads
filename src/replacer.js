@@ -30,7 +30,7 @@ function replaceCandidate(element) {
     "attention-redirector-slot--preserve-children",
     preservesSiteChildren
   );
-  slot.setAttribute("aria-label", "Notturn replacement");
+  slot.setAttribute("aria-label", "Notes Not Ads replacement");
   slot.style.minHeight = `${minHeight}px`;
 
   if (rect.width > 0 && rect.width < 420) {
@@ -288,7 +288,7 @@ function buildCard(cardModel, rect, slot) {
   hideButton.type = "button";
   hideButton.className = "attention-redirector-card__hide";
   hideButton.textContent = "×";
-  hideButton.setAttribute("aria-label", "Hide this Notturn card");
+  hideButton.setAttribute("aria-label", "Hide this Notes Not Ads card");
   hideButton.addEventListener("click", () => {
     const slot = card.closest(".attention-redirector-slot");
     if (slot) {

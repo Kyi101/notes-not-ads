@@ -32,9 +32,9 @@ export const REPORT_LABELS = [
 ];
 
 export const REPORT_HEADINGS = [
-  "Notturn Inspector Report",
-  "Notturn Missed Clutter Report",
-  "Notturn Saved Inspector Reports"
+  "Notes Not Ads Inspector Report",
+  "Notes Not Ads Missed Clutter Report",
+  "Notes Not Ads Saved Inspector Reports"
 ];
 
 // A form is only useful to triage if the fields it routes on are present. The

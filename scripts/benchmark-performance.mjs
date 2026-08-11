@@ -387,7 +387,7 @@ function printSummary(summary, runDir) {
 
 function formatMarkdown(report) {
   const lines = [
-    "# Notturn Performance Benchmark",
+    "# Notes Not Ads Performance Benchmark",
     "",
     `Run: ${report.runId}`,
     `Slots: ${report.args.slots}`,
