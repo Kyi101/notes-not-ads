@@ -1,4 +1,4 @@
-# Contributing to Attention Redirector
+# Contributing to Notturn
 
 This extension runs on every page you visit, with permission to read and modify
 the DOM. A merged selector is authority over every page of every user. That one

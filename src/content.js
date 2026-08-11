@@ -2000,7 +2000,7 @@
 
   function formatSelectedInspectorReport(info, context) {
     return [
-      "Attention Redirector Missed Clutter Report",
+      "Notturn Missed Clutter Report",
       `Generated: ${context.createdAt}`,
       `Page: ${formatReportUrl(location.href)}`,
       `Host: ${location.hostname}`,
@@ -2013,7 +2013,7 @@
 
   function formatSavedInspectorReports(reports) {
     const lines = [
-      "Attention Redirector Saved Inspector Reports",
+      "Notturn Saved Inspector Reports",
       `Exported: ${new Date().toISOString()}`,
       `Count: ${reports.length}`
     ];
@@ -2108,7 +2108,7 @@
 
   function formatInspectorReport() {
     const lines = [
-      "Attention Redirector Inspector Report",
+      "Notturn Inspector Report",
       `Generated: ${new Date().toISOString()}`,
       `Page: ${formatReportUrl(location.href)}`,
       `Title: ${document.title}`,
@@ -3386,7 +3386,7 @@
       "attention-redirector-slot--preserve-children",
       preservesSiteChildren
     );
-    slot.setAttribute("aria-label", "Attention Redirector replacement");
+    slot.setAttribute("aria-label", "Notturn replacement");
     slot.style.minHeight = `${minHeight}px`;
 
     if (rect.width > 0 && rect.width < 420) {
@@ -3644,7 +3644,7 @@
     hideButton.type = "button";
     hideButton.className = "attention-redirector-card__hide";
     hideButton.textContent = "×";
-    hideButton.setAttribute("aria-label", "Hide this Attention Redirector card");
+    hideButton.setAttribute("aria-label", "Hide this Notturn card");
     hideButton.addEventListener("click", () => {
       const slot = card.closest(".attention-redirector-slot");
       if (slot) {

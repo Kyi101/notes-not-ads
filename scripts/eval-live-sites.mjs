@@ -609,7 +609,7 @@ function printSummary(report, runDir) {
 
 function formatMarkdownReport(report) {
   const lines = [
-    "# Attention Redirector Live Eval",
+    "# Notturn Live Eval",
     "",
     `Run: ${report.runId}`,
     `Started: ${report.startedAt}`,

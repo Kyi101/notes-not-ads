@@ -822,7 +822,7 @@ function inferClutterType(info) {
 
 function formatSelectedInspectorReport(info, context) {
   return [
-    "Attention Redirector Missed Clutter Report",
+    "Notturn Missed Clutter Report",
     `Generated: ${context.createdAt}`,
     `Page: ${formatReportUrl(location.href)}`,
     `Host: ${location.hostname}`,
@@ -835,7 +835,7 @@ function formatSelectedInspectorReport(info, context) {
 
 function formatSavedInspectorReports(reports) {
   const lines = [
-    "Attention Redirector Saved Inspector Reports",
+    "Notturn Saved Inspector Reports",
     `Exported: ${new Date().toISOString()}`,
     `Count: ${reports.length}`
   ];
@@ -930,7 +930,7 @@ async function copyText(text) {
 
 function formatInspectorReport() {
   const lines = [
-    "Attention Redirector Inspector Report",
+    "Notturn Inspector Report",
     `Generated: ${new Date().toISOString()}`,
     `Page: ${formatReportUrl(location.href)}`,
     `Title: ${document.title}`,

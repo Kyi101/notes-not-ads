@@ -190,7 +190,7 @@ async function runQA() {
   }
 
   // Generate Report Markdown
-  let md = `# Attention Redirector QA Report\n\n`;
+  let md = `# Notturn QA Report\n\n`;
   md += `**Timestamp:** ${timestamp}\n\n`;
 
   for (const entry of reportEntries) {

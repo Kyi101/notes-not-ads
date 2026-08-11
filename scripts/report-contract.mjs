@@ -32,9 +32,9 @@ export const REPORT_LABELS = [
 ];
 
 export const REPORT_HEADINGS = [
-  "Attention Redirector Inspector Report",
-  "Attention Redirector Missed Clutter Report",
-  "Attention Redirector Saved Inspector Reports"
+  "Notturn Inspector Report",
+  "Notturn Missed Clutter Report",
+  "Notturn Saved Inspector Reports"
 ];
 
 // A form is only useful to triage if the fields it routes on are present. The

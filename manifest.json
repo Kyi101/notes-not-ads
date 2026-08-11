@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Attention Redirector",
+  "name": "Notturn",
   "version": "0.1.0",
   "description": "Replaces obvious ad and clutter surfaces with a quiet card carrying one of your own notes, or removes them.",
   "permissions": ["storage", "activeTab", "scripting", "declarativeNetRequest"],
@@ -12,7 +12,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "Attention Redirector",
+    "default_title": "Notturn",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

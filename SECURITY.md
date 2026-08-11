@@ -1,6 +1,6 @@
 # Security Policy
 
-Attention Redirector runs on every page the user visits and can read and modify
+Notturn runs on every page the user visits and can read and modify
 the DOM. A vulnerability here is a vulnerability in a privileged runtime, so it
 must not arrive as a public issue.
 

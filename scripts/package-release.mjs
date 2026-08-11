@@ -10,7 +10,7 @@ const manifest = JSON.parse(
 );
 const version = manifest.version;
 const outputDir = path.join(projectRoot, "dist");
-const outputPath = path.join(outputDir, `attention-redirector-${version}.zip`);
+const outputPath = path.join(outputDir, `notturn-${version}.zip`);
 const ZIP_DOS_TIME = 0;
 const ZIP_DOS_DATE = (1 << 5) | 1; // 1980-01-01
 const ZIP_METHOD_STORE = 0;

@@ -1778,3 +1778,52 @@ constraint at this size: UI has already claimed nearly every one-mass silhouette
   contrast claim.
 - The listing tile keeps the ink field and the real card beside the mark, so it
   still shows the product rather than repeating the icon.
+
+## 2026-08-08 - The Product Is Named Notturn
+
+**Decision**: Rename the product from "Attention Redirector" to **Notturn**, a
+coined word. Rename the display name only; keep the `attention-redirector-` CSS
+class prefix, the `attentionRedirector*` storage keys, and the
+`Kyi101/attention-redirector` repo slug.
+
+**Why**: "Attention Redirector" describes the mechanism, which is what a spec
+calls a thing before it has a name. The product is a portfolio piece with no
+expectation of store search traffic or channel-driven installs, which removes
+SEO from the constraint set and leaves four things that actually matter: no
+trademark exposure, short enough to say aloud, does not fight the crescent, and
+does not read as an assignment brief. Notturn is *nocturne* plus *turn* — the
+night piece is the mark, the turn is the redirect — so the name and the icon
+explain each other, which none of the alternatives managed.
+
+**Alternatives**: Two rounds of dictionary words were rejected, and the rejection
+produced the more useful finding: the names worth having are taken. "Aside"
+collides with two extensions already on the Chrome Web Store
+(`pecefkiefodjfkgfihkhkcbhlbgahoge`, `jbkogoifcdhkdfohohhhaodaindieidc`) — same
+store, same category, the worst possible collision. "Marginalia" is Viktor
+Lofgren's independent search engine, with a Firefox extension and two domains.
+Of the coined shortlist, Marginia and Tacen were also clean; Notturn won on the
+tie to the mark. "Lullen" was dropped for being vulgar Dutch slang, which is the
+specific failure mode a coined name has to be screened for and which Hlib, as a
+non-native speaker, explicitly cannot screen himself. Earlier candidates built
+on "Ad Block" were dropped over Eyeo GmbH's trademark enforcement history.
+
+**Consequences**:
+- Availability was verified *before* the name was presented, not after. Checked:
+  npm 404, PyPI 404, no exact-name GitHub repository, no DNS on .com/.app/.io/
+  .dev, no Chrome Web Store listing, no trademark hits. `github.com/Notturn` is
+  an empty account created 2025-03-17 with zero repos and zero followers, never
+  touched since — the handle is squatted, the name is not.
+- Internal identifiers deliberately keep the old string. The CSS prefix is a
+  collision guard against host-page stylesheets, and a longer, stranger prefix is
+  strictly better at that job; it is also referenced by `rules/rules_1.json` and
+  asserted across the test suite. Renaming the storage keys would orphan saved
+  settings and require a migration shim, which is more machinery than the
+  tidiness earns.
+- Inspector report headings moved with the name, and `scripts/report-contract.mjs`
+  moved in the same commit — that contract exists to keep the two in lockstep and
+  is what proves the rename did not split them.
+- Dated records keep the old name. Rewriting `STATUS.md` history, past
+  `DECISIONS.md` entries, or `docs/superpowers/` plans would falsify what was
+  true when they were written.
+- The promo tile wordmark is now one line at 44px instead of two at 32px, since
+  the name no longer needs a hard wrap.

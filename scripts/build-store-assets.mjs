@@ -62,7 +62,7 @@ const tileHtml = (fontBase64, markBase64) => `
   .wordmark {
     margin: 0;
     color: #e6ebe3;
-    font-size: 32px;
+    font-size: 44px;
     font-weight: 600;
     line-height: 1.08;
     letter-spacing: -0.02em;
@@ -101,7 +101,7 @@ const tileHtml = (fontBase64, markBase64) => `
 <div class="tile">
   <div>
     <img class="mark" alt="" src="data:image/png;base64,${markBase64}">
-    <h1 class="wordmark">Attention<br>Redirector</h1>
+    <h1 class="wordmark">Notturn</h1>
     <p class="tagline">THE WEB, JUST QUIETER</p>
   </div>
   <div class="card"><p>${SETTINGS.anchorNotes[0]}</p></div>
