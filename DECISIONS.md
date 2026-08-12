@@ -1947,3 +1947,140 @@ was fixed outside the theme and the theme adopted it rather than the reverse.
 - The kickers are accent-coloured small caps at ~4.0:1 on the light page. This
   is deliberate accent-as-text, not an oversight.
 
+## 2026-08-11 - The Icon Decision Is Re-Opened For External Prototyping
+
+**Decision**: Keep the billboard committed as the baseline, but re-open the
+mark. Prototyping moves outside this session; `prompts/claude-design-icon-brief.md`
+is the self-contained brief, written for an agent with no repo access.
+
+**Why**: *"few would survive one color fill and you cant just one shot them...
+even if we picked a car, there are so many ways you could depict that."* Both
+halves are right, and each exposed an error in how the five earlier rounds were
+run.
+
+**The two corrections, which are the substance of this entry**:
+- *The one-colour rule was over-applied.* Only colour that **touches the toolbar
+  background** must clear 3:1 on both. Enclosed colour needs contrast only
+  against the fill surrounding it — `#e6ebe3` on `#c2542b` measures 3.78:1 and
+  `#20312a` on `#c2542b` measures 3.00:1. Multi-colour marks were viable the
+  whole time and were excluded by a rule that did not apply to them.
+- *The size target was wrong.* `manifest.json` declares 16/32/48/128 and Chrome
+  picks by device pixel ratio, so on any 2x display the toolbar renders
+  `icon-32`. Every round was optimised against 16-at-1x, the minority case.
+
+**Consequences**:
+- Nothing ships from this entry. The tree still builds the billboard.
+- The brief carries the measured contrast table, the borrowed-meaning list, the
+  prior geometry for the billboard and the viewfinder, and a rule that no
+  concept may be judged on one drawing.
+- Still not verified: no icon from any round has been seen in a real Chrome
+  toolbar.
+
+## 2026-08-12 - The Mark Is A Beamed Pair Of Notes With Card Heads
+
+**Decision**: Close the icon. The toolbar mark is a beamed pair of eighth notes
+whose noteheads are cards — a beam at y=10 spanning x=36-120, two 16-unit stems,
+and two 48x36 rx=9 heads staggered at y=80 and y=62, single fill `#c2542b`.
+Supersedes the billboard from 2026-08-11 and the crescent from 2026-08-08.
+
+**Why**: Hlib supplied the concept six rounds had missed. The name already
+carries the pun — a note is a written note *and* a musical note — and the musical
+one has the property every discarded mark lacked: a stem and a flag protruding
+off an asymmetric body. Two heads rather than one because the name is plural,
+which is the whole margin over the eighth note; the single note is the recorded
+runner-up on cleaner draughtsmanship.
+
+**Why borrowed meaning stopped being a veto**: it was waived by Hlib —
+*"I don't care about borrowed meaning tbh."* A musical note reads as music/audio
+and is claimed by every media app. That cost is accepted because the name does
+the explaining and distinctiveness in a toolbar row is the actual job. **The
+waiver is scoped to this concept.** Avatars, map pins, pencils and gears remain
+out for anything else, and that list is still in the brief.
+
+**Alternatives, all rendered rather than argued**:
+- *Eighth note.* Cleanest single-note draughtsmanship of anything tried. Loses
+  only on the plural.
+- *Guitar, front-on and with a cream soundhole.* Fails. The waist between the
+  bouts dissolves below 48px and the silhouette reads as a bottle or a vase; the
+  soundhole version reads as a piggy bank. Circular bodies joined by a thin
+  member do not survive 32.
+- *Card head with enclosed cream rules.* The ruling survives at 32 and is
+  marginal at 16. Held as an option that should only ship if tested on a real
+  toolbar.
+- *Billboard, the incumbent.* At 32 it is an abstract slab on legs — a scoreboard
+  or a table. It only ever read at 128.
+- *Crescent, note-pin, pencil, viewfinder.* Cut for star-and-crescent collision,
+  padlock/shopping-bag reading, *edit*, and four disconnected specks at 16.
+
+**On the verification, which matters more than the choice**: the ship candidate
+was checked here against the shipped raster at every size on both toolbars rather
+than accepted from the design agent's contact sheet. That caught one false claim
+before it entered the codebase — the code comment asserted that staggered heads
+were load-bearing because levelling them would close the counter at 16. Rendering
+the level variant falsified it: the counter stays open and is in fact larger. The
+stagger is a distinctiveness choice, because levelling makes the outline
+symmetric. The comment now says that instead.
+
+**Consequences**:
+- `icons/icon-{16,32,48,128}.png` and the store promo tile are regenerated. The
+  release ZIP carries all four byte-identical to source.
+- The `#c2542b` mark is no longer orphaned: the chrome adopted it as `--accent`
+  the day before, so the toolbar and the extension's surfaces now agree.
+- Still not verified: no icon from any round has been seen in a real Chrome
+  toolbar. That remains the last open check on the mark. *(Closed the same day —
+  see the next entry.)*
+
+## 2026-08-12 - The Bare Mark Ships, And Dim-On-Selection Is An Accepted Cost
+
+The mark was finally loaded into Hlib's own Chrome, and it lost contrast when the
+toolbar button was in its selected state. Three rounds of colour and plate
+prototyping followed. **Nothing changed. The bare `#c2542b` glyph ships as-is and
+the dim selected state is a knowingly accepted tradeoff.**
+
+**Why the earlier numbers were measured against the wrong surfaces**: every
+contrast figure in the previous six rounds was computed against Chrome's two
+*default* toolbars. Hlib's Chrome is themed. Sampling his actual screenshot gave
+three surfaces nobody had tested against:
+
+| surface | colour | `#c2542b` contrast |
+| --- | --- | --- |
+| theme toolbar | `#2e212e` | 3.35:1 |
+| extension button group | `#453644` | 2.47:1 |
+| **selection pill** | `#736772` | **1.18:1** |
+
+On top of that, Chrome composites the icon at **~85% opacity** while the popup is
+open, so the selected state is worse than the raw number. This is the root cause,
+and it is structural: a flat mid-luminance mark cannot survive a mid-luminance
+pill.
+
+**Both available fixes were built, rasterised, and loaded as real unpacked
+extensions in Hlib's browser** rather than judged from a contact sheet:
+- *Brighter accent.* Nine variants. The ceiling is amber `#ffa02b` at **2.64:1**
+  on the pill — still under 3:1, and it costs 1.88:1 on the light UI page, where
+  the current terracotta holds 4.22:1. No mid-luminance orange clears the pill.
+- *Plate behind the glyph* (what Shazam does, which is why its icon holds).
+  Disc, squircle, full-bleed disc, brighter plate, ink glyph. The plate itself
+  reads fine. The glyph inside it does not: fitting the mark inside a plate means
+  redrawing it at plate scale, and the stems land near the ~11-unit rasterisation
+  floor. Hlib's verdict: *"none of them work when note gets any smaller it's not
+  looking good. so I would just keep the original as is and accept the
+  tradeoff."*
+
+**What is being accepted**: the icon is low-contrast for as long as the popup is
+open — a transient state the user is already looking away from, since the popup
+is what they opened. The idle toolbar state, which is the state that matters,
+holds 3.35:1 on his theme and 3.48/3.14 on Chrome's defaults.
+
+**The durable lesson**: six rounds of prototyping were judged on generated
+contact sheets against default toolbars, and the two backgrounds that actually
+broke the mark — a themed bar and the selection pill — never appeared in any of
+them. Get a candidate into the real browser early; a rig that emits loadable
+throwaway extensions (`runs/icon-proto/build-candidates.mjs`) costs one round and
+would have saved several.
+
+**Consequences**:
+- No repo change. Every experiment lived in gitignored `runs/` or in a scratch
+  folder on the Windows side. `scripts/build-icons.mjs` and `icons/*.png` are
+  untouched by this round.
+- The icon question is closed. Re-open it only with new evidence, not with a new
+  colour idea — the colour space has been measured and there is nothing in it.

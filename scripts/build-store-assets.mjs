@@ -29,7 +29,7 @@ const SETTINGS = {
 // a picture of it. The mark measures 3.00:1 against the ink field, which is a
 // floor for a graphic this size and not a text contrast claim.
 //
-// The mark is icons/icon-128.png rather than a second copy of the billboard
+// The mark is icons/icon-128.png rather than a second copy of the mark's
 // geometry, so run build:icons before build:store-assets when the mark changes.
 //
 // setContent has no base URL to resolve fonts against, so neither the font nor
