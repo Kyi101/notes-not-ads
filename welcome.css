@@ -19,7 +19,7 @@ body {
 .brand-dot {
   width: 13px;
   height: 13px;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--card-surface);
   box-shadow: inset 0 0 0 1.5px var(--fill);
 }
@@ -86,7 +86,7 @@ body {
 }
 
 .demo-arrow {
-  color: var(--muted);
+  color: var(--accent);
   font-size: 28px;
   line-height: 1;
 }

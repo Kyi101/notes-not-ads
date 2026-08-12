@@ -1903,3 +1903,47 @@ generic sign; two posts are what make it a billboard.
 - The naming method that produced this is in durable memory, not just here: a
   registry pass and a cultural pass are separate passes, and a search that
   returns off-topic results has not returned a negative result.
+
+## 2026-08-11 - The Chrome Takes The Mark's Orange, And The Dark Canvas Comes Off Near-Black
+
+**Decision**: Move the extension's own surfaces — popup, options, welcome — one
+step toward the register of the new name, using three changes and no more: lift
+the dark canvas off near-black, round the radii, and give the chrome the
+toolbar mark's terracotta as `--accent`. Cards and `src/content.css` are out of
+scope and unchanged.
+
+**Why**: Hlib's read after the rename — *"the dark theme is too premium looking
+for such a name and the sharp corners and all seem a bit too serious, while new
+name is a bit more playful."* A colour census settled the argument about whether
+the mark was the problem or the chrome was: `#c2542b` appeared **zero times**
+across every extension stylesheet. The mark was not clashing with the UI, it was
+orphaned from it, and the only colour on the welcome page was the fake ad the
+page exists to mock.
+
+**Why the dark accent is a different hex**: `--accent` cannot be one value.
+`#c2542b` reaches only 3.25:1 on the lifted dark page, so dark takes `#e0764a`
+at 4.85:1. The previous dark accent, `#8fb3a7`, was a green — it could never
+have matched a toolbar mark, because it measures 1.75:1 on Chrome's light
+toolbar while `#2e6f5c` measures 2.42:1 on the dark one. `#c2542b` is the only
+value tested that clears 3:1 on both toolbars, which is why the mark's colour
+was fixed outside the theme and the theme adopted it rather than the reverse.
+
+**Alternatives**:
+- *Re-colour the mark to the UI green instead.* Rejected on measurement, not
+  taste: no green in the palette clears both Chrome toolbars, and Chrome does
+  not tint extension icons, so one PNG has to survive both.
+- *Restyle the cards to match.* Refused by instruction, and correctly — the
+  in-page card takes its tone from the site it lands on. A card that followed
+  the extension's theme would be a second brand on someone else's page.
+- *A larger redesign.* Scoped out. Hlib asked for "slight". Three token-level
+  changes and a radius pass touch four stylesheets and no markup.
+
+**Consequences**:
+- Dark body text drops from 13.64:1 to 11.45:1 — still far above the bar.
+- `--on-fill` continues to equal `--page` in both themes, so the switch knob
+  works unchanged against an accent-filled track.
+- The two dark blocks in `chrome.css` remain duplicated and must stay in sync;
+  they are the only duplication left in that file.
+- The kickers are accent-coloured small caps at ~4.0:1 on the light page. This
+  is deliberate accent-as-text, not an oversight.
+

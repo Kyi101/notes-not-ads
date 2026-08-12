@@ -12,7 +12,14 @@
    Three materials, and no more: the page, something raised for what you type
    into or read in, and the card. The page sits a step off the card in the same
    direction on both sides — 1.12 either way — so the card reads as an object
-   without a shadow to say so. */
+   without a shadow to say so.
+
+   --accent is the toolbar mark's colour rather than a fourth green. It has to
+   be: the mark must clear 3:1 on both the #dee1e6 and #292a2d Chrome toolbars,
+   and every green here fails one of them — #2e6f5c measures 2.42:1 on the dark
+   toolbar, #8fb3a7 1.75:1 on the light. So the mark's value was fixed outside
+   this file, and the chrome adopts it instead of leaving it orphaned in the
+   icon. It is an accent, not body text: 4.0:1 on --page here. */
 :root {
   color-scheme: light;
 
@@ -29,28 +36,33 @@
   --hairline-strong: rgba(32, 49, 42, 0.28);
   --fill: #20312a;
   --on-fill: #f4f7f1;
-  --accent: #2e6f5c;
+  --accent: #c2542b;
   --focus: rgba(32, 49, 42, 0.45);
 }
 
-/* The dark side is the card's dark tone read the same way: the page steps under
-   the card by the amount the light page steps over it. Applied when the OS is
-   dark unless Options forced light, and again for an explicit dark override.
-   Keep the two blocks in sync — they are the only duplication left here. */
+/* The dark side keeps the same three materials with the page stepped under the
+   card instead of over it, and --raised a 1.11 step off --page as on the light
+   side. The page is deliberately not near-black: at #141a17 the chrome read as
+   premium editorial, which is the wrong register for a product called Notes Not
+   Ads. Lifting it to #1e2a25 costs nothing that matters — body text still
+   measures 11.4:1 — and the accent lifts with it, since #c2542b only reaches
+   3.2:1 here while #e0764a reaches 4.8:1. Applied when the OS is dark unless
+   Options forced light, and again for an explicit dark override. Keep the two
+   blocks in sync — they are the only duplication left here. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --page: #141a17;
-    --raised: #1c2320;
+    --page: #1e2a25;
+    --raised: #26322b;
     --heading: #eaf0e9;
     --text: #dce4dd;
     --muted: #93a19a;
     --hairline: rgba(220, 228, 221, 0.12);
     --hairline-strong: rgba(220, 228, 221, 0.26);
     --fill: #dce4dd;
-    --on-fill: #141a17;
-    --accent: #8fb3a7;
+    --on-fill: #1e2a25;
+    --accent: #e0764a;
     --focus: rgba(220, 228, 221, 0.5);
   }
 }
@@ -58,16 +70,16 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --page: #141a17;
-  --raised: #1c2320;
+  --page: #1e2a25;
+  --raised: #26322b;
   --heading: #eaf0e9;
   --text: #dce4dd;
   --muted: #93a19a;
   --hairline: rgba(220, 228, 221, 0.12);
   --hairline-strong: rgba(220, 228, 221, 0.26);
   --fill: #dce4dd;
-  --on-fill: #141a17;
-  --accent: #8fb3a7;
+  --on-fill: #1e2a25;
+  --accent: #e0764a;
   --focus: rgba(220, 228, 221, 0.5);
 }
 

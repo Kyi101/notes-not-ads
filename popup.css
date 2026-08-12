@@ -18,7 +18,7 @@ body {
 
 .kicker {
   margin: 0 0 10px;
-  color: var(--muted);
+  color: var(--accent);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.22em;
@@ -91,8 +91,8 @@ input[role="switch"]::after {
 }
 
 input[role="switch"]:checked {
-  border-color: var(--fill);
-  background: var(--fill);
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 input[role="switch"]:checked::after {
@@ -188,7 +188,7 @@ button:disabled {
 
 button {
   min-height: 38px;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
