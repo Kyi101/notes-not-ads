@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 import os from "node:os";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const extensionRoot = path.resolve(__dirname, "..");
+// EXTENSION_ROOT points this at an unpacked release ZIP; see test-extension.mjs.
+const extensionRoot = process.env.EXTENSION_ROOT || path.resolve(__dirname, "..");
 const STORAGE_KEY = "attentionRedirectorSettings";
 
 const userDataDir = await mkdtemp(path.join(os.tmpdir(), "attention-redirector-onboarding-"));

@@ -8,7 +8,9 @@ import os from "node:os";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
-const extensionRoot = projectRoot;
+// Point this at an unpacked copy of the release ZIP to verify the artifact that
+// actually ships, rather than the working tree the ZIP is built from.
+const extensionRoot = process.env.EXTENSION_ROOT || projectRoot;
 const fixturePath = path.join(projectRoot, "tests/fixtures/ad-clutter.html");
 const DEFAULT_EXTENSION_SETTINGS = {
   enabled: true,
