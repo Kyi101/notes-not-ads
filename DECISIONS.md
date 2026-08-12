@@ -2084,3 +2084,24 @@ would have saved several.
   untouched by this round.
 - The icon question is closed. Re-open it only with new evidence, not with a new
   colour idea — the colour space has been measured and there is nothing in it.
+
+**Addendum, same day — the eighth note was re-tested against a ten-mark field and
+N3 held.** Hlib asked for the round-7 runner-up back. Ten notes were drawn and
+loaded as unpacked extensions in his own toolbar: N3, three other beamed pairs
+(round heads level beam, tilted heads sloped beam, card heads sloped beam), four
+single notes (round head, tilted head, pennant flag, sixteenth), the card-head
+hybrid, and a bare quarter note. Verdict: *"the winner remains the same."* The
+plural reading of two heads is worth more than the single note's cleaner
+draughtsmanship, which is the same trade round 7 made. Geometry for all ten is
+kept in `runs/icon-proto/note-shapes.mjs` so a future round starts from the field
+rather than redrawing it.
+
+**One hypothesis was falsified and is worth not re-forming.** Off an 8x contact
+sheet the single notes appeared to survive the selection pill better than N3, and
+the mechanism looked obvious — a big filled notehead is solid mass where N3 is
+thin strokes that wash out. Measuring pixel coverage killed it: at 16 the shipped
+N3 carries **40.0% ink and 28.9% fully-opaque**, against 33.9%/22.7% for the
+best single note. N3 has *more* mass, not less. Dimness is contrast times colour,
+and the colour is identical across every candidate, so no redraw affects it. **A
+blobbier mark is not a fix for the selected state.** The zoom on a contact sheet
+manufactures a difference that true size does not show.
