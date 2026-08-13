@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/Kyi101/attention-redirector/security/advisories/new
+    url: https://github.com/Kyi101/notes-not-ads/security/advisories/new
     about: Report privately. Do not open a public issue for anything exploitable.
   - name: Filter change
-    url: https://github.com/Kyi101/attention-redirector/blob/main/CONTRIBUTING.md
+    url: https://github.com/Kyi101/notes-not-ads/blob/main/CONTRIBUTING.md
     about: Filter lists and eval cases are open to pull requests. Send the change itself, with a case.

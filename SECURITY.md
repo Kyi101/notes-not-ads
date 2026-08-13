@@ -8,7 +8,7 @@ must not arrive as a public issue.
 
 Use GitHub private vulnerability reporting:
 
-https://github.com/Kyi101/attention-redirector/security/advisories/new
+https://github.com/Kyi101/notes-not-ads/security/advisories/new
 
 That channel is private until an advisory is published. Please do not open a
 public issue, and please do not open a pull request that demonstrates the
