@@ -320,3 +320,8 @@ Useful public references:
 - uBlock Origin static filter syntax: https://github.com/gorhill/uBlock/wiki/static-filter-syntax
 - uBlock Origin procedural cosmetic filters: https://github.com/gorhill/uBlock/wiki/Procedural-cosmetic-filters
 - Adblock Plus filter syntax overview: https://adblockplus.org/filter-cheatsheet
+
+## License
+
+GPLv3. Full text in `LICENSE`. The Chrome Web Store listing states the same, so
+the two must not drift.
