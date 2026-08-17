@@ -75,6 +75,7 @@ quiet card carrying one of the user's own notes.
 - `rules/rules_1.json` - hand-curated static DNR seed rules and local DNR smoke-test probe.
 - `rules/easylist_dnr.json` - generated static DNR rules packaged with the extension.
 - `docs/privacy-policy.md` - published privacy policy for the Chrome Web Store listing.
+- `docs/images/` - README screenshots, copied from `dist/store/` output; regenerate with `npm run build:store-assets` when the card or popup changes.
 - `docs/site-risk-policy.md` - risk-tiered blocking protocol contract for protected, standard, ad-heavy, and hostile pages.
 - `evals/live-sites.json` - regression, discovery, controlled, and manual-only URL cases for the live eval runner, including track/category metadata and authored site-policy expectations where useful.
 - `tests/fixtures/ad-clutter.html` - deterministic clutter/ad fixture page.

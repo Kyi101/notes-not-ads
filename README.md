@@ -4,6 +4,14 @@ Notes Not Ads is a Manifest V3 Chrome Extension that blocks common ad-network re
 
 This product overlaps with ad blockers, but its unique value is still the attention surface: blocked or removed ad space becomes quiet, user-owned space instead of another feed. The network layer is intentionally bounded: static MV3 `declarativeNetRequest` rules for common ad requests, with DOM/cosmetic replacement and safety checks handling the visible surface.
 
+![A news site with its leaderboard ad replaced by a card reading "Finish what deserves your attention."](docs/images/replacement.png)
+
+The popup controls the extension globally and for the current site, and shows how many surfaces were detected on the page you are on.
+
+![The extension popup, with a global switch, a per-site switch, the current note, and buttons for reporting a missed ad and opening options.](docs/images/popup.png)
+
+Both images are unretouched captures of a live page, produced by `npm run build:store-assets`.
+
 ## What It Does
 
 - Runs as a content script on normal `http` and `https` webpages.
