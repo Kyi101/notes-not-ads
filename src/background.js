@@ -13,6 +13,9 @@ const DNR_RESOURCE_TYPES = [
   "other"
 ];
 
+// Must mirror SENSITIVE_DOMAINS in src/shared.js. The content script also asks
+// for a per-tab allow rule, but that arrives at document_end; these are in
+// place before the first request.
 const SENSITIVE_DNR_DOMAINS = [
   "accounts.google.com",
   "docs.google.com",
@@ -20,6 +23,10 @@ const SENSITIVE_DNR_DOMAINS = [
   "mail.google.com",
   "inbox.google.com",
   "calendar.google.com",
+  "pay.google.com",
+  "payments.google.com",
+  "wallet.google.com",
+  "passwords.google.com",
   "notion.so",
   "notion.com",
   "figma.com",
@@ -37,7 +44,25 @@ const SENSITIVE_DNR_DOMAINS = [
   "americanexpress.com",
   "amex.com",
   "citi.com",
-  "citibank.com"
+  "citibank.com",
+  "schwab.com",
+  "fidelity.com",
+  "vanguard.com",
+  "etrade.com",
+  "interactivebrokers.com",
+  "ally.com",
+  "wise.com",
+  "revolut.com",
+  "monzo.com",
+  "n26.com",
+  "kraken.com",
+  "binance.com",
+  "1password.com",
+  "bitwarden.com",
+  "lastpass.com",
+  "dashlane.com",
+  "keepersecurity.com",
+  "authy.com"
 ];
 
 async function syncNetRequestState(settings = {}) {

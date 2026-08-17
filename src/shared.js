@@ -49,6 +49,8 @@ function resolveAnchorNotes(stored, legacyNotes) {
   return written ? notes : DEFAULT_SETTINGS.anchorNotes.slice();
 }
 
+// Zero footprint: no replacement and no request blocking, because a wrong move
+// here costs money or credentials rather than a misplaced card.
 const SENSITIVE_DOMAINS = [
   "accounts.google.com",
   "docs.google.com",
@@ -56,6 +58,10 @@ const SENSITIVE_DOMAINS = [
   "mail.google.com",
   "inbox.google.com",
   "calendar.google.com",
+  "pay.google.com",
+  "payments.google.com",
+  "wallet.google.com",
+  "passwords.google.com",
   "notion.so",
   "notion.com",
   "figma.com",
@@ -73,16 +79,150 @@ const SENSITIVE_DOMAINS = [
   "americanexpress.com",
   "amex.com",
   "citi.com",
-  "citibank.com"
+  "citibank.com",
+  "schwab.com",
+  "fidelity.com",
+  "vanguard.com",
+  "etrade.com",
+  "interactivebrokers.com",
+  "ally.com",
+  "wise.com",
+  "revolut.com",
+  "monzo.com",
+  "n26.com",
+  "kraken.com",
+  "binance.com",
+  "1password.com",
+  "bitwarden.com",
+  "lastpass.com",
+  "dashlane.com",
+  "keepersecurity.com",
+  "authy.com"
 ];
 
+// Product and app surfaces. Request blocking stays on, but nothing in the page
+// is replaced: these sell nothing, so a card here is only ever a false
+// positive, and their app chrome is the most expensive thing to break.
+//
+// Reported 2026-08-16: cards appeared during Google Workspace registration and
+// on Google Account. `google.com` is listed whole rather than by subdomain
+// because Google ships new product hosts continuously; Search is carved back
+// in below by path.
 const DOM_REPLACEMENT_DISABLED_DOMAINS = [
   "linkedin.com",
   "youtube.com",
   "m.youtube.com",
   "music.youtube.com",
-  "translate.google.com"
+  "google.com",
+  "labs.google",
+  // Microsoft
+  "microsoft.com",
+  "microsoftonline.com",
+  "office.com",
+  "office365.com",
+  "live.com",
+  "sharepoint.com",
+  "azure.com",
+  "visualstudio.com",
+  "powerbi.com",
+  "dynamics.com",
+  "powerautomate.com",
+  "powerapps.com",
+  "github.com",
+  // AI
+  "openai.com",
+  "chatgpt.com",
+  "sora.com",
+  "anthropic.com",
+  "claude.ai",
+  "perplexity.ai",
+  "poe.com",
+  "huggingface.co",
+  "midjourney.com",
+  "cursor.com",
+  "v0.app",
+  // Apple
+  "apple.com",
+  "icloud.com",
+  // Cloud and developer infrastructure
+  "aws.amazon.com",
+  "cloudflare.com",
+  "digitalocean.com",
+  "vercel.com",
+  "netlify.com",
+  "heroku.com",
+  "render.com",
+  "fly.io",
+  "railway.app",
+  "supabase.com",
+  "mongodb.com",
+  "npmjs.com",
+  "docker.com",
+  "gitlab.com",
+  "bitbucket.org",
+  "sentry.io",
+  "datadoghq.com",
+  "grafana.com",
+  "twilio.com",
+  // Collaboration and productivity
+  "slack.com",
+  "airtable.com",
+  "asana.com",
+  "trello.com",
+  "atlassian.net",
+  "atlassian.com",
+  "monday.com",
+  "clickup.com",
+  "linear.app",
+  "basecamp.com",
+  "todoist.com",
+  "evernote.com",
+  "miro.com",
+  "mural.co",
+  "framer.com",
+  "webflow.com",
+  "zapier.com",
+  "make.com",
+  "calendly.com",
+  "loom.com",
+  "zoom.us",
+  "webex.com",
+  "discord.com",
+  "telegram.org",
+  "whatsapp.com",
+  "dropbox.com",
+  "box.com",
+  // Business software
+  "salesforce.com",
+  "force.com",
+  "hubspot.com",
+  "zendesk.com",
+  "intercom.com",
+  "freshdesk.com",
+  "pipedrive.com",
+  "mailchimp.com",
+  "klaviyo.com",
+  "shopify.com",
+  "myshopify.com",
+  "squarespace.com",
+  "wix.com",
+  "bigcommerce.com",
+  "docusign.com",
+  "workday.com",
+  "myworkday.com",
+  "bamboohr.com",
+  "gusto.com",
+  "rippling.com",
+  "deel.com",
+  "adp.com",
+  "intuit.com",
+  "xero.com",
+  "freshbooks.com"
 ];
+
+// Search results carry ads and stay in scope; every other surface on the same
+// domain is a product UI. Covers ccTLDs so google.co.uk behaves like google.com.
+const SEARCH_RESULTS_HOST_RE = /^(www\.)?google\.[a-z]{2,3}(\.[a-z]{2,3})?$/i;
 
 const SENSITIVE_HOST_WORDS = [
   "bank",
@@ -99,6 +239,13 @@ const SENSITIVE_PATH_RE =
 const HARD_UNSAFE_ANCESTOR_SELECTOR = [
   "nav",
   "form",
+  // Hard, not soft: app chrome collides with the ad vocabulary on minified
+  // class names — Google's own bar ships `gb_Ad`, which read as ad evidence
+  // strong enough to override a soft guard and replaced the Google News logo
+  // (2026-08-16). Measured at zero cost: none of 40 true positives across six
+  // ad-heavy publishers sat inside a header.
+  "header",
+  "[role='banner']",
   "[role='navigation']",
   // Dropdowns may be portaled outside header/nav and inherit ad evidence from a child.
   "[role='menu']",
@@ -114,7 +261,7 @@ const HARD_UNSAFE_ANCESTOR_SELECTOR = [
   ".attention-redirector-inspector-box"
 ].join(",");
 
-const SOFT_UNSAFE_ANCESTOR_SELECTOR = ["article", "header", "footer"].join(",");
+const SOFT_UNSAFE_ANCESTOR_SELECTOR = ["article", "footer"].join(",");
 
 const SCAN_SELECTOR = [
   "div",

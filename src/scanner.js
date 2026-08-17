@@ -1119,7 +1119,18 @@ function isDomReplacementAllowed(settings) {
     return false;
   }
 
+  if (isSearchResultsPage()) {
+    return true;
+  }
+
   return !isDomainDisabled(location.hostname, DOM_REPLACEMENT_DISABLED_DOMAINS);
+}
+
+function isSearchResultsPage() {
+  return (
+    SEARCH_RESULTS_HOST_RE.test(location.hostname) &&
+    location.pathname.startsWith("/search")
+  );
 }
 
 function isSensitivePage() {
