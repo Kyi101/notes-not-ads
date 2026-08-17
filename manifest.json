@@ -3,6 +3,8 @@
   "name": "Notes Not Ads",
   "version": "1.0.0",
   "description": "Replaces obvious ad and clutter surfaces with a quiet card carrying one of your own notes, or removes them.",
+  "author": "Hlib Perederii",
+  "homepage_url": "https://github.com/Kyi101/notes-not-ads",
   "permissions": ["storage", "activeTab", "scripting", "declarativeNetRequest"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "icons": {

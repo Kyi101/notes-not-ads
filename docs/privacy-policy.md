@@ -1,6 +1,6 @@
-# Notes Not Ads Privacy Policy Draft
+# Notes Not Ads Privacy Policy
 
-Effective date: June 19, 2026
+Effective date: August 17, 2026
 
 Notes Not Ads is designed to run locally in your browser. The extension
 does not create an account, does not include analytics, and does not send your
@@ -21,6 +21,14 @@ The extension stores settings locally in Chrome's extension storage, including:
 
 These values remain on your device unless you manually copy, export, remove, or
 reset them.
+
+## Your Notes Are Visible To The Page You Are Reading
+
+A replacement card is a real element inserted into the page you are visiting, so
+the note it carries can be read by that page's own scripts, exactly like any
+other text on the page. The extension sends nothing anywhere, but a note shown
+on a site is not private from that site. Keep anything sensitive out of your
+note rotation.
 
 ## Browser Activity
 
@@ -76,4 +84,4 @@ updated privacy policy before release.
 
 ## Contact
 
-Add the public support email or website URL before publishing this policy.
+hlib@kyii.studio

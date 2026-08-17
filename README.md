@@ -1,6 +1,6 @@
 # Notes Not Ads
 
-Notes Not Ads is a Manifest V3 Chrome Extension release candidate that blocks common ad-network requests and replaces obvious ad/clutter surfaces with a quiet card carrying a note the user wrote. With no notes it removes them instead.
+Notes Not Ads is a Manifest V3 Chrome Extension that blocks common ad-network requests and replaces obvious ad/clutter surfaces with a quiet card carrying a note the user wrote. With no notes it removes them instead.
 
 This product overlaps with ad blockers, but its unique value is still the attention surface: blocked or removed ad space becomes quiet, user-owned space instead of another feed. The network layer is intentionally bounded: static MV3 `declarativeNetRequest` rules for common ad requests, with DOM/cosmetic replacement and safety checks handling the visible surface.
 
@@ -39,10 +39,19 @@ The content script skips sensitive or risky contexts:
 - Portaled dropdowns, menus, and listboxes, which can sit outside their header and inherit ad evidence from a child
 
 A second, narrower tier keeps network blocking but turns off generic DOM
-replacement entirely, because these sites run virtualized app UIs that break
-when their containers are replaced: `linkedin.com`, YouTube, and
-`translate.google.com`. YouTube keeps a dedicated, purpose-built pruning layer
-instead.
+replacement entirely. These are product and app surfaces: they sell nothing, so
+a replacement there is only ever a false positive, and their virtualized UIs are
+the most expensive thing to break. It covers `linkedin.com`, YouTube, the whole
+of `google.com`, and the major vendor consoles — Microsoft 365 and Azure,
+GitHub, OpenAI and Claude, Apple and iCloud, AWS and the developer-infra
+dashboards, Slack and the collaboration suites, and the main business-software
+tenants. YouTube keeps a dedicated, purpose-built pruning layer instead.
+
+Google Search is deliberately carved back in by path, because search results
+carry ads. Everything else on `google.com` — Account, Workspace, Admin, Ads,
+Analytics, Cloud, News, Photos, Meet, Gemini — is left alone. The family is
+listed whole rather than subdomain by subdomain because Google ships new
+product hosts continuously, and an enumerated list goes stale silently.
 
 The selector strategy is deliberately conservative. Missing some ads is preferable to breaking a page.
 
@@ -55,6 +64,11 @@ The selector strategy is deliberately conservative. Missing some ads is preferab
 - No tracking.
 - No user data leaves the browser.
 - Settings are stored only with `chrome.storage.local`.
+
+One thing worth knowing: a replacement card is a real element in the visited
+page, so the note it carries is readable by that page's own scripts, the same
+as any other text on it. Nothing is sent anywhere, but a note is not private
+from the site you are reading. Keep anything sensitive out of the rotation.
 
 ## Permissions
 
@@ -110,11 +124,8 @@ runtime-file allowlist, so local artifacts and development files such as
 `node_modules/`, `runs/`, `screenshots/`, `_metadata/`, tests, prototypes, and
 developer scripts are excluded.
 
-Only package a public release when `git status --short` is clean. Release
-drafts live in `docs/`:
-
-- `docs/privacy-policy.md`
-- `docs/chrome-web-store.md`
+Only package a public release when `git status --short` is clean. The published
+privacy policy lives at `docs/privacy-policy.md`.
 
 ## Performance Benchmark
 
@@ -215,13 +226,6 @@ host-scoped cosmetic rules when a stable wrapper is visible. Do not add global
 `istockphoto.com`, Getty, Shutterstock, or broad stock-media blocking from one
 case; those domains can also appear as legitimate stock/reference content.
 
-Antigravity/Gemini discovery prompts live in `prompts/`. For a broad stock
-search sweep, start with:
-
-```bash
-prompts/antigravity-stock-search-affiliate-sweep.md
-```
-
 ## Manual Test Targets
 
 Use the popup status and visual inspection. For the first proof, success means it inserts cards into obvious ad/clutter slots without breaking the page on a small manual set.
@@ -255,7 +259,7 @@ Inspector mode:
 - Shows `Saved: X` in the inspector so you can confirm whether previous selections are still stored.
 - Makes no remote requests and does not upload reports.
 
-Good selector-tuning reports usually include repeated patterns, not one-off weird pages. If a copied report says `Would replace now: no`, check `Safety blocks` first. That is often the reason the release candidate skipped it.
+Good selector-tuning reports usually include repeated patterns, not one-off weird pages. If a copied report says `Would replace now: no`, check `Safety blocks` first. That is often the reason the extension skipped it.
 
 If a report targets a very large rail or column that already contains Notes Not Ads cards, it is usually too broad. Use Manual pick or Use parent/child selection to capture the smallest repeated ad slot instead of the whole rail.
 
@@ -321,7 +325,22 @@ Useful public references:
 - uBlock Origin procedural cosmetic filters: https://github.com/gorhill/uBlock/wiki/Procedural-cosmetic-filters
 - Adblock Plus filter syntax overview: https://adblockplus.org/filter-cheatsheet
 
+## Author
+
+Built by Hlib Perederii — [kyii.studio](https://kyii.studio).
+
 ## License
+
+Copyright (C) 2026 Hlib Perederii.
 
 GPLv3. Full text in `LICENSE`. The Chrome Web Store listing states the same, so
 the two must not drift.
+
+### Name and mark
+
+The GPL covers the code. It does not grant rights to the project's name or
+icon, and those are reserved: **Notes Not Ads**, and the beamed-pair note mark
+in `icons/`, are not licensed for use in derivative works.
+
+Fork it, ship it, sell it if you like — the licence allows all of that. Publish
+it under a different name and a different icon.

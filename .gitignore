@@ -8,3 +8,12 @@ _metadata/
 .DS_Store
 *.log
 .superpowers/
+
+# Working files for whoever is building this: notes on how the work is going,
+# not a record of what shipped. README.md and DECISIONS.md are that record.
+STATUS.md
+prompts/
+prototypes/
+docs/superpowers/
+docs/chrome-web-store.md
+scripts/serve-prototype.mjs

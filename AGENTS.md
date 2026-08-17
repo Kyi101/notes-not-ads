@@ -26,7 +26,6 @@ quiet card carrying one of the user's own notes.
 - Diagnose controlled adblock testers: `npm run diagnose:controlled-testers`
 - Build clean release ZIP: `npm run package:release`
 - Multi-card scroll benchmark: `npm run benchmark:performance`
-- Card prototype server: `npm run prototype:modes` (`/` typography, `/modes` history)
 - Validate manifest JSON: `node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"`
 - Paired-change check against a base ref: `node scripts/check-paired-change.mjs --base origin/main`
 - Manual test: load unpacked from `chrome://extensions`
@@ -71,25 +70,19 @@ quiet card carrying one of the user's own notes.
 - `scripts/diagnose-controlled-testers.mjs` - exploratory controlled-tester harness for Canyoublockit, GetBlockify, and Turtlecute baseline extraction.
 - `scripts/package-release.mjs` - clean Git archive release ZIP builder for Chrome Web Store upload.
 - `scripts/benchmark-performance.mjs` - local multi-card scroll/frame/CDP performance benchmark.
-- `scripts/serve-prototype.mjs` - dependency-free local server for throwaway UI prototypes.
 - `scripts/build-content.mjs` - concatenates content-script partials into `src/content.js`.
 - `scripts/update-lists.mjs` - EasyList/DNR ingestion script; dry-run by default and requires `--write` before mutating generated list artifacts.
 - `rules/rules_1.json` - hand-curated static DNR seed rules and local DNR smoke-test probe.
 - `rules/easylist_dnr.json` - generated static DNR rules packaged with the extension.
-- `docs/privacy-policy.md` - draft public privacy policy for Chrome Web Store submission.
-- `docs/chrome-web-store.md` - draft store listing, permission explanations, reviewer instructions, and asset checklist.
+- `docs/privacy-policy.md` - published privacy policy for the Chrome Web Store listing.
 - `docs/site-risk-policy.md` - risk-tiered blocking protocol contract for protected, standard, ad-heavy, and hostile pages.
-- `prompts/antigravity-stock-search-affiliate-sweep.md` - reusable Antigravity/Gemini Flash prompt for stock/search affiliate-ad discovery reports.
-- `prototypes/card-typography.html` - current card type-scale surface for the flat card.
-- `prototypes/attention-modes.html` - history only: the retired Ambient motion comparison (Breath, Tide, Lumen) and the Ambient/Editorial Anchor typography pair. Every concept in it has been superseded.
-- `prototypes/attention-modes-compare.html` - history only: side-by-side Breath/Tide/Lumen review surface.
 - `evals/live-sites.json` - regression, discovery, controlled, and manual-only URL cases for the live eval runner, including track/category metadata and authored site-policy expectations where useful.
 - `tests/fixtures/ad-clutter.html` - deterministic clutter/ad fixture page.
 - `tests/fixtures/performance-scroll.html` - long deterministic page for sustained multi-card performance measurement.
 - `package.json`, `package-lock.json` - Node scripts and Playwright dev dependency.
 - `README.md` - loading, privacy, manual tests, limitations.
-- `STATUS.md` - current project state.
 - `DECISIONS.md` - durable implementation decisions.
+- `CHANGELOG.md` - what shipped in each released version.
 - `CLAUDE.md` - Claude Code operating notes.
 - `CONTRIBUTING.md` - the open/closed contribution split and the rules for a filter pull request.
 - `SECURITY.md` - private vulnerability reporting and what counts as a vulnerability here.
@@ -116,7 +109,7 @@ quiet card carrying one of the user's own notes.
 
 ## What NOT to do
 
-- Do not add React, TypeScript, bundlers, or a backend for this release candidate.
+- Do not add React, TypeScript, bundlers, or a backend.
 - Do not add remote APIs, analytics, accounts, or tracking.
 - Do not expand into procedural filters, scriptlets, or a full adblocker stack without a specific product decision and tests.
 - Do not request broad extra permissions without a specific reason.

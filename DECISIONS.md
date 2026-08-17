@@ -85,7 +85,7 @@
 **Why**: Manual notes per obvious banner create unnecessary friction. The inspector already knows the page, element, size, CSS, sources, reasons, and safety blocks.
 
 **Consequences**:
-- Hlib can click a missed banner and save/copy the report in one action.
+- A missed banner can be clicked and its report saved or copied in one action.
 - Reports stay in `chrome.storage.local`, capped at 75 recent records.
 - No remote logging or new permission is needed.
 
@@ -115,10 +115,10 @@
 
 **Decision**: Add inspector manual-pick mode and a Use parent control.
 
-**Why**: Auto-highlighted suspects are only heuristic guesses. Real pages contain ad containers that do not match early scoring rules, and Hlib needs to capture those without opening ad links.
+**Why**: Auto-highlighted suspects are only heuristic guesses. Real pages contain ad containers that do not match early scoring rules, and those need capturing without opening ad links.
 
 **Consequences**:
-- Hlib can select unhighlighted clutter by turning on Manual pick, hovering, and clicking the area.
+- Unhighlighted clutter can be selected by turning on Manual pick, hovering, and clicking the area.
 - Use parent can widen from a child creative to its container.
 - Browser smoke verifies manual selection on an unhighlighted fixture rectangle.
 
@@ -248,20 +248,6 @@
 - Large video players or normal embedded tools should remain outside this rule.
 - Browser smoke includes a script-injected iframe fixture inside article context.
 
-## 2026-06-05 - Use Ambient Field As The Primary Visual System
-
-**Decision**: Make Ambient Field the primary replacement-card direction for both Quiet and Anchor. Keep Editorial Folio as a secondary Anchor text treatment.
-
-**Why**: Ambient Field turns removed ad space into atmosphere without replacing one demand for attention with another. Editorial Folio gives user-written intentions more weight when desired, but its framing is too semantically active for Quiet mode.
-
-**Consequences**:
-- Quiet uses Ambient visuals without text.
-- Anchor uses Ambient visuals with either Ambient or Editorial typography.
-- Generic motivation, quotes, and feed-like content remain outside the initial product.
-- Motion must stay slow, continuous, and low contrast, with no particles, abrupt loops, synchronized pulsing, or interaction bait.
-- `prefers-reduced-motion` must produce a static treatment.
-- Start with CSS-driven fields and gradients. Canvas/WebGL or more computational generative visuals should only be added if CSS cannot deliver the desired quality and browser dogfood shows acceptable performance.
-
 ## 2026-06-12 - Replace Explicit Full-Page Branding Takeovers
 
 **Decision**: Treat near-viewport fixed `brnd` / `ibrnd` wrappers containing an
@@ -306,22 +292,6 @@ timer.
 - This reduces visible flash but does not stop ad requests or script execution.
   Truly pre-render blocking remains a future `declarativeNetRequest` or
   equivalent network-layer decision.
-
-## 2026-06-12 - Select Tide As The Production Ambient System
-
-**Decision**: Use Tide as the sole production Ambient motion system for Quiet
-and Anchor.
-
-**Why**: Side-by-side review found Tide cleaner and less attention-demanding
-than Breath or Lumen while still making replaced space feel intentional.
-
-**Consequences**:
-- Production cards no longer rotate through motion variants.
-- Breath and Lumen remain only in the throwaway comparison prototype as design
-  history.
-- The browser smoke asserts that every production card uses Tide.
-- Product interface work can proceed without exposing motion-style
-  customization.
 
 ## 2026-06-12 - Use Visual Presence Instead Of Page Replacement Caps
 
@@ -573,64 +543,6 @@ an unsafe storage format.
   verbatim without executing, and fails if the template form ever returns.
 - Rules containing backticks are no longer dropped from the snapshot.
 
-## 2026-07-03 - Kill The Public Product; Archive The Project
-
-**Decision**: Stop all engine and release work. Do not submit to the Chrome
-Web Store. Archive the repository under `Hlib/archive/`. No further DNR rules,
-DOM heuristics, UI fixes, or eval expansion.
-
-**Why**: First real dogfooding session (2026-07-02/03) produced false
-positives — non-ad content replaced — on ad-heavy sites, alongside continued
-misses, despite a green automated harness (97/100 adblock-tester, 4/4
-controlled evals). False positives were the failure mode the architecture was
-explicitly built to avoid, and they are structural, not tunable: judging "what
-counts as an ad" is exactly the human-triage moat that mature blockers built
-over a decade of crowd-sourced reports. A solo maintainer cannot win that
-whack-a-mole, and the maintainer no longer wants to use the tool — terminal
-for a product whose adoption ask is "replace uBlock."
-
-**Consequences**:
-- The 2026-07-02 audit's kill condition fired early: the decisive test failed
-  one layer below the notes thesis, so the Anchor hypothesis remains untested
-  and may be revisited later on an ad-tech-free surface (e.g., new tab), as a
-  fresh project after a grill, not a pivot of this codebase.
-- Reusable assets to salvage: the Playwright unpacked-extension test rig, the
-  hybrid live-eval harness pattern, the dependency-free release packager/zip
-  writer, the SVG-to-PNG icon build via Playwright, and the JSON-escaped
-  generated-artifact pattern from the injection fix.
-- The engine work is treated as paid tuition: it bought a definitive answer
-  about why ad blocking is a duopoly, plus post-mortem content material.
-
-## 2026-07-03 - Correction: The Kill Narrative Overstated The Failure
-
-**Decision**: Amend the same-day kill record. The "first real dogfooding
-session" framing was false. Hlib manually tested on real sites continuously
-from early June (ukr.net, Forbes, and streaming-canary reports; the 06-13 dogfooding
-week), and those reports drove tuning throughout. His corrected assessment:
-blocking was roughly 90% right on most sites, remaining misses were largely
-shared with uBlock, and false positives appeared when detection was pushed
-past the last safe checkpoint — not as first-contact structural collapse.
-"Killed entirely" is retracted. The project is **parked as a public store
-product**; repositioning under consideration: freeze-and-use privately,
-open-source experiment, portfolio piece, kyii-studio graveyard entry.
-
-**Why**: The close-out narrative drifted from the recorded evidence. The error
-surfaced when content drafted from the kill brief misread the story and Hlib
-flagged it. What still stands from the original decision: maintainer fatigue
-with the store-launch fight, the crowd-sourced false-positive-triage moat
-argument against beating mature blockers, and the maintenance treadmill of a
-public store product. What does not stand: the claim that the product failed
-on first contact with reality, and any implication that the engine is bad.
-
-**Consequences**:
-- The Anchor/notes thesis remains untested and testable: freezing detection at
-  the safe checkpoint and using the extension privately is a viable path.
-- eval-system's reference entry and the harvested content seeds were corrected.
-- Real eval lesson kept: manual-testing findings lived in chat and STATUS
-  prose instead of recorded eval results, which made the testing history easy
-  to misremember at decision time. Human-pass sessions should be logged as
-  first-class eval artifacts.
-
 ## 2026-07-03 - Detection Precision Pass: Full-Match Labels And Scoped Rungs
 
 **Decision**: Before the month of private dogfooding, fix the false-positive
@@ -666,7 +578,7 @@ mechanisms (substring labels, `promo`, sidebar+size, unscoped ad-source),
 while every observed true positive had a stronger signal available. Accepted
 tradeoff: leaf-label misses on long native teasers (>120 chars without ad
 identifiers) and first-party sponsored commerce listings inside links —
-conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
+conservative in the chosen direction (misses tolerable, FPs kill trust).
 
 **Consequences**:
 - Bait pages: en-wiki 141→0, uk-wiki 2→0 replacements; HN/MDN stay 0.
@@ -683,8 +595,8 @@ conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
 
 ## 2026-07-04 - Overlay Ads Are Hidden, Never Carded; aria-label Is Safety-Only
 
-**Decision**: Two dogfooding-day-1 rules, from Hlib's first two field reports
-(streaming-canary full-screen block; his own localhost:4321 tool condemned).
+**Decision**: Two dogfooding-day-1 rules, from the first two field reports
+(streaming-canary full-screen block; an unrelated localhost:4321 tool condemned).
 
 1. **Treatment contract: Tide cards only for in-flow slots.** A detected
    full-page branding takeover (`FULL_PAGE_TAKEOVER_REASON`) or any slot whose
@@ -701,7 +613,7 @@ conservative in the direction Hlib chose (misses tolerable, FPs kill trust).
    elements (caught by the AdThrive footer fixture).
 2. **aria-label leaves identifier text.** `getIdentifierText` is machine
    identifiers only (id/class/data-* / tag); the ad-like-identifier rung
-   condemns unconditionally, and aria-label is human prose — Hlib's tool with
+   condemns unconditionally, and aria-label is human prose — an unrelated tool with
    `aria-label="Ads conversion diagnostic constellation"` was condemned by the
    `ads` token. New `getSafetyIdentifierText` keeps aria-label for the six
    unsafe-identifier (veto) helpers: prose may still veto a replacement as
@@ -846,7 +758,7 @@ global prune loop instead of redefining YouTube globals.
 observer on YouTube hosts while leaving DNR rules and the YouTube-specific
 main-world player-ad layer active.
 
-**Why**: Hlib reported browser lag with the extension enabled after the
+**Why**: Browser lag was reported with the extension enabled after the
 YouTube blocker was added. A focused four-way performance probe on Gangnam
 Style separated the layers:
 
@@ -1024,39 +936,29 @@ the initial `notion.so` URL classified as protected, but the final
   avoiding editor breakage.
 - No new ad detection rules, DNR block rules, or broader heuristics were added.
 
-## 2026-07-15 - Un-Park The Public Release; GPLv3; Detection Freeze
+## 2026-07-15 - License GPLv3, And Freeze Detection Before Release
 
-**Decision**: Reverse the 2026-07-03 parking of the public product. Target:
-Chrome Web Store release + open-source repo + KYII portfolio piece. The
-~08-02 dogfood window stays as the store-submission gate; release prep (UI/
-brand pass, store compliance, repo hygiene) runs in parallel. License the
-repo GPLv3. Declare a detection freeze: until release, detection changes
-only from field-reported false positives verified with bait-page + FP-hunt
-runs — no new miss-coverage patches.
+**Decision**: Target a Chrome Web Store release and an open-source repo.
+License the repo GPLv3. Declare a detection freeze: until release, detection
+changes only in response to a field-reported false positive verified with
+bait-page and FP-hunt runs — no new miss-coverage patches.
 
-**Why**: Twelve days of dogfooding as the only ad blocker produced the
-signal the window was armed to collect: daily use held, blocking is
-competitive with the prior ad blocker on Hlib's real sites, and the
-replacement messages deliver the intended value. The parts of the kill
-decision that survived the 2026-07-03 correction (crowd-sourced FP-triage
-moat, maintenance treadmill) are addressed by positioning, not engineering:
-a calm focus tool, conservative by design, no full-adblock-parity claims —
-not "replace uBlock." GPLv3 because packaged artifacts derive from EasyList
-(GPLv3/CC BY-SA dual-licensed); MIT would require segregating the generated
-lists from the code.
+**Why**: GPLv3 because the packaged artifacts derive from EasyList, which is
+GPLv3 / CC BY-SA dual-licensed. MIT would require segregating the generated
+lists from the code. The freeze exists because miss-hunting and release
+stabilisation pull in opposite directions: every new selector is a new chance
+to break a page, and the release needs the false-positive rate to hold still
+long enough to be measured.
+
+The positioning follows from the same conservatism — a calm focus tool that
+does not claim full ad-blocker parity. That is a product boundary, not a
+limitation to engineer away.
 
 **Consequences**:
-- Store submission is gated on the window closing clean (no uBlock
-  reinstall, FP annoyances stay rare). Sequencing after the gate: open
-  source + portfolio first, store submission second.
-- The detection freeze keeps the dogfood signal clean and honors the
-  ukr.net patch-loop lesson; discovery evals become non-gating FP/breakage
-  canaries, not miss-hunting grounds.
-- Before the repo goes public: decide eval-case optics (pirate-streaming
-  references in `evals/live-sites.json`, `rules/rules_1.json`, and project
-  docs) and review README/docs framing for a public audience.
-- A private remote backup should exist before any further multi-day work
-  accumulates; the repo had no remote as of this decision.
+- Discovery evals become non-gating false-positive and breakage canaries
+  rather than miss-hunting grounds.
+- Store submission is gated on the false-positive rate staying low under daily
+  use, not on coverage reaching a threshold.
 
 ## 2026-07-18 - Named Presence Modes; Slot-Collapse Removal; First-Run Page
 
@@ -1148,7 +1050,7 @@ Specifically:
   `nogravity4.click`, `video.unocdn.com/*_fix.mp4`), as is the release-contract
   assertion that they stay packaged.
 
-**Why**: Hlib's call was that pirate streaming must not be mentioned in public
+**Why**: The call was that pirate streaming must not be mentioned in public
 references while the lessons are preserved. A blocklist entry is coverage, not
 a mention: those hostnames are ad/VAST endpoints indistinguishable from the
 thousands of ad hosts already in the packaged rulesets, and dropping them would
@@ -1167,7 +1069,7 @@ shortcut.
   escalate on observed takeover/popup behavior instead.
 - `ashdi.vip` still appears as a CDN hostname in the kept DNR rule and in the
   decision rationale explaining why content CDNs must not be blocked wholesale.
-  Open to reversal if Hlib wants zero trace.
+  Open to reversal if zero trace is wanted.
 
 ## 2026-08-02 - Scope The First Release To Large Global Ad-Heavy Sites
 
@@ -1183,10 +1085,10 @@ renamed `portal-*`. Coverage beyond the seeded set is reached two ways that
 already exist: observed page signals, and the user-facing missed-ad report
 flow.
 
-**Why**: Hlib's call. Two reasons, and the second is the stronger one. First,
+**Why**: Two reasons, and the second is the stronger one. First,
 a focused initial release is a cleaner claim — 21 major publishers we actually
 test is more honest than a long tail nobody re-runs. Second, `ukr.net` was
-never a fair gate: Hlib confirmed on 2026-08-02 that it still shows ads with a
+never a fair gate: it was confirmed on 2026-08-02 to still show ads with a
 conventional adblocker too, so failing our release on it measured the site's
 difficulty rather than our regression. It was also the origin of the June
 white-screen patch loop, which is exactly the dynamic a permanent gate on a
@@ -1201,8 +1103,8 @@ rename makes that explicit instead of tying it to one site.
 
 **Consequences**:
 - Regional ad-heavy sites classify `standard` until signals or a user report
-  say otherwise. For Hlib personally this is a small live downgrade on a site
-  he browses.
+  say otherwise. That is a small live downgrade on regional sites the
+  maintainer reads.
 - The release no longer has a designated "known fragile site" gate. Fragility
   regressions must be caught by the fixture suite and the 21-publisher
   regression track instead.
@@ -1572,35 +1474,6 @@ The one page that reached two co-visible cards was not repeating at all. NY Post
 - `manifest.json`, `README.md`, `AGENTS.md`, and `docs/chrome-web-store.md` no longer describe a Tide field. Earlier `DECISIONS.md` entries keep the name: they record what was decided at the time, and rewriting them would destroy the history rather than correct it.
 - Two items are deliberately left open. The icon in `scripts/build-icons.mjs` is still a literal drawing of the deleted field — gradient, wave paths, sweep, ember orb — on the most visible surface the project has; replacing it is a design decision, not a rename. And `reducedMotion` now controls only a 140ms fade-in and a 140ms hover transition, both already covered by the OS `prefers-reduced-motion` query, which leaves `benchmark-performance.mjs` running `still` and `animated` scenarios that differ by nothing a scroll benchmark can see.
 
-## 2026-08-06 - The Motion Setting Is Removed
-
-**Decision**: `reducedMotion` is gone from storage, options, popup, and every harness. The OS `prefers-reduced-motion` query in `src/content.css` is the only thing that stops the card's motion. `benchmark-performance.mjs` drops from three scenarios to two.
-
-**Why**: the setting's `attention-redirector-card--still` rule and the OS query covered identical selectors with identical declarations, so a user who set the toggle to "still" got exactly what the OS preference they had almost certainly already set was giving them. A setting that duplicates a system preference is a setting that has to be explained in the store listing for nothing.
-
-**Consequences**:
-- The card's whole motion budget is a 140ms fade on insertion and a 140ms hover transition on the hide button. That is what the setting controlled — not the ambient drift, which the flat-card port had already deleted. An earlier `STATUS.md` claim that the setting controlled *nothing* was wrong and is corrected there.
-- The copy inside `SHADOW_ROOT_STYLE_TEXT` was dead on arrival: that stylesheet has no `@keyframes` and no `animation` property, so shadow-root cards have never faded and never needed stopping. Removed with the rest.
-- The reduced-motion gate in `test:extension` was falsified before being trusted — with the OS query deleted and the bundle rebuilt it fails on `{"card":"attention-redirector-fade","cardTransition":"all","hide":"opacity, background"}`. It now also carries a positive control that emulates `no-preference` and requires the card to animate, because a reduced-motion assertion passes trivially against a card that never moved.
-- `still` and `animated` were measuring one 140ms fade across a multi-second scroll workload — a distinction below the noise floor of the instrument. What replaces them is `disabled` versus `enabled`, which is the question the benchmark was built to answer: 0 cards at p95 16.7ms / task 1.7% / heap 3.5MB, against 40 cards at p95 16.8ms / task 2.5% / heap 5.2MB.
-- `audit-card-legibility.mjs` and `build-store-assets.mjs` used the setting to freeze cards for capture; both now call `page.emulateMedia({ reducedMotion: "reduce" })`, which is the same mechanism the extension itself now relies on.
-- Existing installs need no migration. The merge in `shared.js`, `options.js`, and `popup.js` simply stops reading the key, and the first save drops it. Verified against a seeded old-shape install: options renders notes, theme, and domains with no Motion field, and the object written back has no `reducedMotion`.
-- Removing the Motion field made the Display section caption and the Appearance field caption say the same thing. The field-level `<small>` is gone; the section now reads "Theme for this extension's popup and settings. The in-page card takes its own tone from the site it lands on."
-
-## 2026-08-06 - The Mark Is A Card In A Slot
-
-**Decision**: the toolbar icon and the store promo tile are redrawn as an ink surround with the card placed in it, using the card's own light-tone values. The Tide field — gradient, wave paths, light sweep, ember orb — is gone from both.
-
-**Why**: the icon is the most-seen surface the project has, on the toolbar and at the top of the store listing, and it was a literal drawing of a product that no longer ships. The previews had already been held to the card; leaving the mark showing the old field would have made the store page contradict itself.
-
-**Consequences**:
-- Chrome does not tint extension icons, so one PNG has to hold on a `#dee1e6` toolbar and a `#292a2d` one. That constraint decided the design, not taste. Six candidates were rendered on both backgrounds at 16/32/48: a light card dissolves into the light toolbar, a dark card into the dark one, and only a two-tone mark — ink surround, pale card, ink note — carries its own figure and ground well enough that neither can swallow it.
-- Two note bars at every size, with no size hinting. A single bar is cleaner at 16px and was rendered to check, but it reads as a minus sign, which says "removed" where the product says "replaced". The two-bar version was legible enough at 16px to make the trade unnecessary.
-- The card in the mark is at 6/5, the aspect the welcome preview uses, so the icon, the onboarding preview, the options specimen, and the promo tile are now four drawings of one object.
-- The promo tile is the same mark at listing scale, and carries the real default note in the real typeface rather than placeholder bars — at 440x280 a note drawn as bars looks like a wireframe. Space Grotesk is inlined as base64 because `setContent` gives the page no base URL to resolve `fonts/` against.
-- The tile's card uses the card's values: padding `min(w, h) * 0.1`, and the leading and tracking `cardLineHeight` / `cardTracking` give at 18px. It is a fifth hand-synced copy of the card's look. The case for generating them all from `content.css` keeps growing and is still unbuilt.
-- `--url about:blank` renders the tile without fetching a live page. `loadPage` already tolerates finding no cards, so no flag had to be added to iterate on the tile offline.
-
 ## 2026-08-06 - Host Tone Is Read Across Shadow Boundaries
 
 **Decision**: `detectHostTone` crosses open shadow boundaries when walking up for the first painted background, stepping from a shadow tree's top-level element to its host. The suite now asserts that the tone is correct, not merely present.
@@ -1671,7 +1544,7 @@ The rule, read over CDP because Forbes' stylesheets are cross-origin and `cssRul
 
 **Why**: manual smoke showed "Every Second Counts" stranded at the far left of a 1583px Forbes strip card, three words adrift in a full-width box. Word count cannot see the box it is setting text into. The same three words are one line in a leaderboard and three lines in a 160px skyscraper; the same eighteen-word note is two lines in the strip and ten in the skyscraper. What decides whether a note reads as a statement taken at a glance or as a block read downward is the number of lines the reader meets, and only the fit pass knows that.
 
-The threshold was set by rendering both notes across the shape matrix and reading them, not by argument. A first proposal keyed on whether the note wrapped at all; Hlib rejected it for the skyscraper, and the render agreed — three words wrapped to three lines in a 160px column still want the middle of the card. Left only starts winning at four:
+The threshold was set by rendering both notes across the shape matrix and reading them, not by argument. A first proposal keyed on whether the note wrapped at all; that was rejected for the skyscraper, and the render agreed — three words wrapped to three lines in a 160px column still want the middle of the card. Left only starts winning at four:
 
 | shape | note | lines | reads better |
 | --- | --- | --- | --- |
@@ -1735,373 +1608,89 @@ Each page also carried its own near-duplicate copy of the same token stack — t
 - Verified end to end — `npm run package:release` now writes 27 runtime files and the ZIP contains `chrome.css`.
 - Absolute URLs, protocol-relative URLs, and fragments are skipped; anything under the optional directories (`fonts`, `icons`, `_locales`) is accepted because the packager walks those whole.
 
-## 2026-08-08 - The Toolbar Mark Is A Bare Crescent, Not A Tile
+## 2026-08-16 - Exclude Product Surfaces By Domain, And Make `header` Hard-Unsafe
 
-**Decision**: Draw the toolbar icon as a single crescent in `#c2542b` on
-transparency, with no rounded-square tile behind it. Exempt the icon from the
-card's flat rule.
+**Decision**: Fix the Google-family false positives with two independent
+changes — grow `DOM_REPLACEMENT_DISABLED_DOMAINS` from 5 to 103 entries covering
+product and app surfaces across the major vendors, and promote `header` /
+`[role='banner']` from soft-unsafe to hard-unsafe. Lock both behind a new
+offline gate test, `scripts/test-page-gate.mjs`, wired into `npm run check`.
 
-**Why**: Chrome does not tint extension icons, so one PNG lands on both a
-`#dee1e6` toolbar and a `#292a2d` one. The product's own values each disappear
-into one of them — ink `#20312a` measures 1.05:1 on dark, surface `#e6ebe3`
-measures 1.08:1 on light. Ten rejected candidates across three rounds had all
-carried a tile, and the tile was doing exactly one job: holding ink and card
-together so neither toolbar could swallow the mark. Measuring the palette showed
-a saturated mid-tone does that alone — `#c2542b` is 3.48:1 light and 3.14:1
-dark, clearing 3:1 on both — so the tile was never load-bearing, only assumed.
-The flat rule is a separate question: the card is flat so it does not fight the
-host page it lands in, and the toolbar icon has no host page, so the rule does
-not reach it. Applying it anyway is what produced the rejected card-in-a-slot.
+**What was actually wrong**: three defects chained. Only four Google hosts were
+excluded, all at the `manifest.json` layer, so 33 other Google surfaces ran the
+extension. The ad-identifier regex treats `_` as a token boundary, so Google's
+minified Google-bar classes (`gb_Ad`, `gb_ad`, `gb_ima`, `gb_Vast`) read as ad
+evidence — and the Google bar ships on every Google property. `header` was only
+soft-unsafe, so that evidence overrode it. The observed result on
+`news.google.com` was the extension replacing the **Google News logo** —
+`div.gb_2d.gb_Ad`, 170x48, top-left, inside `header#gb`, linking to the
+homepage.
 
-**Alternatives**: A twelve-variant round crossed four bite directions with three
-thicknesses. Rotating the bite away from up-right sheds the dark-mode moon
-association, but at 16px the other three orientations read as a comma or a hook
-— the up-right crescent is the only one whose horns land symmetrically about the
-mass, and that symmetry is what makes it legible. Five non-crescent concepts
-were also drawn bare and full-bleed; four died of borrowed meaning rather than
-legibility (water drop, refresh spinner, play glyph, flag), which is the real
-constraint at this size: UI has already claimed nearly every one-mass silhouette.
+**Why the second tier and not the first**: `chrome.declarativeNetRequest.testMatchOutcome`
+against 16 real Google requests showed 5 blocked, all genuine trackers, and no
+functional endpoint touched. The symptom was purely DOM, so the fix belongs in
+`DOM_REPLACEMENT_DISABLED_DOMAINS` (nothing replaced, request blocking stays on)
+rather than `SENSITIVE_DOMAINS` (zero footprint). `SENSITIVE_DOMAINS` grew
+24 -> 46 anyway, but for a different reason: brokerages and password managers
+belong in the money-and-credentials tier on their own merits.
 
-**Consequences**:
-- Geometry is solved, not eyeballed — outer disc R 62, horn opening 115 degrees,
-  mass 52 units — then translated so the crescent's own bounding box is centred.
-  Centring the disc instead pushes the mark five units past the right edge and
-  shaves the lower horn; the twelve-variant sheet was judged with that clipping
-  present and the fix was applied before the mark shipped.
-- 52 units is 6.5px of ink at 16px. Fat and medium (43 units) quantise to nearly
-  the same raster, so the extra mass is free; slim (33 units) visibly washes out
-  on the dark toolbar, where the mark has the least contrast to spend.
-- `scripts/build-store-assets.mjs` embeds `icons/icon-128.png` in the promo tile
-  rather than holding a second copy of the geometry, so `build:icons` has to run
-  before `build:store-assets` when the mark changes. The mark measures 3.00:1 on
-  the tile's ink field, which is a floor for a graphic that size, not a text
-  contrast claim.
-- The listing tile keeps the ink field and the real card beside the mark, so it
-  still shows the product rather than repeating the icon.
+**Why `google.com` is listed whole with Search carved back in by path**: Google
+ships new product hosts continuously, so a subdomain list is a list that goes
+stale. The whole domain is excluded and `isSearchResultsPage()` re-admits
+`SEARCH_RESULTS_HOST_RE` + `/search`, which covers ccTLDs so `google.co.uk`
+behaves like `google.com`. Search carries ads and stays in scope; every other
+surface on the domain is product UI.
 
-## 2026-08-08 - The Product Is Named Notturn
+**Alternatives rejected**:
 
-**Decision**: Rename the product from "Attention Redirector" to **Notturn**, a
-coined word. Rename the display name only; keep the `attention-redirector-` CSS
-class prefix, the `attentionRedirector*` storage keys, and the
-`Kyi101/attention-redirector` repo slug.
+- *Blanket-exclude `google.com` including Search.* Argued for on the strength of
+  a measurement that turned out to be void — the probe reported zero sponsored
+  results, but the page title was the raw URL, meaning Google had served an
+  interstitial rather than results. With no evidence that Search costs nothing,
+  the honest default is to keep the one Google surface that genuinely sells ads
+  in scope.
+- *Require a real ad resource before replacing.* Intuitively the strongest
+  general guard, and measurement killed it: `runs/fp-hunt/header-cost.mjs`
+  showed it would destroy **all 40** true positives across six ad-heavy
+  publishers, because the DNR layer blocks the request before the container ever
+  fills. A well-blocked page has ad-shaped holes, not ad resources.
+- *Leave `header` soft.* Measured at zero cost — none of the 40 true positives
+  sat inside a `header`, and with `google.com` temporarily removed from the list
+  the header guard alone still produced 0 slots on `news.google.com`. Two
+  independent fixes for one bug is deliberate here: the domain list stops the
+  known hosts, the structural guard stops the class of bug on hosts nobody has
+  listed yet.
 
-**Why**: "Attention Redirector" describes the mechanism, which is what a spec
-calls a thing before it has a name. The product is a portfolio piece with no
-expectation of store search traffic or channel-driven installs, which removes
-SEO from the constraint set and leaves four things that actually matter: no
-trademark exposure, short enough to say aloud, does not fight the crescent, and
-does not read as an assignment brief. Notturn is *nocturne* plus *turn* — the
-night piece is the mark, the turn is the redirect — so the name and the icon
-explain each other, which none of the alternatives managed.
-
-**Alternatives**: Two rounds of dictionary words were rejected, and the rejection
-produced the more useful finding: the names worth having are taken. "Aside"
-collides with two extensions already on the Chrome Web Store
-(`pecefkiefodjfkgfihkhkcbhlbgahoge`, `jbkogoifcdhkdfohohhhaodaindieidc`) — same
-store, same category, the worst possible collision. "Marginalia" is Viktor
-Lofgren's independent search engine, with a Firefox extension and two domains.
-Of the coined shortlist, Marginia and Tacen were also clean; Notturn won on the
-tie to the mark. "Lullen" was dropped for being vulgar Dutch slang, which is the
-specific failure mode a coined name has to be screened for and which Hlib, as a
-non-native speaker, explicitly cannot screen himself. Earlier candidates built
-on "Ad Block" were dropped over Eyeo GmbH's trademark enforcement history.
+**Why a new test rather than extending the live smoke**: the release smoke
+(`runs/release/live-zip-smoke.mjs`) checked `accounts.google.com` and
+`mail.google.com` — the two hosts `manifest.json` already hard-excludes — so it
+was structurally incapable of failing on this bug and had been reporting green
+throughout. `scripts/test-page-gate.mjs` runs the real module text in a `vm`
+sandbox, so it cannot drift from what ships, classifies 52 surfaces as
+`none` / `off` / `full`, reads `exclude_matches` out of `manifest.json`, and
+fails if `SENSITIVE_DNR_DOMAINS` in `src/background.js` diverges from
+`SENSITIVE_DOMAINS` in `src/shared.js`. Every assertion was falsified before
+being trusted: 35 of the 52 cases fail against the pre-fix tree, the drift check
+fails when one domain is removed from the background copy, and the Search
+carve-out flips `google.com/search` to `off` when stubbed to `false`.
 
 **Consequences**:
-- Availability was verified *before* the name was presented, not after. Checked:
-  npm 404, PyPI 404, no exact-name GitHub repository, no DNS on .com/.app/.io/
-  .dev, no Chrome Web Store listing, no trademark hits. `github.com/Notturn` is
-  an empty account created 2025-03-17 with zero repos and zero followers, never
-  touched since — the handle is squatted, the name is not.
-- Internal identifiers deliberately keep the old string. The CSS prefix is a
-  collision guard against host-page stylesheets, and a longer, stranger prefix is
-  strictly better at that job; it is also referenced by `rules/rules_1.json` and
-  asserted across the test suite. Renaming the storage keys would orphan saved
-  settings and require a migration shim, which is more machinery than the
-  tidiness earns.
-- Inspector report headings moved with the name, and `scripts/report-contract.mjs`
-  moved in the same commit — that contract exists to keep the two in lockstep and
-  is what proves the rename did not split them.
-- Dated records keep the old name. Rewriting `STATUS.md` history, past
-  `DECISIONS.md` entries, or `docs/superpowers/` plans would falsify what was
-  true when they were written.
-- The promo tile wordmark is now one line at 44px instead of two at 32px, since
-  the name no longer needs a hard wrap.
+- Product and app surfaces across Google, Microsoft, the AI vendors, Apple,
+  cloud/developer infrastructure, collaboration tools, and business software
+  (including `shopify.com`, reported the same day) get blocking without
+  replacement.
+- Sites deliberately kept in scope because they carry real ads: Google Search,
+  `bing.com`, `msn.com`, `wordpress.com`, and Amazon shopping — only
+  `aws.amazon.com` is excluded.
+- True-positive count on the six ad-heavy publishers is unchanged at 40 before
+  and after.
+- Two lists must now be kept in sync by hand (`src/shared.js` and
+  `src/background.js`); the drift check is what makes that safe.
 
-## 2026-08-11 - The Product Is Named Notes Not Ads, And The Mark Is A Billboard
-
-**Decision**: Reverse the 2026-08-08 entry above. The product is **Notes Not
-Ads**, no comma. The toolbar mark is an empty billboard — a panel on two posts —
-replacing the crescent. The
-display-name-only scope from the reversed entry is unchanged: the
-`attention-redirector-` CSS prefix, the `attentionRedirector*` storage keys, and
-the `Kyi101/attention-redirector` repo slug all keep the original string.
-
-**Why the reversal**: Notturn was locked on an availability pass that looked
-clean and was not. An independent reviewing agent killed it in one pass —
-*Notturn Alley* is the canonical Italian localization of Knockturn Alley. The
-runners-up recorded as clean in that entry died on the same check: Marginia is a
-live AI e-commerce service at marginia.org, Tacen is a suburb of Ljubljana with
-an Olympic whitewater course. Two distinct method failures caused this. The
-bare-word search returned results about Windows startup programs and a note app
-called Notability — the engine found nothing and padded — and that was banked as
-a negative result, which it is not. And the registries checked (npm, PyPI,
-GitHub, DNS, store, trademark) are machine namespaces that cannot detect a
-fictional location, a foreign town, or slang. That cultural layer is the one Hlib
-cannot screen as a non-native speaker and had explicitly delegated, so skipping
-it failed the actual job.
-
-**Why this name**: A third round of road and vehicle words produced Layby, which
-Hlib rejected as too abstract. The governing constraint he stated is that a
-portfolio piece has no follower base and no store search traffic, so a stranger
-either understands it in the first second or there is no second. "Notes Not Ads"
-says the mechanism and the trade in three words. This is knowingly inconsistent
-with the reversed entry's rejection of "Attention Redirector" for being
-descriptive — the difference is that a description a stranger parses instantly is
-an asset here, and "Attention Redirector" describes the *mechanism* while "Notes
-Not Ads" describes the *result*. The comma in the reviewer's "Notes, Not Ads" was
-dropped: it is a rhetorical pause that costs a character in every slug, title,
-and store field for nothing.
-
-**Why a billboard**: A pinned note was drawn first and shipped, and Hlib rejected
-it on sight — *"at that size it doesn't read like a note. it reads too generic."*
-He was right, and the reason generalises past this mark. **At 16px a note is a
-blob, and every centred symmetric blob is already claimed** by file, tag, and
-document icons. The note rounds had optimised the wrong variable: each successive
-version was more legible than the last and no more distinctive, because
-legibility was never what was failing. A mark at this size is read as a
-silhouette, so something has to stick out of it. The billboard's legs do that,
-and they carry the meaning at the same time — a panel on posts is the one object
-that says "ad space" using no interior detail, which is the only kind of detail
-available here. An empty one is the product: the ad surface, taken over.
-
-**Alternatives on the mark**: Twenty-nine variants across five rounds. The note
-family died as described. A car and a bicycle were explicitly offered by Hlib and
-were tested rather than argued away, which was the right call in one direction
-and not the other: the car is unmistakable at 128 and an unreadable hump at 16,
-so it fails on legibility rather than on relevance. A pencil and a speech bubble
-both survive 16px trivially and are the strongest silhouettes in the whole set,
-but they mean *edit* and *comment* — borrowed meaning is the binding constraint
-at this size, not draughtsmanship. A single-post sign works but reads as a
-generic sign; two posts are what make it a billboard.
-
-**Consequences**:
-- Legs are 19 units wide with a 30-unit gap, about 2.4px and 3.75px at 16px, so
-  the legs and the gap between them both survive rasterisation. Falsified in
-  three directions: at 16 units the legs wash out on the dark toolbar, at the
-  panel corners the shape reads as a table, and splayed it reads as an easel.
-- No interior detail is possible, which rules out the obvious literal version —
-  a billboard with note lines on the panel. At 16px that smears to a grey mass.
-- Verified from the generated PNGs at 16/32/48/128 on `#dee1e6` and `#292a2d`,
-  not from the SVG prototypes, since rasterisation is the thing being tested.
-- The crescent's geometry comment in `scripts/build-icons.mjs` and the crescent
-  reference in `scripts/build-store-assets.mjs` were both rewritten.
-- The promo tile wordmark returns to two lines, at 40px, since the name wraps
-  again. The reversed entry's last consequence line is void.
-- `22fc618`, the Notturn rename commit, is left in history rather than reverted.
-  A squash before the repo goes public is still available and would remove it.
-- The naming method that produced this is in durable memory, not just here: a
-  registry pass and a cultural pass are separate passes, and a search that
-  returns off-topic results has not returned a negative result.
-
-## 2026-08-11 - The Chrome Takes The Mark's Orange, And The Dark Canvas Comes Off Near-Black
-
-**Decision**: Move the extension's own surfaces — popup, options, welcome — one
-step toward the register of the new name, using three changes and no more: lift
-the dark canvas off near-black, round the radii, and give the chrome the
-toolbar mark's terracotta as `--accent`. Cards and `src/content.css` are out of
-scope and unchanged.
-
-**Why**: Hlib's read after the rename — *"the dark theme is too premium looking
-for such a name and the sharp corners and all seem a bit too serious, while new
-name is a bit more playful."* A colour census settled the argument about whether
-the mark was the problem or the chrome was: `#c2542b` appeared **zero times**
-across every extension stylesheet. The mark was not clashing with the UI, it was
-orphaned from it, and the only colour on the welcome page was the fake ad the
-page exists to mock.
-
-**Why the dark accent is a different hex**: `--accent` cannot be one value.
-`#c2542b` reaches only 3.25:1 on the lifted dark page, so dark takes `#e0764a`
-at 4.85:1. The previous dark accent, `#8fb3a7`, was a green — it could never
-have matched a toolbar mark, because it measures 1.75:1 on Chrome's light
-toolbar while `#2e6f5c` measures 2.42:1 on the dark one. `#c2542b` is the only
-value tested that clears 3:1 on both toolbars, which is why the mark's colour
-was fixed outside the theme and the theme adopted it rather than the reverse.
-
-**Alternatives**:
-- *Re-colour the mark to the UI green instead.* Rejected on measurement, not
-  taste: no green in the palette clears both Chrome toolbars, and Chrome does
-  not tint extension icons, so one PNG has to survive both.
-- *Restyle the cards to match.* Refused by instruction, and correctly — the
-  in-page card takes its tone from the site it lands on. A card that followed
-  the extension's theme would be a second brand on someone else's page.
-- *A larger redesign.* Scoped out. Hlib asked for "slight". Three token-level
-  changes and a radius pass touch four stylesheets and no markup.
-
-**Consequences**:
-- Dark body text drops from 13.64:1 to 11.45:1 — still far above the bar.
-- `--on-fill` continues to equal `--page` in both themes, so the switch knob
-  works unchanged against an accent-filled track.
-- The two dark blocks in `chrome.css` remain duplicated and must stay in sync;
-  they are the only duplication left in that file.
-- The kickers are accent-coloured small caps at ~4.0:1 on the light page. This
-  is deliberate accent-as-text, not an oversight.
-
-## 2026-08-11 - The Icon Decision Is Re-Opened For External Prototyping
-
-**Decision**: Keep the billboard committed as the baseline, but re-open the
-mark. Prototyping moves outside this session; `prompts/claude-design-icon-brief.md`
-is the self-contained brief, written for an agent with no repo access.
-
-**Why**: *"few would survive one color fill and you cant just one shot them...
-even if we picked a car, there are so many ways you could depict that."* Both
-halves are right, and each exposed an error in how the five earlier rounds were
-run.
-
-**The two corrections, which are the substance of this entry**:
-- *The one-colour rule was over-applied.* Only colour that **touches the toolbar
-  background** must clear 3:1 on both. Enclosed colour needs contrast only
-  against the fill surrounding it — `#e6ebe3` on `#c2542b` measures 3.78:1 and
-  `#20312a` on `#c2542b` measures 3.00:1. Multi-colour marks were viable the
-  whole time and were excluded by a rule that did not apply to them.
-- *The size target was wrong.* `manifest.json` declares 16/32/48/128 and Chrome
-  picks by device pixel ratio, so on any 2x display the toolbar renders
-  `icon-32`. Every round was optimised against 16-at-1x, the minority case.
-
-**Consequences**:
-- Nothing ships from this entry. The tree still builds the billboard.
-- The brief carries the measured contrast table, the borrowed-meaning list, the
-  prior geometry for the billboard and the viewfinder, and a rule that no
-  concept may be judged on one drawing.
-- Still not verified: no icon from any round has been seen in a real Chrome
-  toolbar.
-
-## 2026-08-12 - The Mark Is A Beamed Pair Of Notes With Card Heads
-
-**Decision**: Close the icon. The toolbar mark is a beamed pair of eighth notes
-whose noteheads are cards — a beam at y=10 spanning x=36-120, two 16-unit stems,
-and two 48x36 rx=9 heads staggered at y=80 and y=62, single fill `#c2542b`.
-Supersedes the billboard from 2026-08-11 and the crescent from 2026-08-08.
-
-**Why**: Hlib supplied the concept six rounds had missed. The name already
-carries the pun — a note is a written note *and* a musical note — and the musical
-one has the property every discarded mark lacked: a stem and a flag protruding
-off an asymmetric body. Two heads rather than one because the name is plural,
-which is the whole margin over the eighth note; the single note is the recorded
-runner-up on cleaner draughtsmanship.
-
-**Why borrowed meaning stopped being a veto**: it was waived by Hlib —
-*"I don't care about borrowed meaning tbh."* A musical note reads as music/audio
-and is claimed by every media app. That cost is accepted because the name does
-the explaining and distinctiveness in a toolbar row is the actual job. **The
-waiver is scoped to this concept.** Avatars, map pins, pencils and gears remain
-out for anything else, and that list is still in the brief.
-
-**Alternatives, all rendered rather than argued**:
-- *Eighth note.* Cleanest single-note draughtsmanship of anything tried. Loses
-  only on the plural.
-- *Guitar, front-on and with a cream soundhole.* Fails. The waist between the
-  bouts dissolves below 48px and the silhouette reads as a bottle or a vase; the
-  soundhole version reads as a piggy bank. Circular bodies joined by a thin
-  member do not survive 32.
-- *Card head with enclosed cream rules.* The ruling survives at 32 and is
-  marginal at 16. Held as an option that should only ship if tested on a real
-  toolbar.
-- *Billboard, the incumbent.* At 32 it is an abstract slab on legs — a scoreboard
-  or a table. It only ever read at 128.
-- *Crescent, note-pin, pencil, viewfinder.* Cut for star-and-crescent collision,
-  padlock/shopping-bag reading, *edit*, and four disconnected specks at 16.
-
-**On the verification, which matters more than the choice**: the ship candidate
-was checked here against the shipped raster at every size on both toolbars rather
-than accepted from the design agent's contact sheet. That caught one false claim
-before it entered the codebase — the code comment asserted that staggered heads
-were load-bearing because levelling them would close the counter at 16. Rendering
-the level variant falsified it: the counter stays open and is in fact larger. The
-stagger is a distinctiveness choice, because levelling makes the outline
-symmetric. The comment now says that instead.
-
-**Consequences**:
-- `icons/icon-{16,32,48,128}.png` and the store promo tile are regenerated. The
-  release ZIP carries all four byte-identical to source.
-- The `#c2542b` mark is no longer orphaned: the chrome adopted it as `--accent`
-  the day before, so the toolbar and the extension's surfaces now agree.
-- Still not verified: no icon from any round has been seen in a real Chrome
-  toolbar. That remains the last open check on the mark. *(Closed the same day —
-  see the next entry.)*
-
-## 2026-08-12 - The Bare Mark Ships, And Dim-On-Selection Is An Accepted Cost
-
-The mark was finally loaded into Hlib's own Chrome, and it lost contrast when the
-toolbar button was in its selected state. Three rounds of colour and plate
-prototyping followed. **Nothing changed. The bare `#c2542b` glyph ships as-is and
-the dim selected state is a knowingly accepted tradeoff.**
-
-**Why the earlier numbers were measured against the wrong surfaces**: every
-contrast figure in the previous six rounds was computed against Chrome's two
-*default* toolbars. Hlib's Chrome is themed. Sampling his actual screenshot gave
-three surfaces nobody had tested against:
-
-| surface | colour | `#c2542b` contrast |
-| --- | --- | --- |
-| theme toolbar | `#2e212e` | 3.35:1 |
-| extension button group | `#453644` | 2.47:1 |
-| **selection pill** | `#736772` | **1.18:1** |
-
-On top of that, Chrome composites the icon at **~85% opacity** while the popup is
-open, so the selected state is worse than the raw number. This is the root cause,
-and it is structural: a flat mid-luminance mark cannot survive a mid-luminance
-pill.
-
-**Both available fixes were built, rasterised, and loaded as real unpacked
-extensions in Hlib's browser** rather than judged from a contact sheet:
-- *Brighter accent.* Nine variants. The ceiling is amber `#ffa02b` at **2.64:1**
-  on the pill — still under 3:1, and it costs 1.88:1 on the light UI page, where
-  the current terracotta holds 4.22:1. No mid-luminance orange clears the pill.
-- *Plate behind the glyph* (what Shazam does, which is why its icon holds).
-  Disc, squircle, full-bleed disc, brighter plate, ink glyph. The plate itself
-  reads fine. The glyph inside it does not: fitting the mark inside a plate means
-  redrawing it at plate scale, and the stems land near the ~11-unit rasterisation
-  floor. Hlib's verdict: *"none of them work when note gets any smaller it's not
-  looking good. so I would just keep the original as is and accept the
-  tradeoff."*
-
-**What is being accepted**: the icon is low-contrast for as long as the popup is
-open — a transient state the user is already looking away from, since the popup
-is what they opened. The idle toolbar state, which is the state that matters,
-holds 3.35:1 on his theme and 3.48/3.14 on Chrome's defaults.
-
-**The durable lesson**: six rounds of prototyping were judged on generated
-contact sheets against default toolbars, and the two backgrounds that actually
-broke the mark — a themed bar and the selection pill — never appeared in any of
-them. Get a candidate into the real browser early; a rig that emits loadable
-throwaway extensions (`runs/icon-proto/build-candidates.mjs`) costs one round and
-would have saved several.
-
-**Consequences**:
-- No repo change. Every experiment lived in gitignored `runs/` or in a scratch
-  folder on the Windows side. `scripts/build-icons.mjs` and `icons/*.png` are
-  untouched by this round.
-- The icon question is closed. Re-open it only with new evidence, not with a new
-  colour idea — the colour space has been measured and there is nothing in it.
-
-**Addendum, same day — the eighth note was re-tested against a ten-mark field and
-N3 held.** Hlib asked for the round-7 runner-up back. Ten notes were drawn and
-loaded as unpacked extensions in his own toolbar: N3, three other beamed pairs
-(round heads level beam, tilted heads sloped beam, card heads sloped beam), four
-single notes (round head, tilted head, pennant flag, sixteenth), the card-head
-hybrid, and a bare quarter note. Verdict: *"the winner remains the same."* The
-plural reading of two heads is worth more than the single note's cleaner
-draughtsmanship, which is the same trade round 7 made. Geometry for all ten is
-kept in `runs/icon-proto/note-shapes.mjs` so a future round starts from the field
-rather than redrawing it.
-
-**One hypothesis was falsified and is worth not re-forming.** Off an 8x contact
-sheet the single notes appeared to survive the selection pill better than N3, and
-the mechanism looked obvious — a big filled notehead is solid mass where N3 is
-thin strokes that wash out. Measuring pixel coverage killed it: at 16 the shipped
-N3 carries **40.0% ink and 28.9% fully-opaque**, against 33.9%/22.7% for the
-best single note. N3 has *more* mass, not less. Dimness is contrast times colour,
-and the colour is identical across every candidate, so no redraw affects it. **A
-blobbier mark is not a fix for the selected state.** The zoom on a contact sheet
-manufactures a difference that true size does not show.
+**Separate finding, not yet acted on**: `src/site-policy.js` is dead code at
+runtime. It is absent from `manifest.json`, from the content bundle, and from
+the release ZIP, and is imported only by `scripts/test-site-policy.mjs` and
+`scripts/eval-live-sites.mjs`. Its `PROTECTED_DOMAINS` list — which already
+contained `ads.google.com` and `admanager.google.com` — is an evaluation-side
+model of the product, not the product. That is precisely why this protection
+looked like it already existed. Either wire it to runtime or delete it.
