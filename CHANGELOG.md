@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.1 — 2026-08
+
+Fixes the extension breaking the dashboards of the services it blocks.
+
+- Whole-host block rules for services that also have a product console —
+  Google Analytics, Sentry, Mixpanel, Amplitude, Hotjar, the TikTok and
+  Pinterest ad managers, and two dozen more — now block third-party requests
+  only. The console's own pages work again; tracking hits sent from other
+  sites stay blocked. Verified against Chrome's own rule matcher across 48
+  consoles, with regression cases proving the third-party blocking is intact.
+- Scoped allow rules carve consoles out of the generated EasyList ruleset,
+  including the AdMob console's calls to its API on a different domain.
+- Note replacement is additionally disabled on those console domains, since
+  dashboard UIs are full of ad-related class names that read as ad evidence.
+
 ## 1.0.0 — 2026-08
 
 First public release.
