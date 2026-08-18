@@ -13,6 +13,7 @@ const PAGE_URL = urlArg > -1 ? process.argv[urlArg + 1] : "https://www.tomsguide
 
 const SHOT = { width: 1280, height: 800 };
 const TILE = { width: 440, height: 280 };
+const MARQUEE = { width: 1400, height: 560 };
 
 const SETTINGS = {
   enabled: true,
@@ -107,11 +108,111 @@ const tileHtml = (fontBase64, markBase64) => `
   <div class="card"><p>${SETTINGS.anchorNotes[0]}</p></div>
 </div>`;
 
+// The marquee is the same object at 1400x560, not a second design. The card
+// keeps the product's own radius and ring rather than scaling them — a card in
+// a large slot still ships 12px corners and a 1px inset — and its type comes
+// off the replacer.js ramps at 30px: leading 1.12 (>= 30), tracking -0.022em
+// (>= 28), ink room 0.06em ((1.24 line box - 1.12 leading) / 2). At this
+// measure the note sets in two or three lines, which is the centred side of
+// the rendered-lines rule, so it is centred the way the welcome preview is.
+const marqueeHtml = (fontBase64, markBase64) => `
+<style>
+  @font-face {
+    font-family: "Space Grotesk";
+    font-weight: 400 700;
+    src: url(data:font/woff2;base64,${fontBase64}) format("woff2");
+  }
+  html, body { margin: 0; }
+  .marquee {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 96px;
+    box-sizing: border-box;
+    width: 1400px;
+    height: 560px;
+    padding: 68px;
+    background: #20312a;
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+  .mark {
+    display: block;
+    width: 92px;
+    height: 92px;
+    margin: 0 0 30px;
+  }
+  .wordmark {
+    margin: 0;
+    color: #e6ebe3;
+    font-size: 80px;
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+  }
+  .tagline {
+    margin: 24px 0 0;
+    color: rgba(230, 235, 227, 0.58);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 18px;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+  }
+  .card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    box-sizing: border-box;
+    width: 408px;
+    height: 340px;
+    padding: 34px;
+    border-radius: 12px;
+    background: #e6ebe3;
+    box-shadow: inset 0 0 0 1px rgba(32, 49, 42, 0.12);
+  }
+  .card p {
+    margin: 0;
+    padding: 0.06em 0;
+    color: #20312a;
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.12;
+    letter-spacing: -0.022em;
+    text-align: center;
+  }
+</style>
+<div class="marquee">
+  <div>
+    <img class="mark" alt="" src="data:image/png;base64,${markBase64}">
+    <h1 class="wordmark">Notes<br>Not Ads</h1>
+    <p class="tagline">THE WEB, JUST QUIETER</p>
+  </div>
+  <div class="card"><p>${SETTINGS.anchorNotes[0]}</p></div>
+</div>`;
+
 const userDataDir = await mkdtemp(path.join(os.tmpdir(), "attention-redirector-store-"));
 await mkdir(outDir, { recursive: true });
 
 let context;
 const written = [];
+
+// Tile renders need only a blank page, so --tiles-only skips loading the
+// extension and shooting live pages — the five reviewed screenshots on disk
+// survive a tile-geometry iteration untouched.
+if (process.argv.includes("--tiles-only")) {
+  const browser = await chromium.launch();
+  try {
+    const tileContext = await browser.newContext();
+    await renderTile(tileContext);
+    await renderMarquee(tileContext);
+    console.log(`\nWrote ${written.length} assets to dist/store/:`);
+    written.forEach((name) => console.log(`  ${name}`));
+  } finally {
+    await browser.close();
+    await rm(userDataDir, { recursive: true, force: true });
+  }
+  process.exit(0);
+}
 
 try {
   context = await chromium.launchPersistentContext(userDataDir, {
@@ -151,6 +252,7 @@ try {
   await shootExtensionPage(context, `chrome-extension://${extensionId}/welcome.html`, "screenshot-5-welcome.png");
 
   await renderTile(context);
+  await renderMarquee(context);
 
   console.log(`\nWrote ${written.length} assets to dist/store/:`);
   written.forEach((name) => console.log(`  ${name}`));
@@ -252,6 +354,23 @@ async function renderTile(context) {
   await page.evaluate(() => document.fonts.ready);
   const name = "promo-tile-440x280.png";
   await page.screenshot({ path: path.join(outDir, name), clip: { x: 0, y: 0, ...TILE } });
+  written.push(name);
+  await page.close();
+}
+
+async function renderMarquee(context) {
+  const font = await readFile(
+    path.join(projectRoot, "fonts/space-grotesk-latin.woff2")
+  );
+  const mark = await readFile(path.join(projectRoot, "icons/icon-128.png"));
+  const page = await context.newPage();
+  await page.setViewportSize(MARQUEE);
+  await page.setContent(
+    marqueeHtml(font.toString("base64"), mark.toString("base64"))
+  );
+  await page.evaluate(() => document.fonts.ready);
+  const name = "promo-marquee-1400x560.png";
+  await page.screenshot({ path: path.join(outDir, name), clip: { x: 0, y: 0, ...MARQUEE } });
   written.push(name);
   await page.close();
 }
