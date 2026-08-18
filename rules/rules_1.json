@@ -41,6 +41,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||taboola.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
     }
   },
@@ -50,6 +51,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||outbrain.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
     }
   },
@@ -59,6 +61,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||criteo.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
     }
   },
@@ -68,6 +71,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||rubiconproject.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
     }
   },
@@ -113,6 +117,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||hotjar.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -140,6 +145,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||sentry.io^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -149,6 +155,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||bugsnag.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -221,6 +228,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||freshmarketer.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -284,6 +292,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||ads.tiktok.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -329,6 +338,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||ads.pinterest.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -500,6 +510,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||app.getsentry.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -626,6 +637,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||ads.spotify.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "media", "other"]
     }
   },
@@ -815,6 +827,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||analytics.google.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -842,6 +855,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||metrika.yandex.ru^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -851,6 +865,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||appmetrica.yandex.ru^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -923,6 +938,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||revcontent.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "other"]
     }
   },
@@ -932,6 +948,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||mgid.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "other"]
     }
   },
@@ -941,6 +958,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||nativo.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "other"]
     }
   },
@@ -950,6 +968,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||applovin.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "media", "other"]
     }
   },
@@ -959,6 +978,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||vungle.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "media", "other"]
     }
   },
@@ -968,6 +988,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||chartboost.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "media", "other"]
     }
   },
@@ -977,6 +998,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||inmobi.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "media", "other"]
     }
   },
@@ -986,6 +1008,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||mintegral.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "media", "other"]
     }
   },
@@ -1013,6 +1036,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||mixpanel.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -1022,6 +1046,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||amplitude.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -1094,6 +1119,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||lotame.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -1121,6 +1147,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||mouseflow.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -1139,6 +1166,7 @@
     "action": { "type": "block" },
     "condition": {
       "urlFilter": "||luckyorange.com^",
+      "domainType": "thirdParty",
       "resourceTypes": ["script", "image", "xmlhttprequest", "ping", "other"]
     }
   },
@@ -1464,6 +1492,60 @@
     "condition": {
       "urlFilter": "||sem-vosem.com^",
       "resourceTypes": ["script", "image", "xmlhttprequest", "sub_frame", "ping", "media", "websocket", "other"]
+    }
+  },
+  {
+    "id": 164,
+    "priority": 2,
+    "action": { "type": "allow" },
+    "condition": {
+      "urlFilter": "||rubiconproject.com^",
+      "initiatorDomains": ["rubiconproject.com"]
+    }
+  },
+  {
+    "id": 165,
+    "priority": 2,
+    "action": { "type": "allow" },
+    "condition": {
+      "urlFilter": "||revcontent.com^",
+      "initiatorDomains": ["revcontent.com"]
+    }
+  },
+  {
+    "id": 166,
+    "priority": 2,
+    "action": { "type": "allow" },
+    "condition": {
+      "urlFilter": "||mgid.com^",
+      "initiatorDomains": ["mgid.com"]
+    }
+  },
+  {
+    "id": 167,
+    "priority": 2,
+    "action": { "type": "allow" },
+    "condition": {
+      "urlFilter": "||admob.com^",
+      "initiatorDomains": ["admob.com"]
+    }
+  },
+  {
+    "id": 168,
+    "priority": 2,
+    "action": { "type": "allow" },
+    "condition": {
+      "urlFilter": "||pubmatic.com^",
+      "initiatorDomains": ["pubmatic.com"]
+    }
+  },
+  {
+    "id": 169,
+    "priority": 2,
+    "action": { "type": "allow" },
+    "condition": {
+      "urlFilter": "||admob.googleapis.com^",
+      "initiatorDomains": ["admob.com"]
     }
   }
 ]

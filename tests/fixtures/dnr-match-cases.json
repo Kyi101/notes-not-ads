@@ -237,6 +237,126 @@
       "expect": "allow",
       "why": "Breaking CAPTCHAs locks people out of logins, which is the most expensive false positive an ad blocker can ship."
     },
+    {
+      "id": "ga-console-first-party-xhr",
+      "url": "https://analytics.google.com/analytics/app/data/reports",
+      "type": "xmlhttprequest",
+      "initiator": "https://analytics.google.com",
+      "expect": "allow",
+      "why": "analytics.google.com is also the GA product console. The domain is blocked because GA4 collect hits can go there, but that filter is third-party in upstream lists; blocking first-party requests leaves the dashboard shell rendered with no data — found live 2026-08-17."
+    },
+    {
+      "id": "ga-collect-on-analytics-host-still-blocked",
+      "url": "https://analytics.google.com/g/collect?v=2&tid=G-XXXXXXX",
+      "type": "ping",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "The reason the analytics.google.com rule exists: GA4 measurement hits sent to this host from ordinary sites. The first-party fix must not unblock these."
+    },
+    {
+      "id": "ga-collect-on-measurement-host-still-blocked",
+      "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-XXXXXXX",
+      "type": "ping",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "The primary GA4 measurement endpoint. Tracker blocking on ordinary sites is the product working as described, not a bug."
+    },
+    {
+      "id": "sentry-console-first-party",
+      "url": "https://sentry.io/api/0/projects/",
+      "type": "xmlhttprequest",
+      "initiator": "https://sentry.io",
+      "expect": "allow",
+      "why": "sentry.io is the error-tracking console developers sit in all day. The 2026-08-17 console audit found every whole-host seed rule blocked its own domain first-party; representative of the 27 rules that gained domainType: thirdParty."
+    },
+    {
+      "id": "sentry-ingest-third-party-still-blocked",
+      "url": "https://o123456.ingest.sentry.io/api/1/envelope/",
+      "type": "xmlhttprequest",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Sentry telemetry sent from an ordinary site. The first-party carve-out must not weaken third-party blocking."
+    },
+    {
+      "id": "tiktok-ads-console-first-party",
+      "url": "https://ads.tiktok.com/api/v2/campaign/list",
+      "type": "xmlhttprequest",
+      "initiator": "https://ads.tiktok.com",
+      "expect": "allow",
+      "why": "TikTok Ads Manager lives on the blocked host itself. A marketer user cannot run campaigns with the console's own XHRs blocked."
+    },
+    {
+      "id": "tiktok-ads-pixel-third-party-still-blocked",
+      "url": "https://ads.tiktok.com/i18n/pixel/events.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "The same host loaded as a tracker from an ordinary site stays blocked."
+    },
+    {
+      "id": "mixpanel-console-first-party",
+      "url": "https://mixpanel.com/api/query/insights",
+      "type": "xmlhttprequest",
+      "initiator": "https://mixpanel.com",
+      "expect": "allow",
+      "why": "The Mixpanel product dashboard is the domain the tracking rule names."
+    },
+    {
+      "id": "mixpanel-sdk-third-party-still-blocked",
+      "url": "https://api-js.mixpanel.com/track/",
+      "type": "xmlhttprequest",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "Mixpanel ingestion from an ordinary site is exactly what the rule is for."
+    },
+    {
+      "id": "taboola-backstage-first-party",
+      "url": "https://backstage.taboola.com/backstage/api/campaigns",
+      "type": "xmlhttprequest",
+      "initiator": "https://backstage.taboola.com",
+      "expect": "allow",
+      "why": "Taboola's advertiser console is a subdomain of the blocked eTLD+1."
+    },
+    {
+      "id": "taboola-loader-third-party-still-blocked",
+      "url": "https://cdn.taboola.com/libtrc/publisher/loader.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "The publisher-side widget loader — the actual chumbox — stays blocked."
+    },
+    {
+      "id": "pubmatic-console-first-party",
+      "url": "https://apps.pubmatic.com/api/inventory",
+      "type": "xmlhttprequest",
+      "initiator": "https://apps.pubmatic.com",
+      "expect": "allow",
+      "why": "Broken by the generated EasyList rule, which is faithfully unqualified upstream. The seed ruleset counters it with an initiator-scoped allow (rule 168), the same idiom as EasyList's own @@||...$domain= exceptions."
+    },
+    {
+      "id": "pubmatic-adserver-third-party-still-blocked",
+      "url": "https://ads.pubmatic.com/AdServer/js/pwt.js",
+      "type": "script",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "The console carve-out is scoped to pubmatic.com initiators; publisher pages keep the block."
+    },
+    {
+      "id": "admob-console-to-admob-api",
+      "url": "https://admob.googleapis.com/v1/accounts",
+      "type": "xmlhttprequest",
+      "initiator": "https://apps.admob.com",
+      "expect": "allow",
+      "why": "Cross-eTLD+1 console dependency: the AdMob console calls the AdMob API on googleapis.com, so domainType cannot express the carve-out — only an initiator-scoped allow (rule 169) can."
+    },
+    {
+      "id": "admob-api-third-party-still-blocked",
+      "url": "https://admob.googleapis.com/v1/accounts",
+      "type": "xmlhttprequest",
+      "initiator": "https://example.com",
+      "expect": "block",
+      "why": "The same API endpoint from anywhere else stays blocked."
+    },
 
     {
       "id": "ordinary-site-asset-wikipedia",

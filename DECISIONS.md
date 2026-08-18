@@ -1694,3 +1694,72 @@ the release ZIP, and is imported only by `scripts/test-site-policy.mjs` and
 contained `ads.google.com` and `admanager.google.com` — is an evaluation-side
 model of the product, not the product. That is precisely why this protection
 looked like it already existed. Either wire it to runtime or delete it.
+
+## 2026-08-17 - Domain Blocks That Are Also Product Consoles Carry `domainType: thirdParty`
+
+**Context**: The Google Analytics dashboard broke with the extension on:
+`analytics.google.com` renders its shell, then every first-party XHR and script
+it issues is blocked, so no data loads. Rule 88 in `rules/rules_1.json` blocks
+`||analytics.google.com^` because GA4 measurement hits (`/g/collect`) can be
+sent to that host — but upstream filter lists scope this class of filter with
+`$third-party`, and the hand-curated seed rules dropped every third-party
+qualifier (zero `domainType` conditions across all 163 rules). The rule dates
+to the initial release-candidate commit; the 2026-08-16 product-surface fix
+covered only the DOM layer, and the eval-only `PROTECTED_DOMAINS` list in
+`src/site-policy.js` made console protection look implemented when it never
+ran.
+
+**Decision**: A hand-curated block on a domain that is itself a page users
+visit must carry `"domainType": "thirdParty"`. GA was one instance of a class,
+so the class was audited with the engine itself: a probe asked
+`testMatchOutcome` about first-party script/XHR on 48 real consoles with both
+rulesets active. 29 were broken — 27 seed rules (Taboola Backstage, Outbrain
+Amplify, Criteo, Rubicon, Hotjar, Sentry, Bugsnag, Freshmarketer, TikTok Ads,
+Pinterest Ads, getsentry, Spotify Ads, Yandex Metrica/AppMetrica, Revcontent,
+MGID, Nativo, AppLovin, Vungle, Chartboost, InMobi, Mintegral, Mixpanel,
+Amplitude, Lotame, Mouseflow, Lucky Orange, plus GA) and 5 generated EasyList
+rules (`rubiconproject.com`, `revcontent.com`, `mgid.com`, `admob.com`,
+`pubmatic.com`, faithfully unqualified upstream — uBlock breaks these consoles
+too).
+
+Three mechanisms, each in its right place:
+- The 27 seed rules gained `domainType: "thirdParty"`.
+- The 5 generated blocks are countered by initiator-scoped allow rules 164-168
+  in `rules/rules_1.json` (the EasyList `@@||host^$domain=host` idiom), because
+  the generated file is regenerated and cannot be hand-edited. Rule 169 allows
+  the AdMob console to reach `admob.googleapis.com` — a cross-eTLD+1 console
+  dependency that `domainType` cannot express.
+- The DOM layer got the same treatment: `DOM_REPLACEMENT_DISABLED_DOMAINS`
+  grew 103 -> 147 with a console section (whole eTLD+1 for pure B2B vendors,
+  host-level `ads.*`/console hosts where the consumer site stays in scope),
+  because console UIs are saturated with ad-bearing class names — the same
+  false-positive shape as the Google-bar bug.
+
+Deliberately NOT qualified, because their first-party blocking is load-bearing:
+`adservice.google.com` (Google Search ads are first-party google.com),
+`ads.youtube.com` (first-party from youtube.com), `an.yandex.ru` and
+`adfox.yandex.ru` (Yandex serves its own ads on its own properties),
+`analytics.tiktok.com` and the LinkedIn hosts (first-party self-tracking on
+consumer sites), `audioads.spotify.com` (Spotify web-player ad delivery).
+
+**Verification**: the audit probe reports 0 findings across 48 consoles after
+the fix; every third-party guard still blocks. Permanent coverage:
+`tests/fixtures/dnr-match-cases.json` grew 31 -> 46 cases as
+first-party-allow/third-party-block pairs (GA, Sentry, TikTok Ads, Mixpanel,
+Taboola, PubMatic, AdMob API); the page gate grew 52 -> 62 cases (eight
+consoles `off`, consumer TikTok/Pinterest guarded `full`). The
+`ga-console-first-party-xhr` case was observed failing against the pre-fix
+rules. `npm run check` and `npm run test:extension` pass. Live eval was not
+re-run: publisher-side blocking is untouched by construction (the qualifier
+only affects the tracker's own eTLD+1 pages, which no publisher page is), and
+the page gate pins the six ad-heavy publishers at `full`.
+
+**Consequences**:
+- Marketer, analyst, and developer users keep their working tools; blocking on
+  the open web is unchanged.
+- The five counter-allows diverge from upstream EasyList on purpose: this
+  extension trades the last sliver of coverage for never breaking a page the
+  user is standing on, per the positioning rule.
+- Every future whole-host seed rule must decide first-party vs third-party at
+  authoring time; the console audit probe (`runs/audit-console-surfaces.mjs`,
+  local) is the tool for re-checking the class after list changes.

@@ -114,6 +114,17 @@ const CASES = [
   ["https://acme.sharepoint.com/sites/team", "off", "SharePoint tenant"],
   ["https://acme.lightning.force.com/lightning/page/home", "off", "Salesforce tenant"],
   ["https://icloud.com/mail", "off", "iCloud"],
+  // --- Marketing, analytics, and ad-platform consoles. Reported by Hlib
+  // 2026-08-17: the GA dashboard broke; the class is every console whose UI
+  // is full of ad-bearing class names.
+  ["https://ads.tiktok.com/i18n/dashboard", "off", "TikTok Ads Manager"],
+  ["https://ads.pinterest.com/advertiser/1/reporting", "off", "Pinterest Ads"],
+  ["https://business.facebook.com/adsmanager", "off", "Meta Ads Manager"],
+  ["https://mixpanel.com/project/1/view/1/app/boards", "off", "Mixpanel"],
+  ["https://app.amplitude.com/analytics/demo/home", "off", "Amplitude"],
+  ["https://backstage.taboola.com/backstage/", "off", "Taboola Backstage"],
+  ["https://metrika.yandex.ru/dashboard", "off", "Yandex Metrica"],
+  ["https://insights.hotjar.com/sites", "off", "Hotjar"],
 
   // --- Zero-footprint tier: money, credentials, private mail.
   ["https://vault.bitwarden.com/", "none", "Bitwarden vault"],
@@ -130,6 +141,8 @@ const CASES = [
   // handled; the exclusion is for products, not for search results.
   ["https://www.google.com/search?q=car+insurance", "full", "Google Search stays in scope"],
   ["https://www.bing.com/search?q=car+insurance", "full", "Bing stays in scope"],
+  ["https://www.tiktok.com/foryou", "full", "consumer TikTok stays in scope — only ads.tiktok.com is a console"],
+  ["https://www.pinterest.com/ideas/", "full", "consumer Pinterest stays in scope — only ads.pinterest.com is a console"],
 
   // --- The product's actual job. If these ever flip, the fix went too far.
   ["https://www.tomsguide.com/", "full", "ad-heavy publisher"],
