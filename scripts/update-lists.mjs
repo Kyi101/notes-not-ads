@@ -8,15 +8,20 @@ const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, '..');
 
 const EASYLIST_URL = 'https://easylist.to/easylist/easylist.txt';
+const EASYLIST_RULESET_ID = 'easylist';
 
-// Chrome documents a guaranteed minimum of 30000 static rules per extension,
-// which earlier code treated as a hard cap. It is a floor: the real budget is a
-// shared pool. Probed at 52094 rules the ruleset loaded with 277723 pool slots
-// still free. Keep a ceiling anyway — Chrome drops an oversized ruleset whole,
-// which fails far worse than truncation.
-const STATIC_RULE_CEILING = 60000;
+// Chrome guarantees this extension 30000 combined static rules. Session rules
+// consume the same allowance, so leave 1000 slots for the per-site and per-tab
+// allows installed by src/background.js. This deliberately duplicates the
+// independent budget lint: the generator must produce a valid artifact, while
+// the lint must catch the generator being wrong.
+export const MAX_PACKAGED_STATIC_RULES = 29000;
 const GENERATED_COSMETIC_RULE_LIMIT = 5000;
 const writeChanges = process.argv.includes('--write');
+
+const HOST_PREVALENCE = readScoreFixture('tests/fixtures/host-prevalence.json');
+const OBSERVED_AD_HOSTS = readScoreFixture('tests/fixtures/observed-ad-hosts.json');
+export const GENERATED_DNR_RULE_LIMIT = generatedDnrRuleLimit();
 
 const BLOCK_RESOURCE_TYPES = [
   'script', 'image', 'xmlhttprequest', 'sub_frame',
@@ -76,10 +81,10 @@ function fetchUrl(url) {
   });
 }
 
-export function parseRules(text) {
+export function parseRules(text, options = {}) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('!'));
 
-  const dnrRules = [];
+  const parsedDnrRules = [];
   const cosmeticRules = [];
   const blockedDomains = new Set();
   let ruleId = 100;
@@ -103,7 +108,7 @@ export function parseRules(text) {
     const host = hostOfFilter(condition.urlFilter);
     if (host) blockedDomains.add(host);
 
-    dnrRules.push({ id: ruleId++, priority: 1, action: { type: 'block' }, condition });
+    parsedDnrRules.push({ id: ruleId++, priority: 1, action: { type: 'block' }, condition });
   }
 
   // Exceptions run in a second pass so they can be scoped to what pass one
@@ -118,16 +123,229 @@ export function parseRules(text) {
     const key = `allow:${JSON.stringify(condition)}`;
     if (seenConditions.has(key)) continue;
     seenConditions.add(key);
-    dnrRules.push({ id: ruleId++, priority: 2, action: { type: 'allow' }, condition });
+    parsedDnrRules.push({ id: ruleId++, priority: 2, action: { type: 'allow' }, condition });
     exceptionCount += 1;
   }
 
-  assertDnrRulesetWithinCeiling(dnrRules, 'generated EasyList DNR');
+  const selection = selectDnrRules(parsedDnrRules, {
+    limit: options.ruleLimit ?? GENERATED_DNR_RULE_LIMIT,
+    hostPrevalence: options.hostPrevalence ?? HOST_PREVALENCE,
+    observedAdHosts: options.observedAdHosts ?? OBSERVED_AD_HOSTS
+  });
+  const dnrRules = selection.rules;
+  const selectedExceptionCount = dnrRules.filter(rule => rule.action.type === 'allow').length;
+
   return {
     dnrRules,
-    exceptionCount,
+    exceptionCount: selectedExceptionCount,
+    parsedDnrRuleCount: parsedDnrRules.length,
+    parsedExceptionCount: exceptionCount,
+    selection: selection.stats,
     cosmeticRules: cosmeticRules.slice(0, GENERATED_COSMETIC_RULE_LIMIT)
   };
+}
+
+// Ranks complete dependency groups rather than individual rules. Every rule
+// anchored to one request host travels together, so a block can never survive
+// after an EasyList exception that narrows it has been dropped. Hostless rules
+// are independent groups because no host-scoped exception can point at them.
+//
+// Known hosts rank by this project's observations first and web prevalence
+// second. The long unmeasured tail is ordered by a stable hash, spreading the
+// retained rules across the whole alphabet instead of recreating the old
+// letter-b truncation under a different name.
+export function selectDnrRules(
+  rules,
+  {
+    limit,
+    hostPrevalence = {},
+    observedAdHosts = {}
+  }
+) {
+  if (!Number.isInteger(limit) || limit < 0) {
+    throw new Error(`generated EasyList DNR limit must be a non-negative integer, got ${limit}.`);
+  }
+
+  const groups = new Map();
+  for (const rule of rules) {
+    const host = hostOfFilter(rule.condition?.urlFilter || '')?.toLowerCase() || null;
+    const key = host
+      ? `host:${host}`
+      : `pattern:${JSON.stringify(rule.condition || {})}:${rule.action?.type || ''}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        host,
+        rules: [],
+        hasAllow: false,
+        prevalence: 0,
+        observations: 0
+      });
+    }
+    const group = groups.get(key);
+    group.rules.push(rule);
+    group.hasAllow ||= rule.action?.type === 'allow';
+  }
+
+  const hostGroups = new Map(
+    [...groups.values()].filter(group => group.host).map(group => [group.host, group])
+  );
+  applyHostScores(hostGroups, hostPrevalence, 'prevalence');
+  applyHostScores(hostGroups, observedAdHosts, 'observations');
+
+  const rankedGroups = [...groups.values()].sort(compareRankedGroups);
+  const selectedKeys = new Set();
+  let selectedCount = 0;
+
+  for (const group of rankedGroups) {
+    if (selectedCount + group.rules.length > limit) continue;
+    selectedKeys.add(group.key);
+    selectedCount += group.rules.length;
+  }
+
+  // Preserve upstream order for review stability, but replace the gapped ids
+  // left by selection with one compact deterministic sequence.
+  const selected = [];
+  for (const rule of rules) {
+    const host = hostOfFilter(rule.condition?.urlFilter || '')?.toLowerCase() || null;
+    const key = host
+      ? `host:${host}`
+      : `pattern:${JSON.stringify(rule.condition || {})}:${rule.action?.type || ''}`;
+    if (!selectedKeys.has(key)) continue;
+    selected.push({ ...rule, id: 100 + selected.length });
+  }
+
+  if (selected.length > limit) {
+    throw new Error(
+      `generated EasyList DNR selection produced ${selected.length} rules for a ${limit}-rule budget.`
+    );
+  }
+
+  const selectedGroups = rankedGroups.filter(group => selectedKeys.has(group.key));
+  return {
+    rules: selected,
+    stats: {
+      limit,
+      sourceRules: rules.length,
+      selectedRules: selected.length,
+      droppedRules: rules.length - selected.length,
+      sourceGroups: groups.size,
+      selectedGroups: selectedGroups.length,
+      prevalenceGroups: selectedGroups.filter(group => group.prevalence > 0).length,
+      observedGroups: selectedGroups.filter(group => group.observations > 0).length,
+      exceptionGroups: selectedGroups.filter(group => group.hasAllow).length,
+      hostlessGroups: selectedGroups.filter(group => !group.host).length
+    }
+  };
+}
+
+function applyHostScores(hostGroups, scores, field) {
+  for (const [rawHost, rawScore] of Object.entries(scores)) {
+    const fixtureHost = rawHost.toLowerCase();
+    const score = Number(rawScore);
+    if (!Number.isFinite(score) || score < 0) {
+      throw new Error(`invalid ${field} score for ${rawHost}: ${rawScore}.`);
+    }
+
+    const candidates = isIpv4Address(fixtureHost)
+      ? [fixtureHost]
+      : parentDomains(fixtureHost);
+    for (const candidate of candidates) {
+      const group = hostGroups.get(candidate);
+      if (!group) continue;
+      if (field === 'prevalence') {
+        // Prevalence values are shares of sites and may overlap between a host
+        // and its subdomains, so summing would double-count. The maximum is the
+        // defensible lower-bound signal for a parent-domain block.
+        group.prevalence = Math.max(group.prevalence, score);
+      } else {
+        // Observations are request-host counts from this project's own runs;
+        // a parent-domain block catches every one of its observed subdomains.
+        group.observations += score;
+      }
+    }
+  }
+}
+
+function compareRankedGroups(a, b) {
+  const aObserved = a.observations > 0 ? 1 : 0;
+  const bObserved = b.observations > 0 ? 1 : 0;
+  if (aObserved !== bObserved) return bObserved - aObserved;
+  if (a.observations !== b.observations) return b.observations - a.observations;
+
+  const aPrevalent = a.prevalence > 0 ? 1 : 0;
+  const bPrevalent = b.prevalence > 0 ? 1 : 0;
+  if (aPrevalent !== bPrevalent) return bPrevalent - aPrevalent;
+  if (a.prevalence !== b.prevalence) return b.prevalence - a.prevalence;
+
+  if (a.hasAllow !== b.hasAllow) return a.hasAllow ? -1 : 1;
+  if (Boolean(a.host) !== Boolean(b.host)) return a.host ? 1 : -1;
+
+  const hashDifference = stableHash(a.key) - stableHash(b.key);
+  if (hashDifference !== 0) return hashDifference;
+  return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+}
+
+function stableHash(value) {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+function parentDomains(host) {
+  const labels = host.split('.');
+  const parents = [];
+  for (let index = 0; index < labels.length - 1; index += 1) {
+    parents.push(labels.slice(index).join('.'));
+  }
+  return parents;
+}
+
+function isIpv4Address(host) {
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
+}
+
+function readScoreFixture(relativePath) {
+  const fixturePath = path.join(root, relativePath);
+  const value = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+  if (!value || Array.isArray(value) || typeof value !== 'object') {
+    throw new Error(`${relativePath} must contain a host-to-score object.`);
+  }
+  return value;
+}
+
+function generatedDnrRuleLimit() {
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+  const resources = manifest.declarative_net_request?.rule_resources;
+  if (!Array.isArray(resources)) {
+    throw new Error('manifest.json declares no DNR rule resources.');
+  }
+
+  const generatedResource = resources.find(resource => resource.id === EASYLIST_RULESET_ID);
+  if (!generatedResource) {
+    throw new Error(`manifest.json must declare the ${EASYLIST_RULESET_ID} ruleset.`);
+  }
+
+  let otherPackagedRules = 0;
+  for (const resource of resources) {
+    if (resource.id === EASYLIST_RULESET_ID) continue;
+    const rules = JSON.parse(fs.readFileSync(path.join(root, resource.path), 'utf8'));
+    if (!Array.isArray(rules)) {
+      throw new Error(`${resource.path} must contain a DNR rule array.`);
+    }
+    otherPackagedRules += rules.length;
+  }
+
+  const limit = MAX_PACKAGED_STATIC_RULES - otherPackagedRules;
+  if (limit < 1) {
+    throw new Error(
+      `non-EasyList rules consume ${otherPackagedRules} of the ${MAX_PACKAGED_STATIC_RULES}-rule static budget.`
+    );
+  }
+  return limit;
 }
 
 // Splits "pattern$opt1,opt2" apart. EasyList only ever puts options after the
@@ -288,29 +506,39 @@ export function isSelfScopedAllow(urlFilter) {
   return discriminator.length >= MIN_ALLOW_DISCRIMINATOR;
 }
 
-function assertDnrRulesetWithinCeiling(rules, label) {
-  if (rules.length > STATIC_RULE_CEILING) {
-    throw new Error(
-      `${label} has ${rules.length} rules; Chrome drops an oversized static ruleset whole, so this build keeps it at or below ${STATIC_RULE_CEILING}.`
-    );
-  }
-}
-
 async function main() {
   const text = await fetchUrl(EASYLIST_URL);
-  const { dnrRules, exceptionCount, cosmeticRules } = parseRules(text);
+  const {
+    dnrRules,
+    exceptionCount,
+    parsedDnrRuleCount,
+    parsedExceptionCount,
+    selection,
+    cosmeticRules
+  } = parseRules(text);
+
+  const mode = writeChanges ? 'write' : 'dry';
+  console.log(
+    `[${mode}] parsed ${parsedDnrRuleCount} DNR rules ` +
+      `(${parsedDnrRuleCount - parsedExceptionCount} block, ${parsedExceptionCount} scoped allow); ` +
+      `ranked and kept ${dnrRules.length} ` +
+      `(${dnrRules.length - exceptionCount} block, ${exceptionCount} scoped allow) ` +
+      `across ${selection.selectedGroups} dependency groups.`
+  );
+  console.log(
+    `[${mode}] evidence kept: ${selection.observedGroups} observed-host groups, ` +
+      `${selection.prevalenceGroups} prevalence-scored groups, ` +
+      `${selection.hostlessGroups} hostless patterns; ${cosmeticRules.length} cosmetic rules parsed.`
+  );
 
   if (!writeChanges) {
-    console.log(
-      `[dry] parsed ${dnrRules.length} DNR rules (${dnrRules.length - exceptionCount} block, ${exceptionCount} scoped allow) and ${cosmeticRules.length} cosmetic rules from EasyList.`
-    );
     console.log('Run `node scripts/update-lists.mjs --write` to update local generated lists.');
     return;
   }
   
-  // Written minified: at ~52k rules the indented form costs ~12MB of package
-  // and repo weight for a file no human reviews line by line. lint-dnr-rules.mjs
-  // is the review mechanism.
+  // Written minified: at ~29k rules the indented form still costs several MB
+  // of package and repo weight for a file no human reviews line by line.
+  // lint-dnr-rules.mjs is the review mechanism.
   const dnrPath = path.join(root, 'rules', 'easylist_dnr.json');
   fs.writeFileSync(dnrPath, JSON.stringify(dnrRules));
   

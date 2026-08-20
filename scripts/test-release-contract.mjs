@@ -4,11 +4,11 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
-// 30000 is Chrome's guaranteed minimum, not a per-ruleset cap. Measured: the
-// packaged build loads 52169 static rules with 277648 pool slots still free.
-// The ceiling below is a guard against unbounded list growth, and it applies to
-// the total across rulesets because that is what Chrome actually budgets.
-const MAX_STATIC_RULES_TOTAL = 60000;
+// Spend only Chrome's guaranteed 30000-rule allowance, with 1000 left for the
+// session allow rules installed by src/background.js. Anything beyond this
+// depends on the browser-wide first-come-first-served pool and can make Chrome
+// refuse the generated ruleset whole.
+const MAX_STATIC_RULES_TOTAL = 29000;
 
 const manifest = JSON.parse(
   await readFile(path.join(projectRoot, "manifest.json"), "utf8")
@@ -97,7 +97,7 @@ for (const resource of ruleResources) {
 
 if (totalStaticRules > MAX_STATIC_RULES_TOTAL) {
   throw new Error(
-    `Release contract violation: ${totalStaticRules} static rules across rulesets exceeds the ${MAX_STATIC_RULES_TOTAL} ceiling. Chrome drops an oversized ruleset whole.`
+    `Release contract violation: ${totalStaticRules} static rules across rulesets exceeds the guaranteed ${MAX_STATIC_RULES_TOTAL}-rule release budget.`
   );
 }
 

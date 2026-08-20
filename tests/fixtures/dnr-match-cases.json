@@ -2,28 +2,28 @@
   "description": "Deterministic DNR match expectations, asserted against Chrome's own matcher via chrome.declarativeNetRequest.testMatchOutcome. A case states the request Chrome sees and whether the packaged rulesets must block it. Live ad serving is probabilistic; this is not.",
   "cases": [
     {
-      "id": "generated-head-of-list",
-      "url": "https://0019x.com/ad.js",
+      "id": "generated-ranked-early-host",
+      "url": "https://adnxs.com/ad.js",
       "type": "script",
       "initiator": "https://example.com",
       "expect": "block",
-      "why": "Alphabetically early generated rule. Was already covered before the rule cap was raised."
+      "why": "High-prevalence generated host near the start of the alphabet. The ranked budget must retain measured networks rather than whichever rules appear first upstream."
     },
     {
-      "id": "generated-middle-of-list",
-      "url": "https://ogpbiyasujelr.website/a.js",
+      "id": "generated-ranked-middle-host",
+      "url": "https://openx.net/a.js",
       "type": "script",
       "initiator": "https://example.com",
       "expect": "block",
-      "why": "Past the old 5000-rule cut. Guards against the generated ruleset being truncated again."
+      "why": "High-prevalence generated host in the middle of the alphabet. Guards against the old source-order truncation while asserting the new ranking signal."
     },
     {
-      "id": "generated-tail-of-list",
-      "url": "https://yotta.scrolller.com/t.js",
+      "id": "generated-ranked-late-host",
+      "url": "https://yieldmo.com/t.js",
       "type": "script",
       "initiator": "https://example.com",
       "expect": "block",
-      "why": "Last generated rule alphabetically. EasyList's domain section is sorted, so a truncated build fails here first."
+      "why": "Observed, high-prevalence generated host near the end of the alphabet. A source-order cutoff loses this class first; evidence ranking must keep it."
     },
 
     {

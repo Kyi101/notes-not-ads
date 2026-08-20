@@ -1763,3 +1763,88 @@ the page gate pins the six ad-heavy publishers at `full`.
 - Every future whole-host seed rule must decide first-party vs third-party at
   authoring time; the console audit probe (`runs/audit-console-surfaces.mjs`,
   local) is the tool for re-checking the class after list changes.
+
+## 2026-08-20 - Stay Inside The Guaranteed DNR Budget, Ranked By Observed Reach
+
+**Decision**: package no more than 29,000 static rules across all rulesets:
+Chrome's guaranteed 30,000, minus 1,000 reserved for the session allow rules
+installed for sensitive pages, user-disabled sites, and tabs. With the current
+169-rule seed, `scripts/update-lists.mjs` ranks and keeps exactly 28,831
+generated EasyList rules. This explicitly supersedes the 2026-08-04 decision
+"Ship The Whole EasyList Domain Set, With Its Exceptions."
+
+The August 4 reasoning was right about one thing and wrong about the thing that
+decides reliability. The 30,000 figure is a guaranteed minimum rather than a
+hard per-extension ceiling, and a clean profile really did load the full list
+with 277,648 shared-pool slots left. But that surplus is browser-wide and
+first-come-first-served. Once another filtering extension occupies it, Chrome
+can refuse this extension's over-guarantee ruleset **whole**. The ruleset then
+disappears from `getEnabledRulesets()` while the rest of Notes Not Ads keeps
+running, so the user sees no error and gets no request blocking. People who
+install this extension are unusually likely to already run uBlock or AdGuard;
+the clean-profile measurement tested the least risky browser, not the target
+population.
+
+**How selection works**: parse the whole convertible EasyList set first, then
+rank dependency groups. Every host-anchored block and allow for the same request
+host is one group. Hostless path rules are independent groups because no
+host-scoped exception can point at them. Priority is:
+
+1. 154 request hosts observed 3,364 times in this project's own eval runs;
+2. matching hosts from a 2,312-host web-prevalence fixture;
+3. exception-bearing groups and safe hostless patterns;
+4. the unmeasured tail, ordered by a stable hash of the rule-group key.
+
+The last step is deliberate. EasyList's source is substantially alphabetical,
+so source-order truncation is not ranking; it is the old letter-`b` bug. A
+stable hash gives the unmeasured tail deterministic coverage across all 26
+initial letters and produces the same selection if the input order is reversed.
+The generator derives its allowance from the actual count of every other
+packaged ruleset, rather than carrying a second 60,000-rule ceiling that can
+contradict the release gate.
+
+**Exceptions are an invariant, not a preference**: a group is admitted only if
+the whole group fits. If it does not, its block is dropped with its exceptions.
+That is the safe failure: one missed ad instead of breaking video or layout on a
+site EasyList carved out. On the exact shipped snapshot the selection retained
+all 77 exception-bearing groups and all 131 allow rules, including the original
+61 initiator-scoped exceptions. Today's regenerated list retains all 132 allows.
+
+**Measured cost of 57,104 -> 29,000**: none on the release eval, within what it
+can measure. The comparison deliberately used the exact same 56,935-rule
+generated snapshot on both sides, so an upstream EasyList refresh could not
+masquerade as a budget effect. Full rules report
+`2026-08-20T20-41-23-563Z`; ranked report
+`2026-08-20T21-06-23-250Z`. Across 21 real publishers and four controlled
+pages, every case had the same status, card count, slot count, visible-suspect
+count, surviving-caption count, and policy result. Both totals were 24 pass,
+zero fail, the same known MSN page-health error, 126 cards, 111 visible
+suspects, and zero policy mismatches. The dedicated AdBlock Tester was also
+97/100 before and after, with the same single Flash-visibility warning.
+After regenerating from the current upstream snapshot, a third full run
+(`2026-08-20T21-23-13-106Z`) repeated the same per-case metrics and totals.
+
+That does not prove the dropped long tail has zero value. On the shipped
+snapshot, 28,104 generated rules were removed. It proves the loss is below the
+resolution of the maintained 25-site release set while every locally observed
+host group, every matching prevalence-scored group, every accepted hostless
+pattern, and every exception survived. The trade is accepted: bounded
+long-tail under-blocking is visible and recoverable; a ruleset silently refused
+whole is total blocking failure.
+
+**Consequences**:
+- `scripts/lint-dnr-budget.mjs`, independently implemented and wired into
+  `npm run check`, counts every packaged ruleset because the service worker can
+  re-enable one that was disabled at install. Its fixture suite covers the
+  combined-ruleset failure the old per-file ceiling missed.
+- `scripts/test-update-lists.mjs` locks observation/prevalence priority,
+  subdomain roll-up, block/allow inseparability, hostless priority, compact ids,
+  order independence, and alphabet spread.
+- The Chrome matcher fixture now uses measured early/middle/late hosts rather
+  than demanding three arbitrary positions in the source list. The selector
+  unit test owns the source-order regression directly.
+- The current EasyList refresh parsed 49,915 convertible rules and emitted
+  28,699 blocks plus 132 allows. The cosmetic snapshot was deliberately left
+  unchanged; this release changes the DNR budget, not DOM detection.
+- Version 1.0.2 carries this change. Version 1.0.1's staged store ZIP remains
+  untouched.

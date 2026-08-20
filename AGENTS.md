@@ -58,6 +58,8 @@ quiet card carrying one of the user's own notes.
 - `scripts/test-lint-cosmetic-seed.mjs` - fixture-driven checks for the cosmetic seed lint.
 - `scripts/lint-dnr-rules.mjs` - structural lint for packaged DNR rule files: unique ids, block/allow only, no degenerate filter, no unscoped allow.
 - `scripts/test-lint-dnr-rules.mjs` - fixture-driven checks for the DNR rule lint.
+- `scripts/lint-dnr-budget.mjs` - independent gate keeping every packaged static ruleset within the 29,000-rule release budget.
+- `scripts/test-lint-dnr-budget.mjs` - synthetic manifest/ruleset checks for the combined static budget gate.
 - `scripts/check-paired-change.mjs` - fails a change that edits filter data without adding a fixture or eval case.
 - `scripts/test-paired-change.mjs` - synthetic diff cases for the paired-change check.
 - `scripts/test-governance-contract.mjs` - keeps CONTRIBUTING.md, CODEOWNERS, and the issue templates in sync with the open/closed contribution split.
@@ -72,6 +74,7 @@ quiet card carrying one of the user's own notes.
 - `scripts/benchmark-performance.mjs` - local multi-card scroll/frame/CDP performance benchmark.
 - `scripts/build-content.mjs` - concatenates content-script partials into `src/content.js`.
 - `scripts/update-lists.mjs` - EasyList/DNR ingestion script; dry-run by default and requires `--write` before mutating generated list artifacts.
+- `scripts/test-update-lists.mjs` - ranked EasyList selection checks, including stable tail spread and inseparable block/allow groups.
 - `rules/rules_1.json` - hand-curated static DNR seed rules and local DNR smoke-test probe.
 - `rules/easylist_dnr.json` - generated static DNR rules packaged with the extension.
 - `docs/privacy-policy.md` - published privacy policy for the Chrome Web Store listing.
@@ -79,6 +82,8 @@ quiet card carrying one of the user's own notes.
 - `docs/site-risk-policy.md` - risk-tiered blocking protocol contract for protected, standard, ad-heavy, and hostile pages.
 - `evals/live-sites.json` - regression, discovery, controlled, and manual-only URL cases for the live eval runner, including track/category metadata and authored site-policy expectations where useful.
 - `tests/fixtures/ad-clutter.html` - deterministic clutter/ad fixture page.
+- `tests/fixtures/host-prevalence.json` - web-prevalence scores used to rank EasyList request hosts inside the static DNR budget.
+- `tests/fixtures/observed-ad-hosts.json` - request-host counts captured by this project's live evals and pinned ahead of the unmeasured tail.
 - `tests/fixtures/performance-scroll.html` - long deterministic page for sustained multi-card performance measurement.
 - `package.json`, `package-lock.json` - Node scripts and Playwright dev dependency.
 - `README.md` - loading, privacy, manual tests, limitations.

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.2 — 2026-08
+
+Makes request blocking reliable when another filtering extension is already
+installed.
+
+- Keeps the combined packaged DNR rules at 29,000: Chrome's guaranteed 30,000
+  static-rule allowance, with 1,000 reserved for per-site and per-tab session
+  rules. The previous 57,104-rule build could be refused as a whole when the
+  browser-wide overflow pool was already occupied, leaving blocking silently
+  disabled.
+- Ranks EasyList rules using hosts observed by this project's live evals and
+  broader web prevalence. The unmeasured tail is spread deterministically
+  across the list instead of cut at an alphabetical boundary.
+- Treats each host's blocks and scoped exceptions as one dependency group, so
+  shrinking can drop a block safely but can never keep it after dropping the
+  exception that prevents site breakage.
+- A full 25-site before/after eval found no measurable loss: every per-site
+  card, slot, suspect, caption, health, and policy metric was unchanged, and
+  the dedicated AdBlock Tester score remained 97/100.
+
 ## 1.0.1 — 2026-08
 
 Fixes the extension breaking the dashboards of the services it blocks.
