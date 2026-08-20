@@ -107,6 +107,8 @@ quiet card carrying one of the user's own notes.
 - Use `scripting` only for injecting this extension's existing content script into the active tab when popup messaging finds no listener.
 - Register content-script message listeners synchronously before async storage loading, so popup messages cannot race listener setup.
 - Update the Map when files move or structure changes.
+- Working state lives in a local, untracked `STATUS.md`. Create it if missing.
+- Update `DECISIONS.md` when scope, permissions, or architecture change.
 
 ## What NOT to do
 
