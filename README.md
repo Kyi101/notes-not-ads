@@ -1,5 +1,7 @@
 # Notes Not Ads
 
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/notes-not-ads/jnmdcmeflkilbfihocdapoflejphdhce)** — free, no account, nothing to configure. To run it from source instead, see [Run From Source](#run-from-source).
+
 Notes Not Ads is a Manifest V3 Chrome Extension that blocks common ad-network requests and replaces obvious ad/clutter surfaces with a quiet card carrying a note the user wrote. With no notes it removes them instead.
 
 This product overlaps with ad blockers, but its unique value is still the attention surface: blocked or removed ad space becomes quiet, user-owned space instead of another feed. The network layer is intentionally bounded: static MV3 `declarativeNetRequest` rules for common ad requests, with DOM/cosmetic replacement and safety checks handling the visible surface.
@@ -86,13 +88,15 @@ from the site you are reading. Keep anything sensitive out of the rotation.
 - `declarativeNetRequest`: blocks packaged ad-network request rules and installs per-site allow overrides.
 - Static content script access to `http://*/*` and `https://*/*`: needed to inspect and replace page DOM slots.
 
-## Load Unpacked In Chrome
+## Run From Source
+
+Most people want the [Chrome Web Store build](https://chromewebstore.google.com/detail/notes-not-ads/jnmdcmeflkilbfihocdapoflejphdhce). Load it unpacked when you are working on the code, or when you would rather run a build you made yourself.
 
 1. Open Chrome.
 2. Go to `chrome://extensions`.
 3. Enable **Developer mode**.
 4. Click **Load unpacked**.
-5. Select this project folder: `attention-redirector`.
+5. Select this project folder.
 6. Open a normal webpage and use the extension popup.
 
 If a page was already open before loading the extension, refresh it so the content script can run.
@@ -289,6 +293,11 @@ The popup is the everyday control surface for global state, the current site, no
   - current-site disable and sensitive pages use high-priority DNR allow rules
   - the blocking layer is declarative: no `webRequest` interception, no analytics,
     no remote rule service, and no access to any request body
+  - the two packaged rulesets total 29,000 static rules, kept deliberately inside
+    Chrome's 30,000 guaranteed minimum. Past that an extension draws on a pool
+    shared with every other installed extension, so rules can silently fail to
+    load on a browser that already runs another blocker. Staying under the
+    guarantee costs coverage and buys the rules always being there.
 - One exception, on YouTube only: `src/youtube-prune-main.js` wraps `fetch` and
   `XMLHttpRequest` in the page to delete `adPlacements`, `adSlots`, and
   `playerAds` from the player endpoint's *response* before the player reads it.
@@ -313,7 +322,6 @@ The popup is the everyday control surface for global state, the current site, no
 
 - Improve the list-update pipeline:
   - rank or curate common ad-network hosts instead of taking the first simple EasyList rules
-  - keep each static DNR ruleset below the MV3 30,000-rule cap
   - keep generated rules auditable and disableable
   - continue running every cosmetic match through Notes Not Ads safety checks
 - Expand the local fixture page as new missed ad/popup patterns are found.
