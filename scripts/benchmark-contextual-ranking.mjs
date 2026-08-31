@@ -10,12 +10,9 @@ const source = fs.readFileSync(
   "utf8"
 );
 const context = vm.createContext({ URL });
-vm.runInContext(
-  `${source}\nthis.contextualRankingBenchmarkApi = { rankContextualNotes };`,
-  context
-);
+vm.runInContext(source, context);
 
-const { rankContextualNotes } = context.contextualRankingBenchmarkApi;
+const { rankContextualNotes } = context.NotesNotAdsContextualRanking;
 const pageContext = {
   url: "https://travel.example/guides/berlin-by-train",
   title: "Plan a train trip from Kyiv to Berlin",

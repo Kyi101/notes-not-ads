@@ -78,17 +78,34 @@
         (sum, contribution) => sum + contribution,
         0
       );
-      const reasons = Array.from(contributionByToken.entries())
+      const matchedTerms = Array.from(contributionByToken.entries())
         .sort((left, right) => right[1] - left[1])
         .slice(0, 3)
-        .map(([token]) => `Matched “${token}” in the page context.`);
+        .map(([token]) => token);
+      const reasons = matchedTerms.map(
+        (token) => `Matched “${token}” in the page context.`
+      );
+      const confidence = getContextualMatchConfidence(matchedTerms, score);
 
-      return { note, score, reasons, index };
+      return { note, score, confidence, reasons, index };
     });
 
     return results
       .sort((left, right) => right.score - left.score || left.index - right.index)
       .map(({ index, ...result }) => result);
+  }
+
+  function getContextualMatchConfidence(matchedTerms, score) {
+    if (score <= 0 || !matchedTerms.length) {
+      return "none";
+    }
+    if (
+      matchedTerms.length >= 2 ||
+      matchedTerms.some((term) => term.length >= 6)
+    ) {
+      return "strong";
+    }
+    return "weak";
   }
 
   function buildContextTokenWeights(pageContext = {}) {
@@ -124,7 +141,7 @@
   function tokenizeContextualText(value) {
     return String(value || "")
       .normalize("NFKC")
-      .toLocaleLowerCase()
+      .toLowerCase()
       .match(/[\p{L}\p{N}]+/gu)
       ?.filter((token) => token.length > 1 && !CONTEXTUAL_STOP_WORDS.has(token)) || [];
   }
@@ -170,6 +187,10 @@
     });
     return contributions;
   }
+
+  globalThis.NotesNotAdsContextualRanking = Object.freeze({
+    rankContextualNotes
+  });
 
   const CONTENT_LOADED_KEY = "__attentionRedirectorContentLoaded";
   if (window[CONTENT_LOADED_KEY]) {
@@ -860,6 +881,7 @@
     cosmeticMatches: new WeakMap(),
     replacementGuards: new WeakMap(),
     noteCursor: null,
+    contextualNoteCursor: 0,
     inspector: {
       active: false,
       overlay: null,
@@ -4323,14 +4345,23 @@
   // page's own key only chooses where the rotation starts, so two pages do not
   // both open on the first note.
   function selectAnchorNote(slot) {
-    const notes = getSelectableAnchorNotes();
+    const selection = getSelectableAnchorNotes();
+    const notes = selection.notes;
     const stored = Number.parseInt(slot.dataset.attentionRedirectorNote, 10);
-    if (!Number.isInteger(stored)) {
-      if (state.noteCursor === null) {
-        state.noteCursor = hashString(location.hostname + location.pathname);
+    const storedMode = slot.dataset.attentionRedirectorNoteMode || "rotation";
+    const selectionMode = selection.contextual ? "contextual" : "rotation";
+    if (!Number.isInteger(stored) || storedMode !== selectionMode) {
+      if (selection.contextual) {
+        slot.dataset.attentionRedirectorNote = String(state.contextualNoteCursor);
+        state.contextualNoteCursor += 1;
+      } else {
+        if (state.noteCursor === null) {
+          state.noteCursor = hashString(location.hostname + location.pathname);
+        }
+        slot.dataset.attentionRedirectorNote = String(state.noteCursor);
+        state.noteCursor += 1;
       }
-      slot.dataset.attentionRedirectorNote = String(state.noteCursor);
-      state.noteCursor += 1;
+      slot.dataset.attentionRedirectorNoteMode = selectionMode;
     }
 
     return notes[
@@ -4341,10 +4372,10 @@
   function getSelectableAnchorNotes() {
     const notes = state.settings.anchorNotes;
     if (state.settings.noteSelectionMode !== "contextual") {
-      return notes;
+      return { notes, contextual: false };
     }
 
-    const ranked = rankContextualNotes(
+    const ranked = NotesNotAdsContextualRanking.rankContextualNotes(
       {
         url: location.href,
         title: document.title,
@@ -4354,10 +4385,12 @@
       },
       notes
     );
-    const contextualMatches = ranked.filter((result) => result.score > 0);
+    const contextualMatches = ranked.filter(
+      (result) => result.confidence === "strong"
+    );
     return contextualMatches.length
-      ? contextualMatches.map((result) => result.note)
-      : notes;
+      ? { notes: contextualMatches.map((result) => result.note), contextual: true }
+      : { notes, contextual: false };
   }
 
   function hashString(value) {

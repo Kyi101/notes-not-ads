@@ -10,12 +10,13 @@ const source = fs.readFileSync(
   "utf8"
 );
 const context = vm.createContext({ URL });
-vm.runInContext(
-  `${source}\nthis.contextualRankingTestApi = { rankContextualNotes };`,
-  context
-);
+vm.runInContext(source, context);
 
-const { rankContextualNotes } = context.contextualRankingTestApi;
+assert.ok(
+  context.NotesNotAdsContextualRanking,
+  "The ranker must expose a stable public namespace."
+);
+const { rankContextualNotes } = context.NotesNotAdsContextualRanking;
 
 const travelPage = {
   url: "https://travel.example/flights/kyiv-berlin",
@@ -31,6 +32,7 @@ const travelNotes = [
 const travelRanking = rankContextualNotes(travelPage, travelNotes);
 assert.equal(travelRanking[0].note, travelNotes[1]);
 assert.ok(travelRanking[0].score > travelRanking[1].score);
+assert.equal(travelRanking[0].confidence, "strong");
 assert.ok(
   travelRanking[0].reasons.some((reason) => reason.includes("berlin")),
   `Expected an explainable Berlin match: ${JSON.stringify(travelRanking[0])}`
@@ -62,5 +64,16 @@ assert.deepEqual(
   travelNotes,
   "A no-signal page preserves the stable note order for the rotation fallback."
 );
+
+const weakRanking = rankContextualNotes(
+  {
+    url: "https://example.com/",
+    title: "Home",
+    headings: []
+  },
+  ["Call home tonight.", "Water the plants."]
+);
+assert.equal(weakRanking[0].confidence, "weak");
+assert.equal(weakRanking[1].confidence, "none");
 
 console.log("Contextual ranking tests passed.");

@@ -630,6 +630,7 @@ try {
     anchorNote: "Water the balcony plants this evening.",
     anchorNotes: [
       "Water the balcony plants this evening.",
+      "Inspect clutter later.",
       "Review the ad clutter fixture diagnostics."
     ]
   });
@@ -637,11 +638,18 @@ try {
   const contextualPage = await context.newPage();
   await contextualPage.goto(`${fixtureUrl}#contextual`);
   await contextualPage.waitForLoadState("domcontentloaded");
-  const contextualTopCard = contextualPage.locator(
-    "#refreshing-top-ad.attention-redirector-slot .attention-redirector-card__body"
+  const contextualCards = contextualPage.locator(
+    ".attention-redirector-card__body"
   );
-  await contextualTopCard.waitFor({ timeout: 5000 });
-  const contextualTopText = (await contextualTopCard.textContent())?.trim();
+  await contextualCards.first().waitFor({ timeout: 5000 });
+  const contextualTopText = await contextualCards.evaluateAll((cards) => {
+    return cards
+      .map((card) => ({
+        text: card.textContent.trim(),
+        top: card.getBoundingClientRect().top
+      }))
+      .sort((left, right) => left.top - right.top)[0]?.text;
+  });
   if (contextualTopText !== "Review the ad clutter fixture diagnostics.") {
     throw new Error(
       `Contextual ranking did not select the page-relevant note first: ${JSON.stringify(contextualTopText)}`

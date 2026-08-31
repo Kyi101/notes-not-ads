@@ -77,17 +77,34 @@ function rankContextualNotes(pageContext, notes) {
       (sum, contribution) => sum + contribution,
       0
     );
-    const reasons = Array.from(contributionByToken.entries())
+    const matchedTerms = Array.from(contributionByToken.entries())
       .sort((left, right) => right[1] - left[1])
       .slice(0, 3)
-      .map(([token]) => `Matched “${token}” in the page context.`);
+      .map(([token]) => token);
+    const reasons = matchedTerms.map(
+      (token) => `Matched “${token}” in the page context.`
+    );
+    const confidence = getContextualMatchConfidence(matchedTerms, score);
 
-    return { note, score, reasons, index };
+    return { note, score, confidence, reasons, index };
   });
 
   return results
     .sort((left, right) => right.score - left.score || left.index - right.index)
     .map(({ index, ...result }) => result);
+}
+
+function getContextualMatchConfidence(matchedTerms, score) {
+  if (score <= 0 || !matchedTerms.length) {
+    return "none";
+  }
+  if (
+    matchedTerms.length >= 2 ||
+    matchedTerms.some((term) => term.length >= 6)
+  ) {
+    return "strong";
+  }
+  return "weak";
 }
 
 function buildContextTokenWeights(pageContext = {}) {
@@ -123,7 +140,7 @@ function addWeightedContextTokens(weights, value, fieldWeight) {
 function tokenizeContextualText(value) {
   return String(value || "")
     .normalize("NFKC")
-    .toLocaleLowerCase()
+    .toLowerCase()
     .match(/[\p{L}\p{N}]+/gu)
     ?.filter((token) => token.length > 1 && !CONTEXTUAL_STOP_WORDS.has(token)) || [];
 }
@@ -169,3 +186,7 @@ function scoreContextualDocument({
   });
   return contributions;
 }
+
+globalThis.NotesNotAdsContextualRanking = Object.freeze({
+  rankContextualNotes
+});

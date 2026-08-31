@@ -687,6 +687,7 @@ const state = {
   cosmeticMatches: new WeakMap(),
   replacementGuards: new WeakMap(),
   noteCursor: null,
+  contextualNoteCursor: 0,
   inspector: {
     active: false,
     overlay: null,
