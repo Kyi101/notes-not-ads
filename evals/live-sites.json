@@ -90,7 +90,11 @@
       "track": "regression",
       "category": "entertainment",
       "url": "https://www.tmz.com/",
-      "notes": "Entertainment site with display ads."
+      "notes": "Entertainment site with display ads.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
     },
     {
       "id": "people",
@@ -98,7 +102,11 @@
       "track": "regression",
       "category": "lifestyle",
       "url": "https://www.people.com/",
-      "notes": "Entertainment/lifestyle site with display ads."
+      "notes": "Entertainment/lifestyle site with display ads.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
     },
     {
       "id": "weather",
@@ -106,7 +114,11 @@
       "track": "regression",
       "category": "weather",
       "url": "https://weather.com/",
-      "notes": "Weather portal with heavy dynamic widgets and ads."
+      "notes": "Weather portal with heavy dynamic widgets and ads.",
+      "policy": {
+        "expectedTier": "ad-heavy",
+        "expectedProtocol": "ad-heavy"
+      }
     },
     {
       "id": "accuweather",
