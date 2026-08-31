@@ -655,6 +655,46 @@ try {
       `Contextual ranking did not select the page-relevant note first: ${JSON.stringify(contextualTopText)}`
     );
   }
+
+  const contextualNotes = [
+    "Water the balcony plants this evening.",
+    "Inspect clutter later.",
+    "Review the ad clutter fixture diagnostics."
+  ];
+  await saveExtensionSettings(serviceWorker, {
+    ...DEFAULT_EXTENSION_SETTINGS,
+    anchorNote: contextualNotes[0],
+    anchorNotes: contextualNotes,
+    noteSelectionMode: "rotation"
+  });
+  await contextualPage.waitForFunction(() => {
+    const firstSlot = [...document.querySelectorAll(".attention-redirector-slot")]
+      .filter((slot) => slot.querySelector(".attention-redirector-card"))
+      .sort(
+        (left, right) =>
+          left.getBoundingClientRect().top - right.getBoundingClientRect().top
+      )[0];
+    return firstSlot?.dataset.attentionRedirectorNoteMode === "rotation";
+  });
+  await saveExtensionSettings(serviceWorker, {
+    ...DEFAULT_EXTENSION_SETTINGS,
+    anchorNote: contextualNotes[0],
+    anchorNotes: contextualNotes,
+    noteSelectionMode: "contextual"
+  });
+  await contextualPage.waitForFunction((expected) => {
+    const firstCard = [...document.querySelectorAll(".attention-redirector-card")]
+      .sort(
+        (left, right) =>
+          left.getBoundingClientRect().top - right.getBoundingClientRect().top
+      )[0];
+    return (
+      firstCard?.closest(".attention-redirector-slot")?.dataset
+        .attentionRedirectorNoteMode === "contextual" &&
+      firstCard.querySelector(".attention-redirector-card__body")?.textContent.trim() ===
+        expected
+    );
+  }, "Review the ad clutter fixture diagnostics.");
   await contextualPage.close();
 
   // Reduced motion is the OS preference's to decide, so this asserts against the

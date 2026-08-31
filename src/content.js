@@ -3814,11 +3814,15 @@
   }
 
   function applySettingsToReplacedSlots() {
-    queryAllScanRoots(".attention-redirector-slot").forEach((slot) => {
-      if (slot instanceof HTMLElement) {
-        renderReplacementSlot(slot);
-      }
-    });
+    const slots = queryAllScanRoots(".attention-redirector-slot").filter(
+      (slot) => slot instanceof HTMLElement
+    );
+    if (state.settings.noteSelectionMode === "contextual") {
+      state.contextualNoteCursor = 0;
+      renderInReadingOrder(slots);
+      return;
+    }
+    slots.forEach(renderReplacementSlot);
   }
 
   function renderReplacementSlot(slot) {

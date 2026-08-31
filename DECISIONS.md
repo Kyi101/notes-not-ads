@@ -15,8 +15,9 @@ baseline.
 **Consequences**:
 - Existing installs retain even rotation until the user opts in.
 - Contextual scoring stays local, deterministic, and dependency-free.
-- A note with no matching signal is not selected over a matching candidate; if
-  no note matches, the existing stable rotation is used unchanged.
+- A strong contextual candidate is selected ahead of zero-signal notes. A lone
+  short-word overlap is treated as weak rather than useful; if no strong note
+  matches, the existing stable rotation is used unchanged.
 - Embedding-based reranking remains a separate experiment requiring an explicit
   product decision about model size, runtime dependency, browser support, and
   release packaging.
