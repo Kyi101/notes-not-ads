@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS = {
   enabled: true,
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
+  noteSelectionMode: "rotation",
   themePreference: "system",
   disabledDomains: []
 };
@@ -305,6 +306,8 @@ function mergeSettings(value) {
     enabled: stored.enabled !== false,
     anchorNote: anchorNotes[0] || "",
     anchorNotes,
+    noteSelectionMode:
+      stored.noteSelectionMode === "contextual" ? "contextual" : "rotation",
     themePreference: ["system", "light", "dark"].includes(stored.themePreference)
       ? stored.themePreference
       : "system",

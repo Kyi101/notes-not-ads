@@ -35,6 +35,7 @@ quiet card carrying one of the user's own notes.
 - `manifest.json` - extension manifest, DNR rulesets, popup, options, and content script registration.
 - `src/background.js` - MV3 service worker for DNR ruleset toggling and per-site/sensitive-page allow rules.
 - `src/site-policy.js` - pure risk-tier classifier for future protected/standard/ad-heavy/hostile protocol routing; currently covered by deterministic tests before runtime wiring.
+- `src/contextual-ranking.js` - pure BM25-style local note ranker for the opt-in contextual selection mode.
 - `src/cosmetic-filters.js` - conservative EasyList/uBlock-style cosmetic `##` selector parser plus local cosmetic rules.
 - `src/shared.js` - shared content-script constants, settings defaults, regexes, and mutable runtime state.
 - `src/main.js` - content-script initialization, settings loading, message listeners, and mutation scheduling.
@@ -53,6 +54,7 @@ quiet card carrying one of the user's own notes.
 - `scripts/test-extension.mjs` - Playwright extension smoke test.
 - `scripts/test-cosmetic-filters.mjs` - Node smoke for cosmetic filter parsing and domain/exclusion behavior.
 - `scripts/test-site-policy.mjs` - deterministic risk-tier classifier precedence tests.
+- `scripts/test-contextual-ranking.mjs` - deterministic contextual ranking, explanation, and no-signal fallback checks.
 - `scripts/test-release-contract.mjs` - guardrail that keeps packaged DNR and per-site allow behavior in the release runtime.
 - `scripts/lint-cosmetic-seed.mjs` - rejects any cosmetic seed entry that is not a plain quoted string, so contributed filter text cannot become executable code.
 - `scripts/test-lint-cosmetic-seed.mjs` - fixture-driven checks for the cosmetic seed lint.
@@ -72,6 +74,7 @@ quiet card carrying one of the user's own notes.
 - `scripts/diagnose-controlled-testers.mjs` - exploratory controlled-tester harness for Canyoublockit, GetBlockify, and Turtlecute baseline extraction.
 - `scripts/package-release.mjs` - clean Git archive release ZIP builder for Chrome Web Store upload.
 - `scripts/benchmark-performance.mjs` - local multi-card scroll/frame/CDP performance benchmark.
+- `scripts/benchmark-contextual-ranking.mjs` - warm-runtime microbenchmark for ranking the maximum five local notes.
 - `scripts/build-content.mjs` - concatenates content-script partials into `src/content.js`.
 - `scripts/update-lists.mjs` - EasyList/DNR ingestion script; dry-run by default and requires `--write` before mutating generated list artifacts.
 - `scripts/test-update-lists.mjs` - ranked EasyList selection checks, including stable tail spread and inseparable block/allow groups.

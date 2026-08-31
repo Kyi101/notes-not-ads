@@ -587,7 +587,7 @@ function createCardModel(slot) {
 // page's own key only chooses where the rotation starts, so two pages do not
 // both open on the first note.
 function selectAnchorNote(slot) {
-  const notes = state.settings.anchorNotes;
+  const notes = getSelectableAnchorNotes();
   const stored = Number.parseInt(slot.dataset.attentionRedirectorNote, 10);
   if (!Number.isInteger(stored)) {
     if (state.noteCursor === null) {
@@ -600,6 +600,28 @@ function selectAnchorNote(slot) {
   return notes[
     Number.parseInt(slot.dataset.attentionRedirectorNote, 10) % notes.length
   ];
+}
+
+function getSelectableAnchorNotes() {
+  const notes = state.settings.anchorNotes;
+  if (state.settings.noteSelectionMode !== "contextual") {
+    return notes;
+  }
+
+  const ranked = rankContextualNotes(
+    {
+      url: location.href,
+      title: document.title,
+      headings: Array.from(document.querySelectorAll("h1,h2"))
+        .slice(0, 12)
+        .map((heading) => heading.textContent || "")
+    },
+    notes
+  );
+  const contextualMatches = ranked.filter((result) => result.score > 0);
+  return contextualMatches.length
+    ? contextualMatches.map((result) => result.note)
+    : notes;
 }
 
 function hashString(value) {

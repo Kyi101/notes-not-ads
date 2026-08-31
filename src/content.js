@@ -1,4 +1,176 @@
 (() => {
+  const CONTEXTUAL_STOP_WORDS = new Set([
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "the",
+    "this",
+    "to",
+    "with",
+    "и",
+    "в",
+    "во",
+    "на",
+    "с",
+    "со",
+    "к",
+    "по",
+    "из",
+    "за",
+    "для",
+    "це",
+    "та",
+    "і",
+    "й",
+    "у",
+    "з",
+    "до"
+  ]);
+
+  const CONTEXTUAL_FIELD_WEIGHTS = {
+    title: 3,
+    headings: 2,
+    location: 1
+  };
+
+  function rankContextualNotes(pageContext, notes) {
+    const normalizedNotes = Array.isArray(notes)
+      ? notes.map((note) => String(note || "").trim()).filter(Boolean)
+      : [];
+    if (!normalizedNotes.length) {
+      return [];
+    }
+
+    const queryWeights = buildContextTokenWeights(pageContext);
+    const noteTokens = normalizedNotes.map(tokenizeContextualText);
+    const documentFrequency = new Map();
+    noteTokens.forEach((tokens) => {
+      new Set(tokens).forEach((token) => {
+        documentFrequency.set(token, (documentFrequency.get(token) || 0) + 1);
+      });
+    });
+
+    const averageLength =
+      noteTokens.reduce((sum, tokens) => sum + tokens.length, 0) /
+      noteTokens.length;
+    const results = normalizedNotes.map((note, index) => {
+      const contributionByToken = scoreContextualDocument({
+        tokens: noteTokens[index],
+        queryWeights,
+        documentFrequency,
+        documentCount: noteTokens.length,
+        averageLength
+      });
+      const score = Array.from(contributionByToken.values()).reduce(
+        (sum, contribution) => sum + contribution,
+        0
+      );
+      const reasons = Array.from(contributionByToken.entries())
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 3)
+        .map(([token]) => `Matched “${token}” in the page context.`);
+
+      return { note, score, reasons, index };
+    });
+
+    return results
+      .sort((left, right) => right.score - left.score || left.index - right.index)
+      .map(({ index, ...result }) => result);
+  }
+
+  function buildContextTokenWeights(pageContext = {}) {
+    const weights = new Map();
+    addWeightedContextTokens(weights, pageContext.title, CONTEXTUAL_FIELD_WEIGHTS.title);
+    addWeightedContextTokens(
+      weights,
+      Array.isArray(pageContext.headings) ? pageContext.headings.join(" ") : "",
+      CONTEXTUAL_FIELD_WEIGHTS.headings
+    );
+
+    let locationText = "";
+    try {
+      const parsed = new URL(String(pageContext.url || ""));
+      locationText = `${parsed.hostname} ${parsed.pathname.replace(/[\/_-]+/g, " ")}`;
+    } catch (_error) {
+      locationText = "";
+    }
+    addWeightedContextTokens(
+      weights,
+      locationText,
+      CONTEXTUAL_FIELD_WEIGHTS.location
+    );
+    return weights;
+  }
+
+  function addWeightedContextTokens(weights, value, fieldWeight) {
+    tokenizeContextualText(value).forEach((token) => {
+      weights.set(token, (weights.get(token) || 0) + fieldWeight);
+    });
+  }
+
+  function tokenizeContextualText(value) {
+    return String(value || "")
+      .normalize("NFKC")
+      .toLocaleLowerCase()
+      .match(/[\p{L}\p{N}]+/gu)
+      ?.filter((token) => token.length > 1 && !CONTEXTUAL_STOP_WORDS.has(token)) || [];
+  }
+
+  function scoreContextualDocument({
+    tokens,
+    queryWeights,
+    documentFrequency,
+    documentCount,
+    averageLength
+  }) {
+    const termFrequency = new Map();
+    tokens.forEach((token) => {
+      termFrequency.set(token, (termFrequency.get(token) || 0) + 1);
+    });
+
+    const contributions = new Map();
+    const k1 = 1.2;
+    const lengthNormalization = 0.75;
+    const safeAverageLength = averageLength || 1;
+    queryWeights.forEach((queryWeight, token) => {
+      const frequency = termFrequency.get(token) || 0;
+      if (!frequency) {
+        return;
+      }
+
+      const frequencyInDocuments = documentFrequency.get(token) || 0;
+      const inverseDocumentFrequency = Math.log(
+        1 +
+          (documentCount - frequencyInDocuments + 0.5) /
+            (frequencyInDocuments + 0.5)
+      );
+      const denominator =
+        frequency +
+        k1 *
+          (1 -
+            lengthNormalization +
+            lengthNormalization * (tokens.length / safeAverageLength));
+      contributions.set(
+        token,
+        inverseDocumentFrequency * ((frequency * (k1 + 1)) / denominator) * queryWeight
+      );
+    });
+    return contributions;
+  }
+
   const CONTENT_LOADED_KEY = "__attentionRedirectorContentLoaded";
   if (window[CONTENT_LOADED_KEY]) {
     return;
@@ -14,6 +186,7 @@
     enabled: true,
     anchorNote: DEFAULT_ANCHOR_NOTE,
     anchorNotes: [DEFAULT_ANCHOR_NOTE],
+    noteSelectionMode: "rotation",
     disabledDomains: []
   };
 
@@ -836,6 +1009,8 @@
       enabled: stored.enabled !== false,
       anchorNote: anchorNotes[0] || "",
       anchorNotes,
+      noteSelectionMode:
+        stored.noteSelectionMode === "contextual" ? "contextual" : "rotation",
       disabledDomains: Array.isArray(stored.disabledDomains)
         ? stored.disabledDomains
         : []
@@ -4148,7 +4323,7 @@
   // page's own key only chooses where the rotation starts, so two pages do not
   // both open on the first note.
   function selectAnchorNote(slot) {
-    const notes = state.settings.anchorNotes;
+    const notes = getSelectableAnchorNotes();
     const stored = Number.parseInt(slot.dataset.attentionRedirectorNote, 10);
     if (!Number.isInteger(stored)) {
       if (state.noteCursor === null) {
@@ -4161,6 +4336,28 @@
     return notes[
       Number.parseInt(slot.dataset.attentionRedirectorNote, 10) % notes.length
     ];
+  }
+
+  function getSelectableAnchorNotes() {
+    const notes = state.settings.anchorNotes;
+    if (state.settings.noteSelectionMode !== "contextual") {
+      return notes;
+    }
+
+    const ranked = rankContextualNotes(
+      {
+        url: location.href,
+        title: document.title,
+        headings: Array.from(document.querySelectorAll("h1,h2"))
+          .slice(0, 12)
+          .map((heading) => heading.textContent || "")
+      },
+      notes
+    );
+    const contextualMatches = ranked.filter((result) => result.score > 0);
+    return contextualMatches.length
+      ? contextualMatches.map((result) => result.note)
+      : notes;
   }
 
   function hashString(value) {

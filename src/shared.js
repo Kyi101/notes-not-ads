@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   enabled: true,
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
+  noteSelectionMode: "rotation",
   disabledDomains: []
 };
 

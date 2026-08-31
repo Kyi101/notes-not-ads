@@ -7,6 +7,7 @@ const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, '..');
 
 const files = [
+  'src/contextual-ranking.js',
   'src/shared.js',
   'src/main.js',
   'src/inspector.js',

@@ -281,6 +281,9 @@ The options page lets you:
 
 - Enable or disable the extension globally.
 - Set up to five local notes, or clear them all so nothing is drawn.
+- Choose even rotation or experimental local page-context matching. Context
+  matching reads only the page URL, title, and first headings, and falls back to
+  rotation when none of the notes shares a useful signal.
 - Add disabled domains.
 - Reset to defaults.
 

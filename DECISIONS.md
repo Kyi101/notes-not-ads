@@ -1,5 +1,26 @@
 # DECISIONS
 
+## 2026-08-31 - Make Contextual Note Selection Local And Opt-In
+
+**Decision**: Add an experimental note-selection mode that ranks the user's own
+notes against a compact page context with a dependency-free BM25-style scorer.
+Keep even rotation as the default and as the automatic no-signal fallback.
+
+**Why**: Contextual reminders can make replacement cards more useful, but the
+extension must not send note or page text away, delay the first card for a model,
+or add a large runtime before measured dogfooding proves that semantic matching
+is worth it. URL, title, and the first headings provide a bounded, explainable
+baseline.
+
+**Consequences**:
+- Existing installs retain even rotation until the user opts in.
+- Contextual scoring stays local, deterministic, and dependency-free.
+- A note with no matching signal is not selected over a matching candidate; if
+  no note matches, the existing stable rotation is used unchanged.
+- Embedding-based reranking remains a separate experiment requiring an explicit
+  product decision about model size, runtime dependency, browser support, and
+  release packaging.
+
 ## 2026-06-02 - Start With DOM-Level Visual Blocking
 
 **Decision**: Implement "blocking" in the MVP as conservative DOM replacement of likely ad/clutter containers, not a uBlock-style network blocking engine.

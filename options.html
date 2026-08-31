@@ -57,6 +57,18 @@
               drawn: detected surfaces are removed and the page closes over them.
             </small>
           </div>
+
+          <label class="field-label" for="noteSelectionMode">
+            <span class="field-header">Note selection</span>
+            <select id="noteSelectionMode">
+              <option value="rotation">Rotate evenly</option>
+              <option value="contextual">Match this page (experimental)</option>
+            </select>
+            <small>
+              Context matching uses only the page title and headings. It runs
+              locally and falls back to rotation when there is no clear match.
+            </small>
+          </label>
         </section>
 
         <section class="settings-section">

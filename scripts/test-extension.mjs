@@ -624,6 +624,31 @@ try {
   }
   await anchorPage.close();
 
+  await saveExtensionSettings(serviceWorker, {
+    ...DEFAULT_EXTENSION_SETTINGS,
+    noteSelectionMode: "contextual",
+    anchorNote: "Water the balcony plants this evening.",
+    anchorNotes: [
+      "Water the balcony plants this evening.",
+      "Review the ad clutter fixture diagnostics."
+    ]
+  });
+
+  const contextualPage = await context.newPage();
+  await contextualPage.goto(`${fixtureUrl}#contextual`);
+  await contextualPage.waitForLoadState("domcontentloaded");
+  const contextualTopCard = contextualPage.locator(
+    "#refreshing-top-ad.attention-redirector-slot .attention-redirector-card__body"
+  );
+  await contextualTopCard.waitFor({ timeout: 5000 });
+  const contextualTopText = (await contextualTopCard.textContent())?.trim();
+  if (contextualTopText !== "Review the ad clutter fixture diagnostics.") {
+    throw new Error(
+      `Contextual ranking did not select the page-relevant note first: ${JSON.stringify(contextualTopText)}`
+    );
+  }
+  await contextualPage.close();
+
   // Reduced motion is the OS preference's to decide, so this asserts against the
   // emulated preference rather than a setting. The card's only motion is a 140ms
   // fade on insertion and the hide button's hover transition; both must be off.
@@ -960,11 +985,15 @@ try {
     .nth(1)
     .fill("Return to the work that matters.");
   await optionsPage.locator("#themePreference").selectOption("dark");
+  await optionsPage
+    .locator("#noteSelectionMode")
+    .selectOption("contextual");
   await optionsPage.getByRole("button", { name: "Save settings" }).click();
   await optionsPage.locator("#saveStatus").filter({ hasText: "Saved." }).waitFor();
   const optionsSettings = await loadExtensionSettings(serviceWorker);
   if (
     optionsSettings.themePreference !== "dark" ||
+    optionsSettings.noteSelectionMode !== "contextual" ||
     optionsSettings.anchorNotes?.[0] !== "Protect the next hour." ||
     optionsSettings.anchorNotes?.[1] !== "Return to the work that matters."
   ) {

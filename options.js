@@ -6,6 +6,7 @@ const DEFAULT_SETTINGS = {
   enabled: true,
   anchorNote: DEFAULT_ANCHOR_NOTE,
   anchorNotes: [DEFAULT_ANCHOR_NOTE],
+  noteSelectionMode: "rotation",
   themePreference: "system",
   disabledDomains: []
 };
@@ -17,6 +18,7 @@ const enabledInput = document.getElementById("enabled");
 const anchorMessagesContainer = document.getElementById("anchorMessages");
 const addAnchorMessageButton = document.getElementById("addAnchorMessage");
 const anchorCount = document.getElementById("anchorCount");
+const noteSelectionModeInput = document.getElementById("noteSelectionMode");
 const themePreferenceInput = document.getElementById("themePreference");
 const disabledDomainsInput = document.getElementById("disabledDomains");
 const resetButton = document.getElementById("resetButton");
@@ -61,6 +63,7 @@ function renderSettings(value) {
   const settings = mergeSettings(value);
   enabledInput.checked = settings.enabled;
   renderAnchorMessages(settings.anchorNotes);
+  noteSelectionModeInput.value = settings.noteSelectionMode;
   themePreferenceInput.value = settings.themePreference;
   applyTheme(settings.themePreference);
   disabledDomainsInput.value = settings.disabledDomains.join("\n");
@@ -151,6 +154,7 @@ function readSettingsFromForm() {
     enabled: enabledInput.checked,
     anchorNote: anchorNotes[0] || "",
     anchorNotes,
+    noteSelectionMode: noteSelectionModeInput.value,
     themePreference: themePreferenceInput.value,
     disabledDomains: splitLines(disabledDomainsInput.value).map(normalizeDomain)
   });
@@ -235,6 +239,8 @@ function mergeSettings(value) {
     enabled: stored.enabled !== false,
     anchorNote: anchorNotes[0] || "",
     anchorNotes,
+    noteSelectionMode:
+      stored.noteSelectionMode === "contextual" ? "contextual" : "rotation",
     themePreference: ["system", "light", "dark"].includes(stored.themePreference)
       ? stored.themePreference
       : "system",

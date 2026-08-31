@@ -129,6 +129,8 @@ function mergeSettings(value) {
     enabled: stored.enabled !== false,
     anchorNote: anchorNotes[0] || "",
     anchorNotes,
+    noteSelectionMode:
+      stored.noteSelectionMode === "contextual" ? "contextual" : "rotation",
     disabledDomains: Array.isArray(stored.disabledDomains)
       ? stored.disabledDomains
       : []
