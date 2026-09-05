@@ -112,14 +112,20 @@ function buildContextTokenWeights(pageContext = {}) {
   addWeightedContextTokens(weights, pageContext.title, CONTEXTUAL_FIELD_WEIGHTS.title);
   addWeightedContextTokens(
     weights,
-    Array.isArray(pageContext.headings) ? pageContext.headings.join(" ") : "",
+    Array.isArray(pageContext.headings) ? pageContext.headings[0] : "",
     CONTEXTUAL_FIELD_WEIGHTS.headings
   );
 
   let locationText = "";
   try {
-    const parsed = new URL(String(pageContext.url || ""));
-    locationText = `${parsed.hostname} ${parsed.pathname.replace(/[\/_-]+/g, " ")}`;
+    const parsed = new URL(String(pageContext.url || "").slice(0, 2048));
+    let pathname = parsed.pathname;
+    try {
+      pathname = decodeURIComponent(pathname);
+    } catch (_error) {
+      // Malformed escapes must not interrupt card rendering.
+    }
+    locationText = `${parsed.hostname} ${pathname.replace(/[\/_-]+/g, " ")}`;
   } catch (_error) {
     locationText = "";
   }
@@ -132,7 +138,7 @@ function buildContextTokenWeights(pageContext = {}) {
 }
 
 function addWeightedContextTokens(weights, value, fieldWeight) {
-  tokenizeContextualText(value).forEach((token) => {
+  new Set(tokenizeContextualText(String(value || "").slice(0, 512))).forEach((token) => {
     weights.set(token, (weights.get(token) || 0) + fieldWeight);
   });
 }

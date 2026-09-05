@@ -76,4 +76,64 @@ const weakRanking = rankContextualNotes(
 assert.equal(weakRanking[0].confidence, "weak");
 assert.equal(weakRanking[1].confidence, "none");
 
+assert.equal(rankContextualNotes({ title: "КИЇВ — ПОДОРОЖ!" }, [
+  "Полити рослини", "Подорож до Київ"
+])[0].note, "Подорож до Київ");
+assert.equal(rankContextualNotes({ url: "https://example.org/подорож/київ" }, [
+  "Полити рослини", "Подорож Київ"
+])[0].confidence, "strong", "Unicode URL paths must be decoded before matching.");
+assert.deepEqual(Array.from(rankContextualNotes({ title: "Berlin" }, [
+  "Berlin trip", "Berlin trip"
+]), (item) => item.note), ["Berlin trip", "Berlin trip"]);
+assert.equal(rankContextualNotes({ title: "x ".repeat(1000) + "Berlin" }, [
+  "Berlin trip"
+])[0].confidence, "none", "Page fields must have a bounded text budget.");
+assert.deepEqual(Array.from(rankContextualNotes({ title: "Berlin" }, [
+  "Berlin train", "Berlin plane"
+]), (item) => item.note), ["Berlin train", "Berlin plane"], "Equal scores retain input order.");
+assert.doesNotThrow(() => rankContextualNotes({ url: "https://example.org/%E0%A4%A" }, travelNotes));
+assert.equal(rankContextualNotes({ headings: ["Welcome", "Berlin flights"] }, travelNotes)[0].score, 0,
+  "Later headings must not contaminate the first-heading context.");
+assert.equal(rankContextualNotes({ title: "Berlin ".repeat(20) }, travelNotes)[0].score,
+  rankContextualNotes({ title: "Berlin" }, travelNotes)[0].score,
+  "Repeating a page keyword must not amplify its field weight.");
+
+// Exercise the actual selector with a small DOM boundary, not a copy of it.
+vm.runInContext(fs.readFileSync(path.join(root, "src/replacer.js"), "utf8"), context);
+vm.runInContext(`
+  var state = {
+    settings: { noteSelectionMode: "contextual", anchorNotes: ["Water plants", "Book Berlin flights", "Call home"] },
+    noteCursor: null, contextualNoteCursor: 0
+  };
+  var location = { href: "https://example.org/", hostname: "example.org", pathname: "/" };
+  var headingReads = 0;
+  var document = { title: "Berlin flights", querySelector: () => { headingReads += 1; return null; } };
+  var slots = [];
+  var isDomReplacementAllowed = () => true;
+  var HTMLElement = class {};
+  var queryAllScanRoots = () => slots;
+  renderReplacementSlot = (slot, selection) => { slot.note = selectAnchorNote(slot, selection); };
+`, context);
+assert.deepEqual(Array.from(vm.runInContext("getSelectableAnchorNotes().notes", context)), [
+  "Book Berlin flights", "Water plants", "Call home"
+], "Strong notes lead; other user notes must remain in the rotation.");
+vm.runInContext(`
+  slots = Array.from({ length: 2 }, () => Object.assign(new HTMLElement(), {
+    dataset: {}, getBoundingClientRect: () => ({ top: 0 })
+  }));
+  headingReads = 0;
+  renderInReadingOrder(slots);
+  applySettingsToReplacedSlots();
+`, context);
+assert.equal(vm.runInContext("headingReads", context), 2, "Read context once per render batch.");
+vm.runInContext(`
+  var nextSlot = { dataset: {} };
+  selectAnchorNote(nextSlot);
+`, context);
+assert.equal(vm.runInContext("nextSlot.dataset.attentionRedirectorNote", context), "2",
+  "Settings refresh must not rewind the cursor for newly arriving cards.");
+vm.runInContext('state.settings.anchorNotes = ["Call home", "Water plants"]; document.title = "Home";', context);
+assert.equal(vm.runInContext("getSelectableAnchorNotes().contextual", context), false,
+  "Weak matches use the rotation fallback.");
+
 console.log("Contextual ranking tests passed.");

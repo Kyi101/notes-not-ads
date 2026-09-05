@@ -15,6 +15,12 @@ baseline.
 **Consequences**:
 - Existing installs retain even rotation until the user opts in.
 - Contextual scoring stays local, deterministic, and dependency-free.
+- Read at most 512 characters per context field and only the first heading
+  (at most 32 text nodes). Rank once per render batch; repeated words within a
+  field do not amplify its weight. URL paths are safely decoded for multilingual matching.
+- Strong matches lead the rotation, followed by the remaining notes in their
+  original order. Every note remains eligible, preventing one match from filling
+  every slot. Settings refreshes preserve the next index for arriving cards.
 - A strong contextual candidate is selected ahead of zero-signal notes. A lone
   short-word overlap is treated as weak rather than useful; if no strong note
   matches, the existing stable rotation is used unchanged.

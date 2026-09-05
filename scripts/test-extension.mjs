@@ -655,6 +655,12 @@ try {
       `Contextual ranking did not select the page-relevant note first: ${JSON.stringify(contextualTopText)}`
     );
   }
+  const displayedContextualNotes = await contextualCards.allTextContents();
+  for (const note of ["Water the balcony plants this evening.", "Inspect clutter later."]) {
+    if (!displayedContextualNotes.some((text) => text.trim() === note)) {
+      throw new Error(`Contextual mode excluded a user note from rotation: ${note}`);
+    }
+  }
 
   const contextualNotes = [
     "Water the balcony plants this evening.",

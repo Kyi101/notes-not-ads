@@ -113,14 +113,20 @@
     addWeightedContextTokens(weights, pageContext.title, CONTEXTUAL_FIELD_WEIGHTS.title);
     addWeightedContextTokens(
       weights,
-      Array.isArray(pageContext.headings) ? pageContext.headings.join(" ") : "",
+      Array.isArray(pageContext.headings) ? pageContext.headings[0] : "",
       CONTEXTUAL_FIELD_WEIGHTS.headings
     );
 
     let locationText = "";
     try {
-      const parsed = new URL(String(pageContext.url || ""));
-      locationText = `${parsed.hostname} ${parsed.pathname.replace(/[\/_-]+/g, " ")}`;
+      const parsed = new URL(String(pageContext.url || "").slice(0, 2048));
+      let pathname = parsed.pathname;
+      try {
+        pathname = decodeURIComponent(pathname);
+      } catch (_error) {
+        // Malformed escapes must not interrupt card rendering.
+      }
+      locationText = `${parsed.hostname} ${pathname.replace(/[\/_-]+/g, " ")}`;
     } catch (_error) {
       locationText = "";
     }
@@ -133,7 +139,7 @@
   }
 
   function addWeightedContextTokens(weights, value, fieldWeight) {
-    tokenizeContextualText(value).forEach((token) => {
+    new Set(tokenizeContextualText(String(value || "").slice(0, 512))).forEach((token) => {
       weights.set(token, (weights.get(token) || 0) + fieldWeight);
     });
   }
@@ -3807,10 +3813,13 @@
   }
 
   function renderInReadingOrder(slots) {
+    const selection = isDomReplacementAllowed(state.settings) && state.settings.anchorNotes.length
+      ? getSelectableAnchorNotes()
+      : null;
     slots
       .map((slot) => ({ slot, top: slot.getBoundingClientRect().top }))
       .sort((a, b) => a.top - b.top)
-      .forEach(({ slot }) => renderReplacementSlot(slot));
+      .forEach(({ slot }) => renderReplacementSlot(slot, selection));
   }
 
   function applySettingsToReplacedSlots() {
@@ -3818,14 +3827,20 @@
       (slot) => slot instanceof HTMLElement
     );
     if (state.settings.noteSelectionMode === "contextual") {
-      state.contextualNoteCursor = 0;
+      // Retained cards keep their indices; new cards must continue after them.
+      state.contextualNoteCursor = slots.reduce((next, slot) => {
+        const index = Number.parseInt(slot.dataset.attentionRedirectorNote, 10);
+        return slot.dataset.attentionRedirectorNoteMode === "contextual" && Number.isInteger(index)
+          ? Math.max(next, index + 1)
+          : next;
+      }, 0);
       renderInReadingOrder(slots);
       return;
     }
-    slots.forEach(renderReplacementSlot);
+    slots.forEach((slot) => renderReplacementSlot(slot));
   }
 
-  function renderReplacementSlot(slot) {
+  function renderReplacementSlot(slot, selection = null) {
     const width = Number.parseFloat(slot.dataset.attentionRedirectorWidth || "0");
     const height = Number.parseFloat(slot.dataset.attentionRedirectorHeight || "0");
     const rect = {
@@ -3883,7 +3898,7 @@
     }
 
     slot.dataset.attentionRedirectorPresentation = "ambient";
-    const card = buildCard(createCardModel(slot), rect, slot);
+    const card = buildCard(createCardModel(slot, selection), rect, slot);
     removeReplacementCards(slot);
     if (preservesSiteChildren) {
       slot.append(card);
@@ -4328,8 +4343,8 @@
     card.dataset.noteLines = shownLines > 3 ? "many" : "few";
   }
 
-  function createCardModel(slot) {
-    return { body: selectAnchorNote(slot) };
+  function createCardModel(slot, selection = null) {
+    return { body: selectAnchorNote(slot, selection) };
   }
 
   // Hashing each slot independently gave neighbours no reason to differ: four
@@ -4348,8 +4363,8 @@
   // settings change, does not change the note under a reader looking at it. The
   // page's own key only chooses where the rotation starts, so two pages do not
   // both open on the first note.
-  function selectAnchorNote(slot) {
-    const selection = getSelectableAnchorNotes();
+  function selectAnchorNote(slot, selection = getSelectableAnchorNotes()) {
+    selection ||= getSelectableAnchorNotes();
     const notes = selection.notes;
     const stored = Number.parseInt(slot.dataset.attentionRedirectorNote, 10);
     const storedMode = slot.dataset.attentionRedirectorNoteMode || "rotation";
@@ -4383,9 +4398,7 @@
       {
         url: location.href,
         title: document.title,
-        headings: Array.from(document.querySelectorAll("h1,h2"))
-          .slice(0, 12)
-          .map((heading) => heading.textContent || "")
+        headings: [readContextualHeading()]
       },
       notes
     );
@@ -4393,8 +4406,27 @@
       (result) => result.confidence === "strong"
     );
     return contextualMatches.length
-      ? { notes: contextualMatches.map((result) => result.note), contextual: true }
+      ? {
+        notes: [
+          ...contextualMatches.map((result) => result.note),
+          ...notes.filter((note) => !contextualMatches.some((result) => result.note === note))
+        ],
+        contextual: true
+      }
       : { notes, contextual: false };
+  }
+
+  function readContextualHeading() {
+    const heading = document.querySelector("h1,h2");
+    if (!heading) return "";
+    const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
+    let text = "";
+    for (let count = 0; count < 32 && text.length < 512; count += 1) {
+      const node = walker.nextNode();
+      if (!node) break;
+      text += node.data.slice(0, 512 - text.length);
+    }
+    return text;
   }
 
   function hashString(value) {
