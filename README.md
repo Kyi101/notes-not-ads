@@ -255,9 +255,15 @@ rectangle, or sponsored block is missed. It opens a small overlay: click the
 missed ad and the report is written, saved on your device, and copied — you do
 not have to press anything for that. The overlay then offers **Open a prefilled
 issue**, which fills in the site and the report for you; "does it come back on
-reload?" is left blank, because only you can answer it. **Copy again** is there
-if your clipboard missed it, and **Copy all saved** hands back everything the
-extension has stored.
+reload?" is left blank, because only you can answer it. **Copy** is there if
+your clipboard missed it, and **Copy this site's reports** hands back everything
+saved for the site you are on.
+
+That last one is deliberately limited to the current site. Reports are stored in
+one list across every site you have reported on, and a single button that copied
+all of them would put a slice of your browsing history on the clipboard, headed
+for an issue that cannot be unpublished. The diagnostic inspector still exports
+everything, because that one is for working on the extension itself.
 
 Use the popup's **Report a wrongly replaced page** button when the extension
 replaced something it should not have — a photo, a price, a button, or a whole

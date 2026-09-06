@@ -1241,7 +1241,14 @@ try {
 
   // Last, because it saves a report of its own and the count assertions above
   // are absolute.
-  await assertMissedAdReportFlow(context, serviceWorker, fixtureUrl);
+  // A distinct URL, because findTabIdForUrl ignores the hash and returns the
+  // first match: the smoke's own fixture tab is still open at the plain URL, so
+  // without this the report-mode messages are delivered to that tab instead.
+  await assertMissedAdReportFlow(
+    context,
+    serviceWorker,
+    `${fixtureUrl}?report-flow`
+  );
 } finally {
   if (context) {
     await context.close();
@@ -2234,6 +2241,20 @@ async function assertMissedAdReportFlow(browserContext, serviceWorker, fixtureUr
       );
     }
 
+    // The standing instruction has to go once it no longer applies. It is set
+    // with el.hidden, and every layout rule in the overlay's stylesheet is
+    // !important, so the UA's [hidden] rule loses unless the stylesheet says
+    // otherwise — which is how this shipped still reading "Click the missed ad"
+    // above a line reporting that it had been clicked and copied.
+    const subtitle = page.locator(
+      "[data-attention-redirector-inspector-subtitle]"
+    );
+    if (await subtitle.isVisible()) {
+      throw new Error(
+        `The header still instructs "${await subtitle.innerText()}" after the ad has been picked and copied.`
+      );
+    }
+
     const details = await page
       .locator("[data-attention-redirector-inspector-details]")
       .innerText();
@@ -2243,10 +2264,98 @@ async function assertMissedAdReportFlow(browserContext, serviceWorker, fixtureUr
       );
     }
 
+    // The saved list is one flat store across every site, so an unscoped export
+    // would put another site's pages on the clipboard and into a public issue.
+    // Seeded here rather than served from a second origin, because what is under
+    // test is the filter, not the network.
+    await seedForeignSavedReport(serviceWorker);
+
+    // Earlier phases of this run saved their own reports on this same host, so
+    // the expectation is computed rather than assumed. What is being proved is
+    // the exclusion: everything from this host, and nothing from any other.
+    const globalReports = await loadSavedReports(serviceWorker);
+    const host = new URL(page.url()).hostname;
+    const localCount = globalReports.filter(
+      (record) => record.hostname === host
+    ).length;
+
+    if (globalReports.length <= localCount) {
+      throw new Error(
+        "The seeded foreign report is not in the store, so this proves nothing."
+      );
+    }
+    if (localCount < 1) {
+      throw new Error("No report was saved for this host.");
+    }
+
+    // The click's own "Report copied (3)." status is still on screen and also
+    // contains the word "copied", so wait for it to clear before asking the
+    // export its own question. Matching loosely here is how this assertion
+    // passed against the wrong status the first time it was written.
+    const exportStatus = page.locator(
+      "[data-attention-redirector-inspector-copy-status]"
+    );
+    await page.waitForFunction(
+      () =>
+        (document.querySelector(
+          "[data-attention-redirector-inspector-copy-status]"
+        )?.textContent || "") === "",
+      undefined,
+      { timeout: 5000 }
+    );
+
+    await overlay.locator("[data-attention-redirector-export-saved]").click();
+    await page.waitForFunction(
+      () =>
+        /^Copied \d+ saved\.$/.test(
+          document.querySelector(
+            "[data-attention-redirector-inspector-copy-status]"
+          )?.textContent || ""
+        ),
+      undefined,
+      { timeout: 5000 }
+    );
+    const exportText = await exportStatus.innerText();
+    if (!exportText.includes(`Copied ${localCount} saved`)) {
+      throw new Error(
+        `The report-mode export copied "${exportText}" but this host has ${localCount} of ${globalReports.length} saved reports. It must not put another site's pages on the clipboard.`
+      );
+    }
+
+    const countText = await page
+      .locator("[data-attention-redirector-saved-count]")
+      .innerText();
+    if (!countText.includes("127.0.0.1")) {
+      throw new Error(
+        `The saved count does not name the site it covers: "${countText}". A count that disagrees with what the button copies is worse than none.`
+      );
+    }
+
     console.log(
-      "Missed-ad report flow OK — actions hidden until picked, auto-copy saved, saved pile reachable."
+      "Missed-ad report flow OK — actions hidden until picked, auto-copy saved, export scoped to this site."
     );
   } finally {
     await page.close().catch(() => {});
   }
+}
+
+// A report from a site the reporter is not currently on, to prove the
+// report-mode export leaves it alone.
+async function seedForeignSavedReport(serviceWorker) {
+  return serviceWorker.evaluate(async () => {
+    const key = "attentionRedirectorInspectorReports";
+    const stored = await chrome.storage.local.get(key);
+    const reports = stored[key] || [];
+    reports.push({
+      id: "seeded-foreign",
+      createdAt: new Date().toISOString(),
+      url: "https://unrelated.example/private/page",
+      hostname: "unrelated.example",
+      title: "Another site entirely",
+      inferredType: "missed clutter",
+      signature: "div#somewhere-else",
+      text: "Notes Not Ads Missed Clutter Report\nPage: https://unrelated.example/private/page"
+    });
+    await chrome.storage.local.set({ [key]: reports });
+  });
 }

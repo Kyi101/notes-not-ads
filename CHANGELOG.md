@@ -42,9 +42,13 @@ Makes the missed-ad report say what to do next.
   a prefilled issue** as the obvious next step, with **Copy again** behind it.
 - Missed-ad reports get the same prefilled issue as false positives. Previously
   only one of the two did.
-- **Copy all saved** is now reachable from the report overlay. It used to show
-  a count of saved reports while offering no way to retrieve them — those lived
-  behind Advanced, in the diagnostic inspector.
+- **Copy this site's reports** is now reachable from the report overlay. It used
+  to show a count of saved reports while offering no way to retrieve them —
+  those lived behind Advanced, in the diagnostic inspector.
+- That export covers the current site only. Saved reports are one list across
+  every site, and each carries its own page address, so an unscoped copy would
+  have put a slice of your browsing history on the clipboard on its way to a
+  public issue. The diagnostic inspector still exports everything.
 
 ## 1.0.2 — 2026-08
 
