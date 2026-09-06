@@ -932,6 +932,28 @@ function hasSoftUnsafeIdentifierInAncestors(element) {
   return false;
 }
 
+// The positive twin of the unsafe-ancestor walks, and deliberately shorter than
+// them: those veto a replacement, so an unbounded walk only ever makes them more
+// cautious, while this one licenses a replacement and an unbounded walk would
+// let a single `div-gpt-ad-…` wrapper anywhere up the page vouch for every bare
+// `ad` token beneath it. Six matches the depth `promoteToAdWrapper` is willing
+// to climb, so a slot and the wrapper that names it stay within reach.
+function hasStrongAdIdentifierInAncestors(element) {
+  let current = element.parentElement;
+  let depth = 0;
+
+  while (current && current !== document.body && depth < 6) {
+    if (STRONG_AD_IDENTIFIER_RE.test(getIdentifierText(current))) {
+      return true;
+    }
+
+    current = current.parentElement;
+    depth += 1;
+  }
+
+  return false;
+}
+
 function hasHardUnsafeAncestor(element) {
   return Boolean(closestAcrossRoots(element, HARD_UNSAFE_ANCESTOR_SELECTOR));
 }

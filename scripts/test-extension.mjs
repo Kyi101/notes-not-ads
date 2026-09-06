@@ -12,6 +12,10 @@ const projectRoot = path.resolve(__dirname, "..");
 // actually ships, rather than the working tree the ZIP is built from.
 const extensionRoot = process.env.EXTENSION_ROOT || projectRoot;
 const fixturePath = path.join(projectRoot, "tests/fixtures/ad-clutter.html");
+const classifiedsFixturePath = path.join(
+  projectRoot,
+  "tests/fixtures/classifieds-item.html"
+);
 const DEFAULT_EXTENSION_SETTINGS = {
   enabled: true,
   anchorNote: "Finish what deserves your attention.",
@@ -42,6 +46,10 @@ try {
   await assertDnrBehavior(context, serviceWorker, fixtureUrl);
   await assertLinkedinAppBypass(context, serviceWorker);
   await assertYoutubePruneBehavior(context, serviceWorker);
+  await assertClassifiedsGuard(
+    context,
+    `http://127.0.0.1:${server.port}/classifieds-item.html`
+  );
 
   await page.goto(fixtureUrl);
   await page.waitForLoadState("domcontentloaded");
@@ -1247,14 +1255,19 @@ function startFixtureServer() {
         return;
       }
 
-      if (!url.pathname.endsWith("/ad-clutter.html")) {
+      const isClassifieds = url.pathname.endsWith("/classifieds-item.html");
+
+      if (!url.pathname.endsWith("/ad-clutter.html") && !isClassifieds) {
         response.writeHead(404, { "Content-Type": "text/plain" });
         response.end("Not found");
         return;
       }
 
       try {
-        const html = await readFile(fixturePath, "utf8");
+        const html = await readFile(
+          isClassifieds ? classifiedsFixturePath : fixturePath,
+          "utf8"
+        );
         response.writeHead(200, { "Content-Type": "text/html" });
         response.end(html);
       } catch (error) {
@@ -2003,5 +2016,85 @@ async function assertVisuallySuppressed(page, selector, label) {
 
   if (unsuppressed > 0) {
     throw new Error(`${label} remained visually or interactively active.`);
+  }
+}
+
+// A classifieds item page calls the user's own listing an ad, because that is
+// what a classified ad is. Reported 2026-09-03 against OLX: the photo, spec
+// table, description, footer bar, price-and-contact box and every
+// similar-listing tile were replaced, on a page reached from a ChatGPT deep
+// link. The listing grids were clean, which is why nobody saw it until then.
+//
+// Both directions are asserted. Weakening the bare `ad` token is only correct
+// if the slots on the same page still go, so the controls below carry the three
+// kinds of corroboration the rule accepts: a strong token, a standard creative
+// size, and a creative from an ad host.
+async function assertClassifiedsGuard(browserContext, url) {
+  const page = await browserContext.newPage();
+
+  try {
+    await page.goto(url);
+    await page.waitForLoadState("domcontentloaded");
+    await page
+      .locator("#div-gpt-ad-listing-branding.attention-redirector-slot")
+      .waitFor({ state: "attached", timeout: 8000 });
+    await page.waitForTimeout(600);
+
+    const state = await page.evaluate(() => {
+      const replaced = (selector) =>
+        Array.from(document.querySelectorAll(selector)).map((node) =>
+          node.classList.contains("attention-redirector-slot")
+            ? node.dataset.attentionRedirectorReason || "replaced"
+            : ""
+        );
+
+      return {
+        listing: {
+          photo: replaced("[data-testid='ad-photo']"),
+          parameters: replaced("[data-testid='ad-parameters-container']"),
+          description: replaced("[data-testid='ad_description']"),
+          footer: replaced("[data-testid='ad-footer-bar-section']"),
+          action: replaced("[data-testid='ad-action-box']"),
+          cards: replaced("[data-testid='ad-card']"),
+          map: replaced(".qa-static-ad-map-container")
+        },
+        slots: {
+          gpt: replaced("#div-gpt-ad-listing-branding"),
+          commonSize: replaced("#classifieds-mpu"),
+          adHostCreative: replaced("#classifieds-ad-holder"),
+          adsense: replaced("#classifieds-adsense"),
+          emptiedByBlocker: replaced("#classifieds-blocked-slot")
+        }
+      };
+    });
+
+    const wronglyReplaced = Object.entries(state.listing).flatMap(
+      ([name, reasons]) =>
+        reasons
+          .filter(Boolean)
+          .map((reason) => `${name} was replaced as "${reason}"`)
+    );
+
+    if (wronglyReplaced.length) {
+      throw new Error(
+        `Classifieds listing content was replaced:\n  ${wronglyReplaced.join("\n  ")}`
+      );
+    }
+
+    const missedSlots = Object.entries(state.slots)
+      .filter(([, reasons]) => !reasons.length || !reasons.every(Boolean))
+      .map(([name]) => name);
+
+    if (missedSlots.length) {
+      throw new Error(
+        `Real ad slots on the classifieds fixture were not replaced: ${missedSlots.join(", ")}`
+      );
+    }
+
+    console.log(
+      "Classifieds guard OK — 8 listing elements survived, 5 real slots replaced."
+    );
+  } finally {
+    await page.close().catch(() => {});
   }
 }

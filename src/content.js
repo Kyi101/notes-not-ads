@@ -265,7 +265,35 @@
     "advertising.amazon.com",
     "monetize.xandr.com",
     "platform.ironsrc.com",
-    "dashboard.unity3d.com"
+    "dashboard.unity3d.com",
+    // Classifieds, where the site's own DOM calls the user's listing an ad
+    // because that is what a classified ad is. OLX item pages tag the photo
+    // gallery, the spec table, the description, the footer bar and the
+    // contact-seller box `data-testid="ad-photo"`, `ad-parameters-container`,
+    // `ad_description`, `ad-footer-bar-section`, `ad-action-box`, and every
+    // similar-listing tile `ad-card`.
+    //
+    // Reported 2026-09-03: an item page reached from a ChatGPT link had 15 of
+    // its own content blocks replaced, the price and contact box among them.
+    // The listing grids escaped only by luck — those tiles are `l-card`, which
+    // carries no ad token — which is why the homepage and search look clean and
+    // the bug went unseen until someone followed a deep link.
+    //
+    // The weak-token rule in `getMatchReason` is the real fix and covers the
+    // classifieds sites not listed here. This entry is the belt to its braces on
+    // the one site where the failure is measured, and it costs only the note on
+    // OLX's two genuine GPT slots; request blocking still empties them.
+    "olx.ua",
+    "olx.pl",
+    "olx.ro",
+    "olx.bg",
+    "olx.pt",
+    "olx.kz",
+    "olx.uz",
+    "olx.com.br",
+    "olx.in",
+    "olx.co.za",
+    "olx.ba"
   ];
 
   // Search results carry ads and stay in scope; every other surface on the same
@@ -546,8 +574,27 @@
     return dropped.length ? `${base} (${dropped.join(" and ")} removed)` : base;
   }
 
-  const AD_IDENTIFIER_RE =
-    /(^|[\s_.:-])(ad|ads|adslot|ad-slot|ad_unit|ad-unit|advert|advertisement|advertising|sponsor|sponsored|promoted|dfp|gpt|doubleclick|adsbygoogle|native-ad|paid-placement|taboola|outbrain|mgid)([\s_.:-]|$)/i;
+  // `ad` and `ads` on their own are the weakest tokens in the ad vocabulary, and
+  // the only ones a site routinely uses to mean something else: on a classifieds
+  // site the user's own listing is an ad, so OLX writes `ad-photo`,
+  // `ad_description`, `ad-action-box` and `ad-card` around the content the reader
+  // came for. Every other token below is unambiguous — nothing but a slot is
+  // called `advert`, `adsbygoogle` or `doubleclick` — so the bare pair is split
+  // out and asked for a second signal before it may condemn a container.
+  // See DECISIONS.md 2026-09-03.
+  const WEAK_AD_IDENTIFIER_RE = /(^|[\s_.:-])(ads?)([\s_.:-]|$)/i;
+
+  const STRONG_AD_IDENTIFIER_RE =
+    /(^|[\s_.:-])(adslot|ad-slot|ad_unit|ad-unit|advert|advertisement|advertising|sponsor|sponsored|promoted|dfp|gpt|doubleclick|adsbygoogle|native-ad|paid-placement|taboola|outbrain|mgid)([\s_.:-]|$)/i;
+
+  // The union is what the safety side asks for, and it is the original pattern
+  // unchanged: a guard wants the broadest reading of "this might be an ad", and
+  // so do the residue paths, because an empty container carrying a bare `ad`
+  // token is safe to claim in a way a content-filled one is not.
+  const AD_IDENTIFIER_RE = new RegExp(
+    `${STRONG_AD_IDENTIFIER_RE.source}|${WEAK_AD_IDENTIFIER_RE.source}`,
+    "i"
+  );
 
   const VIDEO_AD_IDENTIFIER_RE =
     /(^|[\s_.:-])(ima-ad-container|ad-container|ad_container|ima|vast|vpaid|preroll|pre-roll|midroll|mid-roll)([\s_.:-]|$)/i;
@@ -2715,15 +2762,49 @@
 
     const identifiers = getIdentifierText(element);
     const rect = element.getBoundingClientRect();
-    const hasAdIdentifier = AD_IDENTIFIER_RE.test(identifiers);
+    const hasStrongAdIdentifier = STRONG_AD_IDENTIFIER_RE.test(identifiers);
+    const hasAdIdentifier =
+      hasStrongAdIdentifier || WEAK_AD_IDENTIFIER_RE.test(identifiers);
     const hasBannerIdentifier = BANNER_IDENTIFIER_RE.test(identifiers);
     const hasLabel = hasAdLabel(element);
     const hasAdSource = hasAdLikeSource(element);
     const hasScriptIframe = hasScriptAdIframe(element);
     const hasCommonSize = isCommonAdSize(rect);
 
+    // A bare `ad`/`ads` token is a guess until something else agrees with it.
+    // These are the signals a display slot has and a classified listing does not:
+    // a creative fetched from an ad host, a slot caption, one of the standard
+    // creative sizes, a script-written iframe, an explicit `data-ad`, the
+    // ad-serving elements themselves, or a wrapper close above that names the slot
+    // unambiguously. A cosmetic match would count too, but it has already
+    // returned above.
+    //
+    // Emptiness is the load-bearing one, and it was learned the expensive way. A
+    // first version of this rule left it out and the regression eval lost 13 real
+    // slots across Bleacher Report, People, Forbes, Yahoo, TechRadar and Tom's
+    // Guide — every one of them an ad container our own DNR layer had already
+    // emptied, so there was no creative left to corroborate the name. Measured on
+    // those six sites: of the slots that had only a bare token to go on, all but
+    // one held nothing at all, while every element on the OLX item page held the
+    // seller's own text, links, buttons or photo. Full or empty separates the two
+    // cleanly where size and source do not.
+    //
+    // Only the bare token is asked for any of this. `advert`, `adsbygoogle`,
+    // `dfp`, `doubleclick` and the rest still stand on their own.
+    const adIdentifierIsCorroborated =
+      hasStrongAdIdentifier ||
+      hasLabel ||
+      hasAdSource ||
+      hasScriptIframe ||
+      hasCommonSize ||
+      holdsNothingButResidue(element) ||
+      hasExplicitAdDataAttribute(element) ||
+      element.matches("iframe,ins,amp-ad") ||
+      hasStrongAdIdentifierInAncestors(element);
+
     if (
       hasAdIdentifier &&
+      adIdentifierIsCorroborated &&
       !isContentImage(element, rect) &&
       !isProseBlock(element)
     ) {
@@ -4488,6 +4569,28 @@
       }
 
       current = current.parentElement;
+    }
+
+    return false;
+  }
+
+  // The positive twin of the unsafe-ancestor walks, and deliberately shorter than
+  // them: those veto a replacement, so an unbounded walk only ever makes them more
+  // cautious, while this one licenses a replacement and an unbounded walk would
+  // let a single `div-gpt-ad-…` wrapper anywhere up the page vouch for every bare
+  // `ad` token beneath it. Six matches the depth `promoteToAdWrapper` is willing
+  // to climb, so a slot and the wrapper that names it stay within reach.
+  function hasStrongAdIdentifierInAncestors(element) {
+    let current = element.parentElement;
+    let depth = 0;
+
+    while (current && current !== document.body && depth < 6) {
+      if (STRONG_AD_IDENTIFIER_RE.test(getIdentifierText(current))) {
+        return true;
+      }
+
+      current = current.parentElement;
+      depth += 1;
     }
 
     return false;

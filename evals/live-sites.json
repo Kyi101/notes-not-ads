@@ -931,6 +931,30 @@
       "manualOnly": true,
       "url": "https://www.reddit.com/",
       "notes": "Manual normal-browser test: feed scroll, post open, comments, promoted posts if visible."
+    },
+    {
+      "id": "olx-ua-home",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "classifieds",
+      "url": "https://www.olx.ua/uk/",
+      "notes": "Classifieds home. Zero cards expected: olx.ua is in DOM_REPLACEMENT_DISABLED_DOMAINS, so a card here means the domain guard regressed. Request blocking stays on."
+    },
+    {
+      "id": "olx-ua-search",
+      "group": "discovery-commerce",
+      "track": "discovery",
+      "category": "classifieds",
+      "url": "https://www.olx.ua/uk/list/q-iphone/",
+      "notes": "Classifieds search grid. Clean even before the 2026-09-03 fix, because its tiles are l-card and carry no ad token — which is why the item-page failure stayed invisible for so long."
+    },
+    {
+      "id": "olx-ua-item",
+      "group": "protected-manual",
+      "track": "manual",
+      "category": "classifieds",
+      "url": "https://www.olx.ua/uk/list/q-iphone/",
+      "notes": "Manual: open any item from this grid. Reported 2026-09-03 with 15 false positives (ad-photo, ad_description, ad-parameters-container, ad-footer-bar-section, ad-action-box, ad-card x6, qa-static-ad-map-container). Item URLs expire, so the entry point is the grid and the check is manual. The deterministic version of this case is tests/fixtures/classifieds-item.html."
     }
   ]
 }

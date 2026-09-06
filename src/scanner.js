@@ -369,15 +369,49 @@ function getMatchReason(element) {
 
   const identifiers = getIdentifierText(element);
   const rect = element.getBoundingClientRect();
-  const hasAdIdentifier = AD_IDENTIFIER_RE.test(identifiers);
+  const hasStrongAdIdentifier = STRONG_AD_IDENTIFIER_RE.test(identifiers);
+  const hasAdIdentifier =
+    hasStrongAdIdentifier || WEAK_AD_IDENTIFIER_RE.test(identifiers);
   const hasBannerIdentifier = BANNER_IDENTIFIER_RE.test(identifiers);
   const hasLabel = hasAdLabel(element);
   const hasAdSource = hasAdLikeSource(element);
   const hasScriptIframe = hasScriptAdIframe(element);
   const hasCommonSize = isCommonAdSize(rect);
 
+  // A bare `ad`/`ads` token is a guess until something else agrees with it.
+  // These are the signals a display slot has and a classified listing does not:
+  // a creative fetched from an ad host, a slot caption, one of the standard
+  // creative sizes, a script-written iframe, an explicit `data-ad`, the
+  // ad-serving elements themselves, or a wrapper close above that names the slot
+  // unambiguously. A cosmetic match would count too, but it has already
+  // returned above.
+  //
+  // Emptiness is the load-bearing one, and it was learned the expensive way. A
+  // first version of this rule left it out and the regression eval lost 13 real
+  // slots across Bleacher Report, People, Forbes, Yahoo, TechRadar and Tom's
+  // Guide — every one of them an ad container our own DNR layer had already
+  // emptied, so there was no creative left to corroborate the name. Measured on
+  // those six sites: of the slots that had only a bare token to go on, all but
+  // one held nothing at all, while every element on the OLX item page held the
+  // seller's own text, links, buttons or photo. Full or empty separates the two
+  // cleanly where size and source do not.
+  //
+  // Only the bare token is asked for any of this. `advert`, `adsbygoogle`,
+  // `dfp`, `doubleclick` and the rest still stand on their own.
+  const adIdentifierIsCorroborated =
+    hasStrongAdIdentifier ||
+    hasLabel ||
+    hasAdSource ||
+    hasScriptIframe ||
+    hasCommonSize ||
+    holdsNothingButResidue(element) ||
+    hasExplicitAdDataAttribute(element) ||
+    element.matches("iframe,ins,amp-ad") ||
+    hasStrongAdIdentifierInAncestors(element);
+
   if (
     hasAdIdentifier &&
+    adIdentifierIsCorroborated &&
     !isContentImage(element, rect) &&
     !isProseBlock(element)
   ) {
