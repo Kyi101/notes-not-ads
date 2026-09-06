@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <title>Classifieds item page fixture</title>
+    <style>
+      body { margin: 0; font-family: system-ui, sans-serif; }
+      main { width: 1000px; margin: 0 auto; }
+      .box { box-sizing: border-box; border: 1px solid #ddd; margin: 12px 0; }
+    </style>
+  </head>
+  <body>
+    <!--
+      A classifieds item page in miniature, built from the identifiers measured
+      on an OLX listing on 2026-09-03. On a classifieds site the user's own
+      listing IS an ad, so the site tags the content the reader came for with
+      the same `ad` token an ad network uses for a slot. Every element in the
+      first group carries that bare token and must survive; every element in the
+      second carries real slot evidence and must be replaced.
+
+      Sizes are pinned because both groups are judged partly on geometry. The
+      photo is 600x400 rather than the 751x583 measured on the real page so that
+      it stays under `isTooLargeForMvp` at the default test viewport — otherwise
+      it would survive for the wrong reason and the assertion would prove
+      nothing.
+    -->
+    <main>
+      <!-- ===== Must NOT be replaced: the listing itself. ===== -->
+      <div class="box" data-testid="ad-photo" data-cy="adPhotos-swiperSlide"
+           style="width: 600px; height: 400px;">
+        <img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+             alt="Item photo" style="width: 100%; height: 100%;" />
+      </div>
+
+      <div class="box" data-testid="ad-parameters-container"
+           style="width: 600px; height: 83px;">
+        Приватна особа · Стан: Вживане · Марка: Apple
+      </div>
+
+      <div class="box" data-testid="ad_description" data-cy="ad_description"
+           style="width: 600px; height: 200px;">
+        Опис. Продам особистий телефон у чудовому стані. Пам'ять 128 ГБ,
+        батарея тримає добре, комплект повний, без подряпин на екрані.
+      </div>
+
+      <div class="box" data-testid="ad-footer-bar-section" data-cy="ad-footer-bar-section"
+           style="width: 600px; height: 56px;">
+        ID: 933525643 · Переглядів: 30 · Поскаржитися
+      </div>
+
+      <!-- The worst of the reported failures: price and contact-seller. Uses a
+           button, not an input, so it is the identifier rule under test here
+           and not the form-control guard. -->
+      <div class="box" data-testid="ad-action-box" style="width: 360px; height: 500px;">
+        <p>6 500 грн.</p>
+        <button type="button">Повідомлення</button>
+        <a href="/seller/andrii">Усі оголошення автора</a>
+      </div>
+
+      <!-- Similar-listing tiles. The link sits inside the tile, as on the real
+           page, so the `closest("a[href]")` guard does not apply. -->
+      <div class="box" data-testid="ad-card" style="width: 230px; height: 316px;">
+        <a href="/d/uk/obyavlenie/iphone-11-128-gb-IDabc.html">iPhone 11 128 GB</a>
+        <p>3 500 грн. · Павшино</p>
+      </div>
+      <div class="box" data-testid="ad-card" style="width: 230px; height: 316px;">
+        <a href="/d/uk/obyavlenie/iphone-12-IDdef.html">iPhone 12</a>
+        <p>6 000 грн. · Хмельницький</p>
+      </div>
+
+      <button class="box qa-static-ad-map-container" type="button"
+              style="width: 145px; height: 105px;">Мапа</button>
+
+      <!-- ===== Must still be replaced: real slots on the same page. ===== -->
+      <!-- Strong token: nothing but a slot is called `gpt`. -->
+      <div class="box baxter-container" id="div-gpt-ad-listing-branding"
+           data-testid="qa-advert-slot" style="width: 600px; height: 300px;"></div>
+
+      <!-- Bare token, corroborated by a standard creative size. -->
+      <div class="box ad" id="classifieds-mpu" style="width: 300px; height: 250px;"></div>
+
+      <!-- Bare token, corroborated by a creative from an ad host. -->
+      <div class="box ad-holder" id="classifieds-ad-holder" style="width: 500px; height: 300px;">
+        <iframe title="creative" data-src="https://securepubads.g.doubleclick.net/gampad/ads?iu=/1/x"
+                style="width: 100%; height: 100%;"></iframe>
+      </div>
+
+      <!-- Strong token on the ad-serving element itself. -->
+      <ins class="adsbygoogle" id="classifieds-adsense"
+           style="display: block; width: 600px; height: 120px;"></ins>
+
+      <!-- Bare token, no size and no source, corroborated only by being empty:
+           the shape every slot takes once our own DNR layer has removed the
+           creative. Dropping this case cost 13 real slots across six publishers
+           in the 2026-09-03 regression eval, which is why it has a control. -->
+      <div class="box br-ad" id="classifieds-blocked-slot"
+           style="width: 420px; height: 180px;"></div>
+    </main>
+  </body>
+</html>

@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+Stops the extension replacing the content of classifieds listings.
+
+- A bare `ad` or `ads` token in an element's id, class or `data-testid` is no
+  longer enough on its own to replace a container. It now needs a second signal:
+  a creative from an ad host, a slot caption, a standard creative size, a
+  script-written iframe, an explicit `data-ad`, an unambiguous wrapper above it,
+  or an empty container — the shape a slot takes once the creative is blocked.
+  `advert`, `adsbygoogle`, `dfp`, `doubleclick` and the rest are unchanged.
+- On a classifieds site the user's own listing is an ad and the markup says so.
+  An OLX item page had its photo gallery, spec table, description, footer bar,
+  price-and-contact-seller box and every similar-listing tile replaced. The
+  homepage and search grids were unaffected, so this only appeared when someone
+  opened an item directly.
+- OLX is additionally on the list of domains where nothing in the page is
+  replaced. Request blocking there is unchanged.
+- Measured against the 21-site regression track: one slot lost, on Bleacher
+  Report, and it may be run-to-run ad variance.
+
 ## 1.0.2 — 2026-08
 
 Makes request blocking reliable when another filtering extension is already

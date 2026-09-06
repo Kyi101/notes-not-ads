@@ -1848,3 +1848,57 @@ whole is total blocking failure.
   unchanged; this release changes the DNR budget, not DOM detection.
 - Version 1.0.2 carries this change. Version 1.0.1's staged store ZIP remains
   untouched.
+
+## 2026-09-03 - A Bare `ad` Token Must Be Corroborated Before It Condemns A Container
+
+**Decision**: Split `AD_IDENTIFIER_RE` into a strong half and a weak half. `ad`
+and `ads` alone now need a second signal before `getMatchReason` will return
+"ad-like identifier"; every other token in the vocabulary still stands on its
+own. Separately, add the OLX ccTLDs to `DOM_REPLACEMENT_DISABLED_DOMAINS`.
+
+**Why**: Reported by Hlib 2026-09-03. An OLX item page reached from a ChatGPT
+link had 15 to 18 of its own content blocks replaced — the photo gallery, the
+spec table, the description, the footer bar, the price-and-contact-seller box,
+and every similar-listing tile. On a classifieds site the user's listing *is* an
+ad, so OLX tags real content `data-testid="ad-photo"`, `ad_description`,
+`ad-parameters-container`, `ad-footer-bar-section`, `ad-action-box`, `ad-card`.
+`getIdentifierText` folds `data-testid` into the identifier string, the bare
+`ad` token matched, and the first branch of `getMatchReason` replaced on that
+alone with no size, source, or content test.
+
+The report arrived as "clean on Windows, broken on my girlfriend's Mac", and the
+OS was a red herring twice over. Reproduced on Linux at five viewport sizes and
+two device-pixel ratios: identical every time. The referrer was a red herring
+too — the extension reads neither referrer nor query string. The real variable
+was the page. OLX's homepage, search and category grids give one card, and it is
+a genuine GPT slot; only item pages fail. ChatGPT deep-links to item pages, and
+Hlib browses from the homepage, which is exactly why he never saw it.
+
+**Consequences**:
+- Measured on the 21-site regression track, before against after: one slot lost,
+  Bleacher Report's `sticky_ad`. Everything else that moved was run-to-run ad
+  variance — the same slot claimed one level up on TMZ, a regenerated slot id on
+  ESPN, one extra card on Daily Mail and Weather. That single loss may itself be
+  variance; it is recorded as a real cost because it was not proved otherwise.
+- Emptiness is the corroboration that matters and it was nearly missed. The
+  first version of the rule accepted only source, label, size, frame and a
+  strong ancestor token, and the eval lost 13 real slots across six publishers:
+  ad containers our own DNR layer had already emptied, with no creative left to
+  vouch for the name. Of the affected slots, all but one held nothing at all,
+  while every OLX element held the seller's text, links, buttons or photo.
+  `holdsNothingButResidue` already encoded the test and is now reused for it.
+- The domain entry is belt-and-braces on the one site where the failure is
+  measured. Tested with it removed, the identifier rule alone takes an OLX item
+  page from 15 false positives to 2, and the residue is a different rule —
+  `n-banner-text`, a seller-rating explainer that happens to be 327x59 and so
+  lands inside the 320x50 tolerance. Keeping both costs only the note on OLX's
+  two genuine GPT slots; request blocking still empties them.
+- Only the OLX ccTLDs are listed, not the sibling brands or the other big
+  classifieds. The identifier rule is what generalises; adding unverified
+  domains would be guessing, and every entry is a site where the product stops
+  doing its job.
+- `tests/fixtures/classifieds-item.html` is the deterministic version, asserted
+  in both directions by `scripts/test-extension.mjs`: eight listing elements
+  must survive, five real slots on the same page must still be replaced. The
+  fifth is the empty blocked-creative slot, which is there because dropping it
+  is what cost the 13.

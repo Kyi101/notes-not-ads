@@ -82,6 +82,7 @@ quiet card carrying one of the user's own notes.
 - `docs/site-risk-policy.md` - risk-tiered blocking protocol contract for protected, standard, ad-heavy, and hostile pages.
 - `evals/live-sites.json` - regression, discovery, controlled, and manual-only URL cases for the live eval runner, including track/category metadata and authored site-policy expectations where useful.
 - `tests/fixtures/ad-clutter.html` - deterministic clutter/ad fixture page.
+- `tests/fixtures/classifieds-item.html` - deterministic classifieds item page: listing content that must survive, real slots on the same page that must not.
 - `tests/fixtures/host-prevalence.json` - web-prevalence scores used to rank EasyList request hosts inside the static DNR budget.
 - `tests/fixtures/observed-ad-hosts.json` - request-host counts captured by this project's live evals and pinned ahead of the unmeasured tail.
 - `tests/fixtures/performance-scroll.html` - long deterministic page for sustained multi-card performance measurement.
@@ -107,6 +108,7 @@ quiet card carrying one of the user's own notes.
 - `src/content.css` has a second copy inside `SHADOW_ROOT_STYLE_TEXT` in `src/shared.js`, for cards in shadow roots that author stylesheets do not reach. A card rule added to one belongs in both.
 - The extension's own pages take colour from `chrome.css` and own only layout. The tokens there are the card's material, so the popup and options read as sheets of the same stuff the card is cut from; a page that wants a colour of its own is a design decision, not a local override.
 - `scripts/package-release.mjs` ships an explicit allowlist, not the working tree, so an asset referenced by a page but missing from that list is absent from the store build while every local gate still passes on the unpacked extension. `scripts/test-release-contract.mjs` reads the page markup back against that list; add new root assets to the packager.
+- `ad` and `ads` alone are weak evidence and need corroboration before a container is replaced; every other token in `STRONG_AD_IDENTIFIER_RE` stands on its own. A new ad-vocabulary token belongs in the strong list only if nothing but an ad slot is ever called that — on classifieds sites the user's own listing is an ad and the markup says so.
 - Keep selectors readable and auditable.
 - Store user settings only in `chrome.storage.local`.
 - Use `scripting` only for injecting this extension's existing content script into the active tab when popup messaging finds no listener.

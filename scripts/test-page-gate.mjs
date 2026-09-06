@@ -126,6 +126,17 @@ const CASES = [
   ["https://metrika.yandex.ru/dashboard", "off", "Yandex Metrica"],
   ["https://insights.hotjar.com/sites", "off", "Hotjar"],
 
+  // --- Classifieds. Reported by Hlib 2026-09-03: an OLX item page reached
+  // from a ChatGPT deep link had 15 of its own content blocks replaced,
+  // including the price and contact-seller box, because on a classifieds site
+  // the user's listing IS an ad and the DOM says so. The homepage and the
+  // listing grids looked clean, so nothing surfaced until someone followed a
+  // link straight to an item.
+  ["https://www.olx.ua/uk/", "off", "OLX home"],
+  ["https://www.olx.ua/d/uk/obyavlenie/iphone-11-IDxyz.html", "off", "OLX item page — the reported failure"],
+  ["https://www.olx.ua/uk/list/q-iphone/", "off", "OLX search"],
+  ["https://www.olx.pl/", "off", "OLX Poland shares the frontend"],
+
   // --- Zero-footprint tier: money, credentials, private mail.
   ["https://vault.bitwarden.com/", "none", "Bitwarden vault"],
   ["https://my.1password.com/vaults", "none", "1Password"],
