@@ -1960,3 +1960,46 @@ the bug when a human wrote it out by hand.
   agent that acts on a report. Both were discussed and deferred; the upload is
   the one that changes the privacy posture and it should be a deliberate,
   separately reviewed step.
+
+## 2026-09-03 - Report Mode Shows The Next Step, Not Another Copy
+
+**Decision**: Rework the missed-ad report overlay around one primary action.
+Nothing is offered before an element is picked; once one is, the overlay offers
+**Open a prefilled issue**, with **Copy again** and **Copy all saved** behind it.
+Move the issue-link builder from `popup.js` into `src/shared.js` so both report
+kinds share one copy.
+
+**Why**: Hlib could not explain his own flow, which is the strongest possible
+signal about it. Three faults, all the same fault:
+
+- The overlay copied the report automatically on click and then offered a
+  button labelled "Copy report". That reads as a step you have missed, not as
+  the retry it actually is. The retry is worth keeping — a clipboard write needs
+  focus and can be dropped — but it is a fallback, not the action.
+- Nothing said what the copy was for. "Paste it into feedback or an issue when
+  you send it" names no destination and no way to reach one.
+- Report mode showed "Saved: 12" and offered no way to retrieve them. Export
+  lived only in the diagnostic inspector, behind Advanced, which a reporter has
+  no reason to open.
+
+**Consequences**:
+- Missed-ad reports now open a prefilled issue like false positives do. The
+  asymmetry existed only because the false-positive path was built first.
+- The link builder moved to `src/shared.js` and `popup.js` lost its copy. The
+  missed-ad flow runs entirely inside the page overlay, so the content script
+  needed it regardless, and two copies would have been two places for a
+  repository rename to go half-done. `popup.js` now opens the URL `src/main.js`
+  hands back with the report.
+- A content script cannot open a tab, so `src/background.js` gained
+  `AR_OPEN_ISSUE`. It refuses any URL that is not the issue form. No report
+  travels through that message — only a link.
+- The saved-report label is mode-aware: the diagnostic inspector keeps its terse
+  "Saved: 12", report mode says "12 saved on this device". One is Hlib's tool,
+  the other is a stranger's first look at this UI.
+- Report mode had no test coverage at all, which is how it drifted. It has one
+  now, and it asserts the shape rather than the strings: no action offered
+  before a pick, the automatic copy actually saving, the saved pile reachable,
+  and the overlay stating what happens next.
+- `scripts/report-contract.mjs` now executes the shipped content modules to
+  build both links, replacing the check that ran `popup.js`. Both builders are
+  asserted to leave the human-judgement fields blank.

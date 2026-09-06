@@ -250,7 +250,14 @@ Use the popup status and visual inspection. For the first proof, success means i
 
 ## Missed Ad Reports
 
-Use the popup's **Report missed ad** button when a banner, popup, animated rectangle, or sponsored block is missed. It opens a simple page overlay: click the missed ad, and Notes Not Ads saves a compact local report and copies it for sending.
+Use the popup's **Report missed ad** button when a banner, popup, animated
+rectangle, or sponsored block is missed. It opens a small overlay: click the
+missed ad and the report is written, saved on your device, and copied — you do
+not have to press anything for that. The overlay then offers **Open a prefilled
+issue**, which fills in the site and the report for you; "does it come back on
+reload?" is left blank, because only you can answer it. **Copy again** is there
+if your clipboard missed it, and **Copy all saved** hands back everything the
+extension has stored.
 
 Use the popup's **Report a wrongly replaced page** button when the extension
 replaced something it should not have — a photo, a price, a button, or a whole

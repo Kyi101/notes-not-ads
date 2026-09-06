@@ -1238,6 +1238,10 @@ try {
   console.log("highlighted candidates:", highlightedCount);
   console.log("saved reports:", userReports.length);
   console.log("PASS inspector smoke");
+
+  // Last, because it saves a report of its own and the count assertions above
+  // are absolute.
+  await assertMissedAdReportFlow(context, serviceWorker, fixtureUrl);
 } finally {
   if (context) {
     await context.close();
@@ -2159,6 +2163,89 @@ async function assertPageReport(browserContext, serviceWorker, url) {
     }
 
     console.log("Page report OK — 7 cards counted, identical slots grouped, URL stripped.");
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+// Report mode, which had no coverage at all — which is how it drifted into
+// offering "Copy report" next to a click that had already copied, with nothing
+// saying what the copy was for.
+//
+// The shape asserted here is the fix: nothing to press before you pick
+// something, one obvious next step once you have, and the saved pile reachable
+// without leaving for the diagnostic inspector.
+async function assertMissedAdReportFlow(browserContext, serviceWorker, fixtureUrl) {
+  const page = await browserContext.newPage();
+
+  try {
+    await page.goto(fixtureUrl);
+    await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(500);
+
+    const tabId = await findTabIdForUrl(serviceWorker, page.url());
+    await sendExtensionMessage(serviceWorker, tabId, {
+      type: "AR_START_MISSED_AD_REPORT"
+    });
+
+    const overlay = page.locator(".attention-redirector-inspector");
+    await overlay.waitFor({ state: "visible", timeout: 5000 });
+
+    const openIssue = overlay.locator("[data-attention-redirector-open-issue]");
+    const copyAgain = overlay.locator("[data-attention-redirector-copy-again]");
+
+    if (await openIssue.isVisible()) {
+      throw new Error(
+        "Report mode offers 'Open a prefilled issue' before anything is picked, so the primary action points at nothing."
+      );
+    }
+    if (await copyAgain.isVisible()) {
+      throw new Error(
+        "Report mode offers 'Copy again' before anything has been copied."
+      );
+    }
+
+    // Report mode starts in manual pick, so this is a click on the page itself.
+    await page.locator("#plain-missed-rectangle").scrollIntoViewIfNeeded();
+    const box = await page.locator("#plain-missed-rectangle").boundingBox();
+    if (!box) {
+      throw new Error("No bounding box for the manual report target.");
+    }
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(600);
+
+    await openIssue.waitFor({ state: "visible", timeout: 5000 });
+    if (!(await copyAgain.isVisible())) {
+      throw new Error("'Copy again' stayed hidden after a report was captured.");
+    }
+
+    // The copy is automatic on click; the saved pile is the evidence it ran.
+    const saved = await loadSavedReports(serviceWorker);
+    if (saved.length < 1) {
+      throw new Error(
+        "Clicking the missed ad saved no report, so the automatic copy did not run."
+      );
+    }
+
+    const exportSaved = overlay.locator("[data-attention-redirector-export-saved]");
+    if (!(await exportSaved.isVisible())) {
+      throw new Error(
+        "'Copy all saved' is hidden in report mode, so saved reports are only reachable from the diagnostic inspector."
+      );
+    }
+
+    const details = await page
+      .locator("[data-attention-redirector-inspector-details]")
+      .innerText();
+    if (!/prefilled issue/i.test(details) || !/until you press Submit/i.test(details)) {
+      throw new Error(
+        `Report mode does not say what to do with the copy, or what happens next: ${details}`
+      );
+    }
+
+    console.log(
+      "Missed-ad report flow OK — actions hidden until picked, auto-copy saved, saved pile reachable."
+    );
   } finally {
     await page.close().catch(() => {});
   }

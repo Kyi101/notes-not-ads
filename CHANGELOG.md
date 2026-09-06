@@ -34,6 +34,18 @@ Adds a one-click way to report a wrongly replaced page.
   user chooses to submit, the full report is on the clipboard either way, and
   the page URL is still cut back to origin plus path.
 
+Makes the missed-ad report say what to do next.
+
+- The report overlay offered "Copy report" beside a click that had already
+  copied, which read as a step you had missed, and nothing said what the copy
+  was for. It now shows no action until you pick something, then offers **Open
+  a prefilled issue** as the obvious next step, with **Copy again** behind it.
+- Missed-ad reports get the same prefilled issue as false positives. Previously
+  only one of the two did.
+- **Copy all saved** is now reachable from the report overlay. It used to show
+  a count of saved reports while offering no way to retrieve them — those lived
+  behind Advanced, in the diagnostic inspector.
+
 ## 1.0.2 — 2026-08
 
 Makes request blocking reliable when another filtering extension is already

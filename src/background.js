@@ -213,7 +213,25 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   });
 });
 
+// The issue form, and nothing else. A content script asking the worker to open
+// a tab is a capability worth keeping narrow: the report itself never travels
+// through this message, only a link, and a link that is not the issue form is
+// refused rather than opened.
+const ISSUE_FORM_BASE_URL = "https://github.com/Kyi101/notes-not-ads/issues/new";
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message && message.type === "AR_OPEN_ISSUE") {
+    const url = String(message.url || "");
+    if (!url.startsWith(`${ISSUE_FORM_BASE_URL}?`)) {
+      sendResponse({ ok: false, error: "refused: not the issue form" });
+      return false;
+    }
+
+    chrome.tabs.create({ url });
+    sendResponse({ ok: true });
+    return false;
+  }
+
   if (!message || message.type !== "AR_SYNC_PAGE_DNR_ALLOW") {
     return false;
   }

@@ -560,6 +560,58 @@ const ISSUE_FORM_BASE_URL =
   "https://github.com/Kyi101/notes-not-ads/issues/new";
 const MAX_ISSUE_URL_LENGTH = 7000;
 
+// One builder for both report kinds. It lives here rather than in popup.js
+// because the missed-ad flow runs entirely inside the page overlay, and two
+// copies of this would be two places for a repository rename to go half-done.
+//
+// `trimField` names the one field worth shortening. Trimming the report rather
+// than the URL matters: a URL cut at a length limit drops whichever parameter
+// happens to sort last, silently and unpredictably, while a trimmed report
+// keeps every other field intact and says in the body that it happened.
+function buildIssueUrl({ template, title, fields = {}, trimField = "" }) {
+  const compose = (values) => {
+    const params = new URLSearchParams({ template, title });
+    for (const [key, value] of Object.entries(values)) {
+      if (value) {
+        params.set(key, value);
+      }
+    }
+    return `${ISSUE_FORM_BASE_URL}?${params.toString()}`;
+  };
+
+  const full = compose(fields);
+  if (
+    full.length <= MAX_ISSUE_URL_LENGTH ||
+    !trimField ||
+    !fields[trimField]
+  ) {
+    return full;
+  }
+
+  const notice =
+    "\n\n[trimmed to fit the issue link — the full report is on your clipboard]";
+  let text = fields[trimField];
+  while (
+    text.length > 400 &&
+    compose({ ...fields, [trimField]: `${text}${notice}` }).length >
+      MAX_ISSUE_URL_LENGTH
+  ) {
+    text = text.slice(0, Math.floor(text.length * 0.9));
+  }
+
+  return compose({ ...fields, [trimField]: `${text}${notice}` });
+}
+
+// Both reports carry the already-redacted page URL on their own `Page:` line, so
+// the issue's site field is read back out of the report rather than recomputed.
+// One source, one redaction.
+function reportSiteLine(report) {
+  const line = String(report || "")
+    .split("\n")
+    .find((entry) => entry.startsWith("Page: "));
+  return line ? line.slice("Page: ".length).trim() : "";
+}
+
 // A report is written to be pasted into a public issue, so the page URL is cut
 // back to origin plus path first. A query string carries session tokens, search
 // terms and order numbers far more often than it carries anything a triager
