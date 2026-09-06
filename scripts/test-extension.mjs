@@ -941,6 +941,18 @@ try {
       `Popup add-note flow did not persist: ${JSON.stringify(popupNotesSettings.anchorNotes)}`
     );
   }
+  // Accessible names. Placeholder text is a hint, not a name, so with two notes
+  // on screen the tree previously had one field borrowing the group's "Notes"
+  // and one with no name at all. #8.
+  for (const name of ["Note 1", "Note 2"]) {
+    const named = popupPage.getByRole("textbox", { name, exact: true });
+    if ((await named.count()) !== 1) {
+      throw new Error(
+        `The popup exposes ${await named.count()} fields named "${name}"; assistive technology needs exactly one.`
+      );
+    }
+  }
+
   await popupPage.close();
 
   const optionsPage = await context.newPage();
@@ -984,6 +996,44 @@ try {
     throw new Error(
       `Options did not persist controls: ${JSON.stringify(optionsSettings)}`
     );
+  }
+
+  // Same for options, plus the part that can actually rot: the numbers are
+  // positional, so a removal has to renumber what is left. Without that, deleting
+  // note 2 of 3 leaves a "Remove note 3" button pointing at the second row.
+  for (const name of ["Note 1", "Note 2"]) {
+    if ((await optionsPage.getByRole("textbox", { name, exact: true }).count()) !== 1) {
+      throw new Error(`Options does not expose exactly one field named "${name}".`);
+    }
+  }
+  for (const name of ["Remove note 1", "Remove note 2"]) {
+    if ((await optionsPage.getByRole("button", { name, exact: true }).count()) !== 1) {
+      throw new Error(
+        `Options does not expose exactly one button named "${name}"; every remove button used to read just "Remove".`
+      );
+    }
+  }
+
+  await optionsPage.locator("#addAnchorMessage").click();
+  await optionsPage.locator(".anchor-message-input").nth(2).fill("Third note.");
+  await optionsPage.getByRole("button", { name: "Remove note 2", exact: true }).click();
+
+  const afterRemoval = await optionsPage.evaluate(() =>
+    Array.from(document.querySelectorAll(".anchor-message-input")).map((input) => ({
+      name: input.getAttribute("aria-label"),
+      value: input.value
+    }))
+  );
+  if (afterRemoval.length !== 2) {
+    throw new Error(`Removing note 2 of 3 left ${afterRemoval.length} rows.`);
+  }
+  if (afterRemoval[1].name !== "Note 2" || afterRemoval[1].value !== "Third note.") {
+    throw new Error(
+      `Names did not renumber after a removal: ${JSON.stringify(afterRemoval)}. The surviving row must be named for where it now sits.`
+    );
+  }
+  if ((await optionsPage.getByRole("button", { name: "Remove note 3", exact: true }).count()) !== 0) {
+    throw new Error("A stale \"Remove note 3\" button survived the removal.");
   }
 
   // Emptying the notes is how the user asks for a plain blocker, so the field

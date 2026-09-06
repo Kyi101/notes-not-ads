@@ -19,7 +19,9 @@ let content = '(() => {\n';
 
 for (const file of files) {
   const code = fs.readFileSync(path.join(root, file), 'utf8');
-  content += code.split('\n').map(line => line ? `  ${line}` : '').join('\n') + '\n';
+  // Split on either ending, or a CRLF checkout carries every \r into the bundle
+  // as trailing whitespace on every line. The output is always LF.
+  content += code.split(/\r?\n/).map(line => line ? `  ${line}` : '').join('\n') + '\n';
 }
 
 content += '})();\n';

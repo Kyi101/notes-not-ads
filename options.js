@@ -113,6 +113,7 @@ function createAnchorMessageRow(note, index) {
     index === 0
       ? "Leave empty to draw nothing."
       : "Add another redirecting thought.";
+  input.setAttribute("aria-label", `Note ${index + 1}`);
   input.addEventListener("input", () => {
     updateAnchorMessageControls();
   });
@@ -121,6 +122,11 @@ function createAnchorMessageRow(note, index) {
   removeButton.className = "secondary-button anchor-remove-button";
   removeButton.type = "button";
   removeButton.textContent = "Remove";
+  // Every remove button read "Remove", so nothing in the accessibility tree
+  // said which note was about to go. The visible text is unchanged; only the
+  // name it exposes is. renderAnchorMessages rebuilds the whole list on every
+  // mutation, so these numbers cannot go stale after a removal. #8.
+  removeButton.setAttribute("aria-label", `Remove note ${index + 1}`);
   removeButton.addEventListener("click", () => {
     const nextValues = readAnchorMessageInputs({ includeEmpty: true });
     nextValues.splice(index, 1);

@@ -50,6 +50,22 @@ Makes the missed-ad report say what to do next.
   have put a slice of your browsing history on the clipboard on its way to a
   public issue. The diagnostic inspector still exports everything.
 
+Contributed fixes, from external proposals.
+
+- `npm run check` works on a Windows checkout. With `core.autocrlf=true` every
+  line carries a trailing carriage return, which the cosmetic-seed lint rejected
+  outright — so the command CONTRIBUTING requires before a pull request failed
+  on line 3 of a clean clone. The content builder had the same bug and would
+  have written a bundle with trailing whitespace on every line. Thanks to
+  @ilyafefelov for the report.
+- Note fields and their Remove buttons have proper accessible names. Placeholder
+  text is a hint, not a name: with several notes saved, a screen reader could not
+  tell one field from another, and every Remove button announced the same thing.
+  Also @ilyafefelov.
+- New `npm run release:verify`, which refuses to package from an uncommitted
+  tree or a stale generated bundle, runs the gates and browser smoke, then
+  prints the revision and the archive's SHA-256. Also @ilyafefelov.
+
 ## 1.0.2 — 2026-08
 
 Makes request blocking reliable when another filtering extension is already

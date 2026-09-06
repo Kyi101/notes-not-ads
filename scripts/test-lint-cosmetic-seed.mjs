@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const linter = path.join(__dirname, "lint-cosmetic-seed.mjs");
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "attention-redirector-cosmetic-lint-"));
 
-function seedSource(entries) {
+function seedSource(entries, eol = "\n") {
   return [
     "(() => {",
     "  const DEFAULT_COSMETIC_FILTER_TEXT = [",
@@ -23,12 +23,12 @@ function seedSource(entries) {
     "",
     "  globalThis.seed = { DEFAULT_COSMETIC_FILTER_TEXT, domainMatchesHost };",
     "})();"
-  ].join("\n");
+  ].join(eol);
 }
 
-async function lint(name, entries) {
+async function lint(name, entries, eol = "\n") {
   const file = path.join(tempDir, `${name}.js`);
-  await writeFile(file, seedSource(entries), "utf8");
+  await writeFile(file, seedSource(entries, eol), "utf8");
   try {
     await run(process.execPath, [linter, file]);
     return null;
@@ -111,7 +111,32 @@ try {
     }
   }
 
-  console.log("PASS cosmetic seed lint tests");
+  // A Windows checkout with core.autocrlf=true hands every line back with a
+  // trailing \r, which the raw-line patterns rejected — so the pre-PR command
+  // CONTRIBUTING requires failed on line 3 of a clean checkout and no Windows
+  // contributor could run it. Reported as #6.
+  //
+  // The corpus runs twice on purpose. Accepting CRLF is only half of it: the
+  // point of this lint is that upstream filter text cannot become executable
+  // code, so every hostile entry has to stay rejected under both endings.
+  // A normalization that quietly widened what parses would be a worse bug than
+  // the one it fixed.
+  const crlfClean = await lint("clean-crlf", CLEAN_ENTRIES, "\r\n");
+  if (crlfClean !== null) {
+    throw new Error(`A clean seed array with CRLF endings must pass, but the lint failed with: ${crlfClean}`);
+  }
+
+  for (const [name, entry] of hostile) {
+    const failure = await lint(`${name}-crlf`, ['"##.adsbygoogle",', entry, '""'], "\r\n");
+    if (failure === null) {
+      throw new Error(`A ${name} seed entry must be rejected under CRLF too, but the lint passed.`);
+    }
+    if (!failure.includes("Cosmetic seed violation")) {
+      throw new Error(`The ${name} CRLF rejection did not explain itself: ${failure}`);
+    }
+  }
+
+  console.log("PASS cosmetic seed lint tests (LF and CRLF)");
 } finally {
   await rm(tempDir, { recursive: true, force: true });
 }

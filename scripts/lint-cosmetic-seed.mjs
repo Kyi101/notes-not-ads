@@ -14,7 +14,12 @@ const target = process.argv[2]
   : path.join(projectRoot, "src/cosmetic-filters.js");
 const label = path.relative(projectRoot, target) || target;
 
-const lines = (await readFile(target, "utf8")).split("\n");
+// Split on either ending. A Windows checkout with core.autocrlf=true hands every
+// line back with a trailing \r, which the raw-line patterns below then reject —
+// so the mandatory pre-PR command failed on line 3 of a clean checkout, and no
+// Windows contributor could run the gate CONTRIBUTING requires of them.
+// Reported as #6, reproduced before fixing.
+const lines = (await readFile(target, "utf8")).split(/\r?\n/);
 
 const startIndex = lines.findIndex((line) => ARRAY_START.test(line));
 if (startIndex === -1) {
