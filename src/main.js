@@ -67,6 +67,11 @@ function registerExtensionListeners() {
       return false;
     }
 
+    if (message.type === "AR_PAGE_REPORT") {
+      sendResponse({ ...getStatus(), pageReport: formatPageReport() });
+      return false;
+    }
+
     if (message.type === "AR_REPLACE_NOW") {
       runScan({ force: true }).then((inserted) => {
         sendResponse({ ...getStatus(), insertedNow: inserted });

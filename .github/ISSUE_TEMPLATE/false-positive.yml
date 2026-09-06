@@ -7,8 +7,11 @@ body:
     attributes:
       value: |
         Replacing something that was not an ad is worse than missing an ad, so
-        these are read first. There is no one-click report for a dismissal yet;
-        the questions below are the ones the inspector would have answered.
+        these are read first.
+
+        If you got here from the extension, the site and the report below are
+        already filled in and the same text is on your clipboard. Two questions
+        are left blank on purpose: only you can answer them.
 
   - type: input
     id: site
@@ -42,9 +45,10 @@ body:
   - type: textarea
     id: report
     attributes:
-      label: Inspector report, if you could capture one
-      description: Optional. Open the inspector and select the element if it is
-        still reachable.
+      label: Report from the extension
+      description: Filled in for you if you used "Report a wrongly replaced page"
+        in the popup. Otherwise optional — it carries the page, the match reason
+        and the element signature, which is most of the diagnosis.
       render: text
     validations:
       required: false

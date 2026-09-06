@@ -548,6 +548,18 @@ const INSPECTOR_MAX_SAVED_REPORTS = 75;
 
 const REPORT_URL_WITHHELD = "(unparseable page URL withheld)";
 
+const PAGE_REPORT_HEADING = "Notes Not Ads Page Report";
+
+// A prefilled GitHub issue is a plain GET, so the whole report travels in the
+// query string. Browsers and servers stop honouring a URL somewhere past 8k and
+// a body cut at that boundary arrives as a corrupted report rather than an
+// error, so the report is trimmed to fit here and the untrimmed text goes to
+// the clipboard regardless. Nothing is transmitted by the extension: the user
+// lands on a filled-in form and decides whether to press Submit.
+const ISSUE_FORM_BASE_URL =
+  "https://github.com/Kyi101/notes-not-ads/issues/new";
+const MAX_ISSUE_URL_LENGTH = 7000;
+
 // A report is written to be pasted into a public issue, so the page URL is cut
 // back to origin plus path first. A query string carries session tokens, search
 // terms and order numbers far more often than it carries anything a triager

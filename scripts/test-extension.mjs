@@ -50,6 +50,11 @@ try {
     context,
     `http://127.0.0.1:${server.port}/classifieds-item.html`
   );
+  await assertPageReport(
+    context,
+    serviceWorker,
+    `http://127.0.0.1:${server.port}/classifieds-item.html?utm_source=test#frag`
+  );
 
   await page.goto(fixtureUrl);
   await page.waitForLoadState("domcontentloaded");
@@ -2092,8 +2097,68 @@ async function assertClassifiedsGuard(browserContext, url) {
     }
 
     console.log(
-      "Classifieds guard OK — 8 listing elements survived, 5 real slots replaced."
+      "Classifieds guard OK — 8 listing elements survived, 7 real slots replaced."
     );
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+// The page-scale report, end to end. A whole-page failure cannot be described by
+// an element report — the classifieds bug of 2026-09-03 was one rule firing
+// fifteen times — so this asserts the three things that make the page report
+// worth having: it counts, it groups, and it does not carry the query string.
+async function assertPageReport(browserContext, serviceWorker, url) {
+  const page = await browserContext.newPage();
+
+  try {
+    await page.goto(url);
+    await page.waitForLoadState("domcontentloaded");
+    await page
+      .locator("#div-gpt-ad-listing-branding.attention-redirector-slot")
+      .waitFor({ state: "attached", timeout: 8000 });
+    await page.waitForTimeout(600);
+
+    const tabId = await findTabIdForUrl(serviceWorker, page.url());
+    const response = await sendExtensionMessage(serviceWorker, tabId, {
+      type: "AR_PAGE_REPORT"
+    });
+    const report = (response && response.pageReport) || "";
+
+    if (!report.startsWith("Notes Not Ads Page Report")) {
+      throw new Error(
+        `Page report is missing its heading, so a paste of it is not recognised as a report: ${report.slice(0, 120)}`
+      );
+    }
+
+    const pageLine = report.split("\n").find((line) => line.startsWith("Page: ")) || "";
+    if (pageLine.includes("utm_source=test") || pageLine.includes("#")) {
+      throw new Error(
+        `Page report carried the query string or fragment into the report: ${pageLine}`
+      );
+    }
+    if (!pageLine.includes("(query and fragment removed)")) {
+      throw new Error(`Page report did not label the removal: ${pageLine}`);
+    }
+
+    const cardsLine = report.split("\n").find((line) => line.startsWith("Cards: "));
+    if (cardsLine !== "Cards: 7") {
+      throw new Error(
+        `Page report counted the wrong number of cards: ${cardsLine}. The fixture has 7 real slots.`
+      );
+    }
+
+    // The two ad-rail divs share a class and have no id, so they are one row.
+    const grouped = report
+      .split("\n")
+      .find((line) => line.includes("div.box.ad-rail"));
+    if (!grouped || !grouped.startsWith("2x")) {
+      throw new Error(
+        `Page report did not group the two identical slots into one row: ${grouped || "row missing"}`
+      );
+    }
+
+    console.log("Page report OK — 7 cards counted, identical slots grouped, URL stripped.");
   } finally {
     await page.close().catch(() => {});
   }

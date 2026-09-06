@@ -4,6 +4,13 @@ const CONTENT_STYLE_FILES = ["src/content.css"];
 const DEFAULT_ANCHOR_NOTE = "Finish what deserves your attention.";
 const MAX_ANCHOR_NOTES = 5;
 
+// Duplicated from src/shared.js rather than bundled, the way STORAGE_KEY and the
+// note defaults already are. scripts/report-contract.mjs asserts the two copies
+// still agree, because a popup pointing at a different repository than the
+// content script would send reporters to the wrong issue tracker.
+const ISSUE_FORM_BASE_URL = "https://github.com/Kyi101/notes-not-ads/issues/new";
+const MAX_ISSUE_URL_LENGTH = 7000;
+
 const DEFAULT_SETTINGS = {
   enabled: true,
   anchorNote: DEFAULT_ANCHOR_NOTE,
@@ -21,6 +28,9 @@ const anchorCount = document.getElementById("anchorCount");
 const reportMissedAdButton = document.getElementById("reportMissedAd");
 const replaceNowButton = document.getElementById("replaceNow");
 const inspectClutterButton = document.getElementById("inspectClutter");
+const reportFalsePositiveButton = document.getElementById(
+  "reportFalsePositive"
+);
 const openOptionsButton = document.getElementById("openOptions");
 const statusText = document.getElementById("statusText");
 
@@ -65,8 +75,18 @@ function bindEvents() {
       disabled.add(activeDomain);
     }
     settings.disabledDomains = Array.from(disabled).filter(Boolean).sort();
+    const turnedOff = !siteToggle.checked;
     await saveAndApply();
     refreshStatus();
+
+    // Turning the extension off for a site is what someone does when the whole
+    // page is wrong, and it is the only moment they are certainly looking at the
+    // evidence. Asking here costs them nothing and is the difference between a
+    // silent uninstall and a report. refreshStatus() has just written its own
+    // line, so this replaces it deliberately.
+    if (turnedOff && activeDomain) {
+      setStatus(`Off for ${activeDomain}. Was something replaced that should not have been?`);
+    }
   });
 
   addAnchorMessageButton.addEventListener("click", () => {
@@ -92,6 +112,37 @@ function bindEvents() {
       );
     } catch (error) {
       setStatus(`Report flow failed: ${formatChromeError(error)}`);
+    }
+  });
+
+  reportFalsePositiveButton.addEventListener("click", async () => {
+    if (!activeTab || !activeTab.id) {
+      setStatus("No active webpage found.");
+      return;
+    }
+
+    setStatus("Building the report...");
+
+    try {
+      const response = await sendMessageToTab(activeTab.id, {
+        type: "AR_PAGE_REPORT"
+      });
+      const report = response && response.pageReport;
+
+      if (!report) {
+        setStatus("This page has nothing to report.");
+        return;
+      }
+
+      // Clipboard first. If opening the tab fails, or the reporter closes it, or
+      // they would rather send this somewhere other than GitHub, the report is
+      // still in hand. The prefilled form is a convenience on top, never the
+      // only copy.
+      await copyReportText(report);
+      await chrome.tabs.create({ url: buildFalsePositiveIssueUrl(report) });
+      setStatus("Copied, and a prefilled issue is open. Nothing was sent.");
+    } catch (error) {
+      setStatus(`Report failed: ${formatChromeError(error)}`);
     }
   });
 
@@ -144,6 +195,7 @@ function renderControls() {
     `${settings.anchorNotes.length}/${MAX_ANCHOR_NOTES} local notes`;
 
   replaceNowButton.disabled = !activeDomain;
+  reportFalsePositiveButton.disabled = !activeDomain;
   reportMissedAdButton.disabled = !activeDomain;
   reportMissedAdButton.textContent = inspectorReportMode
     ? "Close report flow"
@@ -440,6 +492,69 @@ function canInjectIntoActiveTab(error) {
     message.includes("Receiving end does not exist") ||
     message.includes("Could not establish connection")
   );
+}
+
+// GitHub prefills an issue form from query parameters keyed by field id. This
+// builds the link; it does not open a connection or transmit anything. The
+// reporter lands on a filled-in form and decides whether to press Submit.
+//
+// `site` and `report` are machine facts and are filled in. "What got replaced"
+// and "How bad was it?" are left empty on purpose — they are the two answers
+// only the person looking at the page can give, and a prefilled guess would
+// read as their words.
+function buildFalsePositiveIssueUrl(report) {
+  const pageLine = report
+    .split("\n")
+    .find((line) => line.startsWith("Page: "));
+
+  const withReport = (text) => {
+    const params = new URLSearchParams({
+      template: "false-positive.yml",
+      title: `[false-positive] ${activeDomain}`
+    });
+    if (pageLine) {
+      params.set("site", pageLine.slice("Page: ".length).trim());
+    }
+    params.set("report", text);
+    return `${ISSUE_FORM_BASE_URL}?${params.toString()}`;
+  };
+
+  const full = withReport(report);
+  if (full.length <= MAX_ISSUE_URL_LENGTH) {
+    return full;
+  }
+
+  // Trim the report rather than the URL. A URL cut at a length limit loses
+  // whichever parameter happens to sort last, silently and unpredictably;
+  // trimming the report keeps every other field intact and says in the body
+  // that it happened. The untrimmed text is already on the clipboard.
+  const notice =
+    "\n\n[trimmed to fit the issue link — the full report is on your clipboard]";
+  let text = report;
+  while (
+    text.length > 400 &&
+    withReport(`${text}${notice}`).length > MAX_ISSUE_URL_LENGTH
+  ) {
+    text = text.slice(0, Math.floor(text.length * 0.9));
+  }
+
+  return withReport(`${text}${notice}`);
+}
+
+async function copyReportText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
 }
 
 function formatChromeError(error) {

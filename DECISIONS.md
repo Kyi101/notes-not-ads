@@ -1902,3 +1902,61 @@ Hlib browses from the homepage, which is exactly why he never saw it.
   must survive, five real slots on the same page must still be replaced. The
   fifth is the empty blocked-creative slot, which is there because dropping it
   is what cost the 13.
+
+## 2026-09-03 - Report At Page Scale, And Never Transmit It
+
+**Decision**: Add a page-scale false-positive report — every card on the page,
+identical ones grouped — reached from a popup button and from the moment the
+user turns the extension off for a site. The extension builds the report and
+opens a prefilled GitHub issue; it never opens a connection of its own, and the
+full text always goes to the clipboard as well.
+
+**Why**: There was a one-click report for missed ads and none for false
+positives. `false-positive.yml` said so in its own preamble while the same file
+called false positives the worse of the two. The classifieds bug went to a store
+release because nobody could report it cheaply.
+
+Element scope was not enough. That failure was one rule firing fifteen times on
+one page; fifteen element reports would have been fifteen issues describing one
+bug. Grouping is the part that carries the diagnosis rather than the volume — the
+report reads `6x ad-like identifier | div[data-testid=ad-card]`, and that line
+names both the rule that fired and the site's own vocabulary. It is what solved
+the bug when a human wrote it out by hand.
+
+**Consequences**:
+- Hlib's position on privacy was that it is overrated and nobody cares. He is
+  right about users and about friction — a product nobody can report to does not
+  improve, and this project has the evidence. The design takes the volume and
+  declines the liability: the prefilled link removes the tedious half of filing
+  while leaving the transmission decision with the person whose page it is. The
+  shipped promise stays literally true, and the store listing needs no new data
+  disclosure.
+- No screenshot, for now. The evidence says text carries the diagnosis: the page
+  URL, match reason and element signature were what identified the OLX rule, and
+  the screenshot only confirmed it. Automatic redaction was considered and
+  rejected as unbuildable — masking a rendered bitmap needs OCR plus entity
+  recognition and is wrong often enough that one miss ships a stranger's phone
+  number, while masking the DOM cannot tell a seller's name from a product name.
+  Redact enough to be safe and the image no longer shows the visual bug it was
+  taken for. If a screenshot is added later it should be cropped to the card's
+  own slot, which keeps the signal and drops almost all of the bystander data.
+  The exposure worth worrying about is not the reporter's; it is the third party
+  on the page, who is not a user and consented to nothing.
+- "What got replaced" and "How bad was it?" are deliberately left blank. They are
+  the two answers only the person looking at the page can give, and a prefilled
+  guess would arrive in the issue as their words.
+- The report is trimmed, not the URL, when it exceeds the link budget. A URL cut
+  at a length limit loses whichever parameter sorts last, silently; a trimmed
+  report keeps every other field and says in the body that it happened.
+- `scripts/report-contract.mjs` now executes `popup.js` to build a real link and
+  a real oversized one, rather than reading the source. A prefilled issue that
+  drops a field looks correct in review and arrives empty.
+- Triage gained `page-wide`, and gained a notion of optional form fields so a
+  hand-filed report is not chased for a field only the extension can produce.
+  Severity is still whatever the reporter answered: a card count is a fact, how
+  bad it was is a judgement, and `triage-report.mjs` exists on the principle that
+  a triage bot which guesses wrong is worse than none.
+- Not built: the upload endpoint for reporters without a GitHub account, and any
+  agent that acts on a report. Both were discussed and deferred; the upload is
+  the one that changes the privacy posture and it should be a deliberate,
+  separately reviewed step.
