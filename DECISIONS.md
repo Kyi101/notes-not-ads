@@ -2016,3 +2016,55 @@ signal about it. Three faults, all the same fault:
 - The retry button is labelled "Copy", not "Copy again". Hlib's call: the
   reporter does not need to know the first copy was automatic, and the shorter
   word does not raise the question.
+
+## 2026-09-03 - Take Three Of Five External Engine Proposals
+
+**Decision**: Implement #6 (CRLF-safe gates), #8 (accessible names for note
+controls), and #9 (release preflight, without the provenance manifest). Decline
+#7 (raise the DNR budget). Hold #11/#12 (contextual note ranking).
+
+**Why**: First external engine proposals the project has received, all from
+@ilyafefelov, all well-formed. Each claim was reproduced before being acted on.
+
+- **#6 is real and was measured, not assumed.** Converting the tree to CRLF and
+  running `npm run check` failed exactly as reported, on line 3 of
+  `src/cosmetic-filters.js`. The proposal named two files; converting the whole
+  tree and re-running after each fix confirmed those two were in fact the only
+  ones — `test-governance-contract.mjs` and `report-contract.mjs` split on `\n`
+  too but tolerate the stray `\r`. The full chain now passes on a CRLF checkout
+  with a bundle byte-identical to the LF build.
+- **#8 is real.** `createNoteInput` set only a placeholder, so notes 2-5 had no
+  accessible name and note 1 borrowed the group's "Notes"; `options.js` created
+  N buttons all reading "Remove". Fixed with `aria-label` rather than visible
+  labels, because the proposal's own risk note is right that extra labels change
+  popup density, and an `aria-label` changes nothing visually.
+- **#9 is real.** The `git status` reminder printed *after* the archive was
+  written, and nothing bound the ZIP to a clean revision. Took the half that
+  prevents a bad upload — clean tree, non-stale bundle, gates, smoke — and left
+  out the provenance manifest, which is ceremony for a project with no
+  downstream consumers. A SHA-256 is printed instead of written to a file.
+  Building the gate surfaced a hole the proposal did not mention: `fonts/`,
+  `icons/` and `_locales/` are packaged by directory scan, so an *untracked*
+  file there ships without ever having been committed. Those are now refused
+  while other untracked files are still ignored.
+
+**Declined, #7**: the proposal argues from Chrome's documentation that static
+and session rule limits are separate, and therefore that the 1,000-rule reserve
+wastes budget. But `scripts/lint-dnr-budget.mjs` already records the opposite,
+measured on Chrome 140: with every static ruleset disabled,
+`getAvailableStaticRuleCount()` returned 329954 rather than 330000 — exactly the
+46 session rules `src/background.js` had installed. The proposal does not engage
+with that measurement. The risk asymmetry settles it either way: the upside is
+1,000 rules out of 29,000, taken from the tail of a prevalence-ranked list and so
+the least valuable ones by construction, while the downside is Chrome refusing
+the whole ruleset silently — the failure 1.0.2 was shipped to fix.
+
+**Held, #11/#12**: the engineering is careful — pure module, no dependencies, no
+new permissions, opt-in, rotation preserved as default, falls back on weak
+signal. Two reasons to hold. The `strong` threshold accepts a single matched
+token of six or more characters, which running the ranker showed is enough for
+an unrelated article about protecting your finances to promote a note reading
+"Protect the next hour." And the product premise is unexamined: this extension
+replaces an ad with the user's *own* note precisely so it cuts across the page,
+and a note that agrees with the page is closer to what the ad was doing. That is
+a product decision, not a code review, and it belongs to Hlib.

@@ -24,7 +24,8 @@ quiet card carrying one of the user's own notes.
 - Live site eval: `npm run eval:live -- --limit 5`
 - Diagnose one supplied miss: `npm run diagnose:live -- https://example.com/`
 - Diagnose controlled adblock testers: `npm run diagnose:controlled-testers`
-- Build clean release ZIP: `npm run package:release`
+- Verified release build: `npm run release:verify`
+- Build clean release ZIP: `npm run package:release` (low-level; no clean-tree or staleness check)
 - Multi-card scroll benchmark: `npm run benchmark:performance`
 - Validate manifest JSON: `node -e "JSON.parse(require('fs').readFileSync('manifest.json', 'utf8'))"`
 - Paired-change check against a base ref: `node scripts/check-paired-change.mjs --base origin/main`
@@ -75,6 +76,9 @@ quiet card carrying one of the user's own notes.
 - `scripts/diagnose-false-positives.mjs` - FP-capture harness: records reason, signature, ancestry, original text/links/sources, and screenshots for every replaced slot on given URLs or eval cases.
 - `scripts/diagnose-controlled-testers.mjs` - exploratory controlled-tester harness for Canyoublockit, GetBlockify, and Turtlecute baseline extraction.
 - `scripts/package-release.mjs` - clean Git archive release ZIP builder for Chrome Web Store upload.
+- `scripts/release-verify.mjs` - release gate: refuses a dirty tracked tree or a stale `src/content.js`, runs the gates and smoke, packages, and prints revision plus SHA-256.
+- `scripts/test-release-verify.mjs` - the release gate's two pure predicates.
+- `scripts/test-build-content.mjs` - proves a CRLF checkout builds the same bundle as an LF one.
 - `scripts/benchmark-performance.mjs` - local multi-card scroll/frame/CDP performance benchmark.
 - `scripts/build-content.mjs` - concatenates content-script partials into `src/content.js`.
 - `scripts/update-lists.mjs` - EasyList/DNR ingestion script; dry-run by default and requires `--write` before mutating generated list artifacts.
@@ -119,6 +123,7 @@ quiet card carrying one of the user's own notes.
 - A report's shape is owned by `scripts/report-contract.mjs`, which is the agreement between the formatter in `src/inspector.js`, the issue forms, the prefilled link in `popup.js`, and `scripts/triage-report.mjs`. Renaming a label, heading, or field id means changing it there too, or triage silently stops parsing.
 - The extension never transmits a report. The prefilled issue is a link the user lands on and chooses to submit, and the full text always goes to the clipboard as well, so no path depends on GitHub.
 - Register content-script message listeners synchronously before async storage loading, so popup messages cannot race listener setup.
+- Anything that reads a repo file line by line splits on `/\r?\n/`, not `"\n"`. A Windows checkout with `core.autocrlf=true` hands back a trailing `\r` on every line, which silently broke the mandatory pre-PR gate and would have shipped a bundle with trailing whitespace on every line.
 - Update the Map when files move or structure changes.
 - Working state lives in a local, untracked `STATUS.md`. Create it if missing.
 - Update `DECISIONS.md` when scope, permissions, or architecture change.

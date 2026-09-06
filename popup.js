@@ -230,6 +230,11 @@ function createNoteInput(note, index) {
     index === 0
       ? "Leave empty to draw nothing."
       : "Add another redirecting thought.";
+  // Placeholder text is a hint, not a name. With several notes the
+  // accessibility tree could not tell one field from another — every input
+  // after the first had no name at all, and the first borrowed the group's
+  // "Notes". The visible placeholders stay as the instructions they are. #8.
+  input.setAttribute("aria-label", `Note ${index + 1}`);
   if (index === 0) {
     input.id = "anchorNote";
   }
