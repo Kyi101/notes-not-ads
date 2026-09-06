@@ -483,6 +483,10 @@ function safeToReplace(element) {
     return false;
   }
 
+  if (isOpaqueCustomElement(element) || containsOpaqueCustomElement(element)) {
+    return false;
+  }
+
   if (containsExplicitVideoAdLayer(element) && !hasOwnAdIdentifier(element)) {
     return false;
   }
@@ -539,6 +543,43 @@ function safeToReplace(element) {
   }
 
   return true;
+}
+
+// `element.shadowRoot` is null for a CLOSED root, so the guard above sees
+// nothing and every other safety check — including hasVisiblePasswordInput,
+// which queries the light DOM — is blind to what the element contains. A custom
+// element with ad-like geometry and an ad-like class can therefore hide a
+// password or payment control and still be claimed as a slot. Reported
+// privately 2026-08-31 and reproduced: a 300x250 <billing-widget class="ad-slot">
+// holding a password field in a closed root was collapsed to 17px.
+//
+// Whether a closed root exists is not observable, so the test is on the element
+// name instead of its contents. A site that calls its element <amp-ad>,
+// <fbs-ad> or <shreddit-ad-post> is declaring what it is; ad-ness arriving only
+// from a class or id on an otherwise ordinary custom element is not a
+// declaration, and that is exactly the shape of the attack. Requiring the ad
+// token in the tag name itself keeps every ad custom element this project
+// actually targets and refuses the rest.
+function isOpaqueCustomElement(element) {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  const name = element.localName || "";
+  if (!name.includes("-") || isExtensionElement(element)) {
+    return false;
+  }
+
+  return !AD_IDENTIFIER_RE.test(name) && !VIDEO_AD_IDENTIFIER_RE.test(name);
+}
+
+// A wrapper is no safer than what it wraps: promoteToAdWrapper climbs to
+// ancestors, so a container holding an opaque custom element could be claimed
+// and take the hidden control down with it.
+function containsOpaqueCustomElement(element) {
+  return Array.from(element.querySelectorAll("*"))
+    .slice(0, 200)
+    .some(isOpaqueCustomElement);
 }
 
 function hasStrongAdSignal(element) {
@@ -969,6 +1010,10 @@ function getSafetyBlocks(element) {
 
   if (element.shadowRoot) {
     blocks.push("open shadow host");
+  }
+
+  if (isOpaqueCustomElement(element) || containsOpaqueCustomElement(element)) {
+    blocks.push("custom element that may hide a closed shadow root");
   }
 
   if (containsExplicitVideoAdLayer(element) && !hasOwnAdIdentifier(element)) {

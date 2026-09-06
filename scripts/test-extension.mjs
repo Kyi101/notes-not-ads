@@ -16,6 +16,10 @@ const classifiedsFixturePath = path.join(
   projectRoot,
   "tests/fixtures/classifieds-item.html"
 );
+const closedShadowFixturePath = path.join(
+  projectRoot,
+  "tests/fixtures/closed-shadow-sensitive.html"
+);
 const DEFAULT_EXTENSION_SETTINGS = {
   enabled: true,
   anchorNote: "Finish what deserves your attention.",
@@ -49,6 +53,10 @@ try {
   await assertClassifiedsGuard(
     context,
     `http://127.0.0.1:${server.port}/classifieds-item.html`
+  );
+  await assertClosedShadowGuard(
+    context,
+    `http://127.0.0.1:${server.port}/closed-shadow-sensitive.html`
   );
   await assertPageReport(
     context,
@@ -1322,8 +1330,13 @@ function startFixtureServer() {
       }
 
       const isClassifieds = url.pathname.endsWith("/classifieds-item.html");
+      const isClosedShadow = url.pathname.endsWith("/closed-shadow-sensitive.html");
 
-      if (!url.pathname.endsWith("/ad-clutter.html") && !isClassifieds) {
+      if (
+        !url.pathname.endsWith("/ad-clutter.html") &&
+        !isClassifieds &&
+        !isClosedShadow
+      ) {
         response.writeHead(404, { "Content-Type": "text/plain" });
         response.end("Not found");
         return;
@@ -1331,7 +1344,11 @@ function startFixtureServer() {
 
       try {
         const html = await readFile(
-          isClassifieds ? classifiedsFixturePath : fixturePath,
+          isClosedShadow
+            ? closedShadowFixturePath
+            : isClassifieds
+              ? classifiedsFixturePath
+              : fixturePath,
           "utf8"
         );
         response.writeHead(200, { "Content-Type": "text/html" });
@@ -2418,4 +2435,75 @@ async function seedForeignSavedReport(serviceWorker) {
     });
     await chrome.storage.local.set({ [key]: reports });
   });
+}
+
+// A closed shadow root reports `element.shadowRoot` as null, so the shadow-host
+// guard never fires and hasVisiblePasswordInput, which queries the light DOM,
+// cannot see the control either. Reported privately 2026-08-31 and reproduced:
+// a 300x250 custom element with an ad-like class, holding a password field in a
+// closed root, was claimed and collapsed to 17px.
+//
+// Asserted in both directions on purpose. Refusing every custom element would
+// close the hole and cost the ad elements this project actually targets —
+// <amp-ad>, <fbs-ad>, <shreddit-ad-post> — so the discriminator is the tag name:
+// an element that declares itself an ad stays replaceable, one whose ad-ness
+// comes only from a class does not.
+async function assertClosedShadowGuard(browserContext, url) {
+  const page = await browserContext.newPage();
+
+  try {
+    await page.goto(url);
+    await page.waitForLoadState("domcontentloaded");
+    await page
+      .locator("#declared-ad-element.attention-redirector-slot")
+      .waitFor({ state: "attached", timeout: 8000 });
+    await page.waitForTimeout(600);
+
+    const state = await page.evaluate(() => {
+      const read = (selector) => {
+        const node = document.querySelector(selector);
+        if (!node) return null;
+        return {
+          replaced: node.dataset.attentionRedirectorReplaced === "true",
+          reason: node.dataset.attentionRedirectorReason || "",
+          height: Math.round(node.getBoundingClientRect().height)
+        };
+      };
+      return {
+        opaque: read("#ad-billing"),
+        wrapper: read("#wrapper-around-opaque"),
+        declared: read("#declared-ad-element"),
+        plain: read("#plain-wrapper-ad")
+      };
+    });
+
+    for (const [name, node] of [
+      ["a custom element that may hide a closed shadow root", state.opaque],
+      ["a wrapper around one", state.wrapper]
+    ]) {
+      if (!node) throw new Error(`${name} is missing from the fixture.`);
+      if (node.replaced) {
+        throw new Error(
+          `${name} was replaced as "${node.reason}" and collapsed to ${node.height}px. It may be holding a password or payment control the light-DOM checks cannot see.`
+        );
+      }
+    }
+
+    for (const [name, node] of [
+      ["an element that declares itself an ad in its tag name", state.declared],
+      ["an ordinary ad div", state.plain]
+    ]) {
+      if (!node || !node.replaced) {
+        throw new Error(
+          `${name} was not replaced. The closed-shadow guard has cost real slots.`
+        );
+      }
+    }
+
+    console.log(
+      "Closed-shadow guard OK — opaque custom elements and their wrappers refused, declared ad elements still replaced."
+    );
+  } finally {
+    await page.close().catch(() => {});
+  }
 }

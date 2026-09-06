@@ -2,9 +2,18 @@ const STORAGE_KEY = "attentionRedirectorSettings";
 const STATIC_RULESET_IDS = ["ruleset_1", "easylist"];
 const DNR_ALLOW_RULE_START_ID = 900000;
 const DNR_TAB_ALLOW_RULE_START_ID = 910000;
+// Must cover every resource type the packaged rules can block, or the
+// sensitive-page allow is not the zero-footprint promise it is written to be:
+// a blocked request whose type is missing here stays blocked on a bank or
+// checkout page. `stylesheet` (43 packaged rules) and `object` (1) were absent
+// — reported privately 2026-08-31, though only the stylesheet half was noticed.
+// scripts/test-dnr-allow-coverage.mjs recomputes the union from the shipped
+// rules and fails if this list falls behind again.
 const DNR_RESOURCE_TYPES = [
   "script",
   "image",
+  "stylesheet",
+  "object",
   "xmlhttprequest",
   "sub_frame",
   "ping",

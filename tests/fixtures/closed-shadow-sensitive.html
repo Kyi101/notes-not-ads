@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Closed shadow sensitive control fixture</title>
+    <style>body { margin: 0; font-family: system-ui, sans-serif; } main { width: 900px; margin: 0 auto; }</style>
+  </head>
+  <body>
+    <!--
+      element.shadowRoot is null for a CLOSED root, so the shadow-host guard in
+      safeToReplace never fires and hasVisiblePasswordInput — which queries the
+      light DOM — cannot see the control either. The page is therefore not even
+      classified sensitive.
+
+      Reported privately 2026-08-31 and reproduced before fixing: this element
+      was claimed via the `.ad-slot` cosmetic rule and collapsed from 250px to
+      17px with the password field still connected and unreachable.
+
+      The controls below it are the other half. An ad custom element declares
+      itself in its tag name, and those must still be replaceable, or the fix
+      costs the real slots this project exists to catch.
+    -->
+    <main>
+      <h1>Account</h1>
+
+      <billing-widget class="ad-slot" id="ad-billing"
+                      style="display:block;width:300px;height:250px"></billing-widget>
+
+      <fbs-ad class="ad-slot" id="declared-ad-element"
+              style="display:block;width:300px;height:250px"></fbs-ad>
+
+      <div class="ad-slot" id="plain-wrapper-ad"
+           style="width:300px;height:250px"></div>
+
+      <div class="ad-slot" id="wrapper-around-opaque" style="width:320px;height:280px">
+        <checkout-form style="display:block;width:300px;height:250px"></checkout-form>
+      </div>
+    </main>
+
+    <script>
+      for (const [name, markup] of [
+        ["billing-widget", '<label>Card PIN <input type="password" autocomplete="off"></label>'],
+        ["checkout-form", '<label>CVV <input type="password" autocomplete="off"></label>']
+      ]) {
+        customElements.define(
+          name,
+          class extends HTMLElement {
+            constructor() {
+              super();
+              this.attachShadow({ mode: "closed" }).innerHTML = markup;
+            }
+          }
+        );
+      }
+    </script>
+  </body>
+</html>
