@@ -1696,9 +1696,9 @@
     openIssueButton.addEventListener("click", openIssueForSelectedReport);
 
     if (state.inspector.reportMode) {
-      saveCopyButton.textContent = "Copy again";
+      saveCopyButton.textContent = "Copy";
       saveCopyButton.dataset.attentionRedirectorCopyAgain = "true";
-      exportButton.textContent = "Copy all saved";
+      exportButton.textContent = "Copy this site's reports";
       actions.append(
         openIssueButton,
         saveCopyButton,
@@ -2305,11 +2305,24 @@
     }, 1600);
   }
 
+  // Report mode gets this site's reports only; the diagnostic inspector still
+  // gets everything.
+  //
+  // The saved list is one flat store across every site and session, so an
+  // unscoped export puts up to 75 `Page:` lines from unrelated sites on the
+  // clipboard, headed for an issue that cannot be unpublished. That is a slice of
+  // someone's browsing history, and it would undo the redaction every individual
+  // report goes through. The button was survivable while it lived in the
+  // diagnostic inspector, where Hlib is the only user; it is not survivable in
+  // the flow a stranger is walked through.
+  //
+  // Host, not exact URL: reporting three ads across three pages of one site is
+  // one bug report, and the reporter is already telling us about that site.
   async function copySavedInspectorReports() {
     const status = state.inspector.overlay.querySelector(
       "[data-attention-redirector-inspector-copy-status]"
     );
-    const reports = await loadInspectorReports();
+    const reports = await loadSavedReportsInScope();
 
     if (!reports.length) {
       status.textContent = "No saved reports.";
@@ -2403,10 +2416,14 @@
   }
 
   function formatSavedInspectorReports(reports) {
+    const hosts = Array.from(new Set(reports.map((record) => record.hostname)));
     const lines = [
       "Notes Not Ads Saved Inspector Reports",
       `Exported: ${new Date().toISOString()}`,
-      `Count: ${reports.length}`
+      `Count: ${reports.length}`,
+      // Named so that a paste covering more than one site is obvious to the person
+      // pasting it, while they can still take it back.
+      `Sites: ${hosts.join(", ")}`
     ];
 
     reports.forEach((record, index) => {
@@ -2436,6 +2453,15 @@
 
     await saveInspectorReports(nextReports);
     return nextReports.length;
+  }
+
+  function loadSavedReportsInScope() {
+    return loadInspectorReports().then((reports) => {
+      if (!state.inspector.reportMode) {
+        return reports;
+      }
+      return reports.filter((record) => record.hostname === location.hostname);
+    });
   }
 
   function loadInspectorReports() {
@@ -2473,8 +2499,12 @@
       return;
     }
 
-    const count =
-      typeof knownCount === "number"
+    // knownCount comes from a save, which returns the global length, so report
+    // mode always recounts rather than trusting it. A count that disagrees with
+    // what the button copies is worse than a slower count.
+    const count = state.inspector.reportMode
+      ? (await loadSavedReportsInScope()).length
+      : typeof knownCount === "number"
         ? knownCount
         : (await loadInspectorReports()).length;
 
@@ -2484,7 +2514,7 @@
     countNode.textContent = state.inspector.reportMode
       ? count === 0
         ? ""
-        : `${count} saved on this device`
+        : `${count} saved from ${location.hostname}`
       : `Saved: ${count}`;
 
     // "Copy all saved" was previously reachable only from the diagnostic

@@ -2003,3 +2003,16 @@ signal about it. Three faults, all the same fault:
 - `scripts/report-contract.mjs` now executes the shipped content modules to
   build both links, replacing the check that ran `popup.js`. Both builders are
   asserted to leave the human-judgement fields blank.
+- The saved-report export in report mode covers the current host only, and the
+  button says so. Saved reports are one flat list across every site and session,
+  each carrying its own `Page:` line, so the unscoped version would have put up
+  to 75 page addresses from unrelated sites on the clipboard on their way to an
+  issue that cannot be unpublished — undoing, in one press, the redaction every
+  individual report goes through. The button was survivable while it lived in
+  the diagnostic inspector, where Hlib is the only user. Promoting it into a
+  stranger's flow is what made the scope a problem, so the scope moved with it.
+  Host rather than exact URL: reporting three ads across three pages of one site
+  is one bug, and the reporter is already telling us about that site.
+- The retry button is labelled "Copy", not "Copy again". Hlib's call: the
+  reporter does not need to know the first copy was automatic, and the shorter
+  word does not raise the question.
