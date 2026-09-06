@@ -10,6 +10,8 @@
 // Reads ISSUE_TITLE and ISSUE_BODY from the environment and prints JSON.
 
 import { ISSUE_FORMS, REPORT_HEADINGS } from "./report-contract.mjs";
+
+const PAGE_REPORT_HEADING = "Notes Not Ads Page Report";
 import { pathToFileURL } from "node:url";
 
 const NO_RESPONSE = "_No response_";
@@ -113,10 +115,16 @@ export function triage({ title = "", body = "" } = {}) {
   const missing = [];
   const flags = [];
 
+  // A field the form marks optional is still read — the extension prefills the
+  // report field and it carries most of the diagnosis — but its absence must not
+  // make the issue unactionable, or every hand-filed report would be chased for
+  // something the reporter had no way to produce.
+  const optional = new Set(form.optional || []);
+
   for (const [field, heading] of Object.entries(form.fields)) {
     const value = duplicated.has(heading) ? null : sections.get(heading);
     values[field] = answered(value) ? value : null;
-    if (!answered(value)) missing.push(field);
+    if (!answered(value) && !optional.has(field)) missing.push(field);
   }
 
   if (duplicated.size) flags.push("duplicate-headings");
@@ -143,6 +151,15 @@ export function triage({ title = "", body = "" } = {}) {
 
   if (form.kind === "false-positive") {
     if (values.severity && SEVERE_FALSE_POSITIVES.has(values.severity)) severity = "high";
+
+    // One card being wrong and a whole page being wrong are different bugs and
+    // want different queues. The distinction is deterministic — the page report
+    // carries its own heading — so it is a label rather than a judgement.
+    // Severity stays with the reporter's own answer; how bad it was is theirs to
+    // say, not something to infer from a card count.
+    if ((values.report || "").includes(PAGE_REPORT_HEADING)) {
+      addLabels.push("page-wide");
+    }
   }
 
   if (form.kind === "missed-ad") {
@@ -183,6 +200,7 @@ export const TRIAGE_LABELS = [
     "not-ours",
     "scanner-miss",
     "safety-block",
+    "page-wide",
     "severity:urgent",
     "severity:high"
   ])

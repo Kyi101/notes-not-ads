@@ -196,7 +196,7 @@ const INSPECTOR_REPORT = [
       ["Site", "https://example.com/thread"],
       ["What got replaced", "The reply box."],
       ["How bad was it?", "Lost a control I needed to use"],
-      ["Inspector report", "_No response_"]
+      ["Report from the extension", "_No response_"]
     ])
   });
   assert.equal(result.kind, "false-positive");
@@ -216,6 +216,58 @@ const INSPECTOR_REPORT = [
   assert.deepEqual(result.missing, ["replaced"]);
   assert.equal(result.actionable, false);
   assert.equal(result.severity, "normal");
+}
+
+// The classifieds failure of 2026-09-03: one rule, fifteen cards, one page. The
+// element report cannot express it and fifteen element reports would have been
+// fifteen issues. The page report is how that arrives, and page-wide is how it
+// gets routed away from the one-card queue.
+const PAGE_REPORT = [
+  "Notes Not Ads Page Report",
+  "Generated: 2026-09-03T10:00:00.000Z",
+  "Page: https://www.olx.ua/d/uk/obyavlenie/telefon",
+  "Host: www.olx.ua",
+  "Cards: 15",
+  "Viewport: 1512x850",
+  "",
+  "6x  ad-like identifier  |  div[data-testid=ad-card]  |  229x316",
+  "4x  ad-like identifier  |  div[data-testid=ad-photo]  |  751x583",
+  "1x  ad-like identifier  |  div[data-testid=ad-action-box]  |  359x819"
+].join("\n");
+
+{
+  const result = classify({
+    title: "[false-positive] www.olx.ua",
+    body: form([
+      ["Site", "https://www.olx.ua/d/uk/obyavlenie/telefon"],
+      ["What got replaced", "The photo, the price and the contact seller button."],
+      ["How bad was it?", "Lost a control I needed to use"],
+      ["Report from the extension", PAGE_REPORT]
+    ])
+  });
+  assert.equal(result.kind, "false-positive");
+  assert.ok(
+    result.addLabels.includes("page-wide"),
+    "a page report must route away from the single-card queue"
+  );
+  assert.equal(result.severity, "high", "severity still comes from the reporter's own answer");
+  assert.equal(result.actionable, true);
+  assert.equal(result.host, "www.olx.ua");
+}
+
+{
+  // An element-scoped false positive is not page-wide, or the label says nothing.
+  const result = classify({
+    title: "[false-positive] one card",
+    body: form([
+      ["Site", "https://example.com/article"],
+      ["What got replaced", "A pull quote."],
+      ["How bad was it?", "Cosmetic — the page still worked"],
+      ["Report from the extension", INSPECTOR_REPORT]
+    ])
+  });
+  assert.ok(!result.addLabels.includes("page-wide"));
+  assert.equal(result.actionable, true);
 }
 
 {

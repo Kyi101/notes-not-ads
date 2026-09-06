@@ -28,13 +28,16 @@ export const REPORT_LABELS = [
   "Role/label",
   "Text",
   "Sources",
-  "Ancestry"
+  "Ancestry",
+  "Cards",
+  "Viewport"
 ];
 
 export const REPORT_HEADINGS = [
   "Notes Not Ads Inspector Report",
   "Notes Not Ads Missed Clutter Report",
-  "Notes Not Ads Saved Inspector Reports"
+  "Notes Not Ads Saved Inspector Reports",
+  "Notes Not Ads Page Report"
 ];
 
 // A form is only useful to triage if the fields it routes on are present. The
@@ -52,7 +55,15 @@ export const ISSUE_FORMS = {
     kind: "false-positive",
     titlePrefix: "[false-positive] ",
     labels: ["false-positive", "needs-triage"],
-    fields: { site: "Site", replaced: "What got replaced", severity: "How bad was it?" }
+    fields: {
+      site: "Site",
+      replaced: "What got replaced",
+      severity: "How bad was it?",
+      report: "Report from the extension"
+    },
+    // The extension prefills this one, but a reporter who found the form
+    // directly cannot, so its absence must not make the issue unactionable.
+    optional: ["report"]
   },
   "broken-page.yml": {
     kind: "breakage",
@@ -79,6 +90,46 @@ export const ISSUE_FORMS = {
 };
 
 const FIELD_TYPES = new Set(["markdown", "input", "textarea", "dropdown", "checkboxes"]);
+
+const MAX_ISSUE_URL_LENGTH_EXPECTED = 7000;
+
+// Runs popup.js the way the browser does, with just enough DOM for its top-level
+// element lookups, and hands back the link builder. Same approach as
+// scripts/test-page-gate.mjs: executing the shipped source is the only way the
+// check cannot drift from it.
+function loadPopupLinkBuilder(source) {
+  const element = () => ({
+    addEventListener() {},
+    style: {},
+    classList: { add() {}, remove() {} },
+    appendChild() {},
+    remove() {},
+    select() {}
+  });
+  const documentStub = {
+    getElementById: element,
+    createElement: element,
+    addEventListener() {},
+    body: { appendChild() {} },
+    documentElement: { dataset: {}, style: {} },
+    execCommand() {}
+  };
+
+  const factory = new Function(
+    "document",
+    "chrome",
+    "navigator",
+    "window",
+    `${source}\nreturn { buildFalsePositiveIssueUrl, setDomain: (value) => { activeDomain = value; } };`
+  );
+
+  return factory(
+    documentStub,
+    { runtime: {}, storage: { local: {} }, tabs: {} },
+    {},
+    { matchMedia: () => ({ matches: false, addEventListener() {} }) }
+  );
+}
 
 function fail(message) {
   throw new Error(`Report contract violation: ${message}`);
@@ -146,9 +197,12 @@ async function main() {
       fail(`src/inspector.js emits no "${label}: " line, but triage parses on it.`);
     }
   }
+  // Headings are checked against the built bundle rather than one partial,
+  // because a heading may be a literal in src/inspector.js or a constant in
+  // src/shared.js. The bundle is what ships and holds both.
   for (const heading of REPORT_HEADINGS) {
-    if (!inspector.includes(heading)) {
-      fail(`src/inspector.js no longer emits the heading "${heading}", which is how a paste is recognised as a report.`);
+    if (!bundle.includes(heading)) {
+      fail(`the content bundle no longer emits the heading "${heading}", which is how a paste is recognised as a report. Run npm run build if you only edited a partial.`);
     }
   }
 
@@ -241,13 +295,92 @@ async function main() {
     fail("config.yml must offer private vulnerability reporting, or the first exploitable bug arrives as a public issue.");
   }
 
+  // The popup builds the prefilled issue link and the content script defines the
+  // same constants; they are separate scripts and neither imports the other, so
+  // a repository rename in one copy would quietly send reporters somewhere else.
+  const popupSource = await readFile(path.join(projectRoot, "popup.js"), "utf8");
+  const sharedSource = await readFile(path.join(projectRoot, "src/shared.js"), "utf8");
+  for (const constant of ["ISSUE_FORM_BASE_URL", "MAX_ISSUE_URL_LENGTH"]) {
+    const pattern = new RegExp(`const ${constant} =\\s*([^;]+);`);
+    const inPopup = popupSource.match(pattern);
+    const inShared = sharedSource.match(pattern);
+    if (!inPopup) fail(`popup.js no longer defines ${constant}, which builds the prefilled issue link.`);
+    if (!inShared) fail(`src/shared.js no longer defines ${constant}.`);
+    if (inPopup[1].replace(/\s+/g, "") !== inShared[1].replace(/\s+/g, "")) {
+      fail(`${constant} differs between popup.js and src/shared.js. The two copies decide where a reporter is sent, so they have to agree.`);
+    }
+  }
+
+  // The classic silent break: a renamed id in one file and not the other leaves
+  // getElementById returning null, the listener never bound, and a button that
+  // looks right and does nothing.
+  const popupMarkup = await readFile(path.join(projectRoot, "popup.html"), "utf8");
+  for (const id of ["reportFalsePositive", "reportMissedAd"]) {
+    if (!popupMarkup.includes(`id="${id}"`)) {
+      fail(`popup.html has no element with id "${id}", but popup.js binds a listener to it.`);
+    }
+    if (!popupSource.includes(`"${id}"`)) {
+      fail(`popup.js never looks up "${id}", so the button in popup.html does nothing.`);
+    }
+  }
+
+  // The form the popup prefills has to be the form that exists.
+  if (!popupSource.includes('template: "false-positive.yml"')) {
+    fail("popup.js does not name false-positive.yml as the prefill template, so the link opens a blank chooser.");
+  }
+
+  // The link is built by running popup.js, not by reading it. A prefilled issue
+  // that silently drops a field looks fine in review and arrives empty, and the
+  // trimming path in particular only runs on a report too long to ever appear in
+  // a hand-written test.
+  const popup = loadPopupLinkBuilder(popupSource);
+  popup.setDomain("www.olx.ua");
+
+  const shortReport = [
+    "Notes Not Ads Page Report",
+    "Page: https://www.olx.ua/d/uk/obyavlenie/telefon",
+    "Cards: 15"
+  ].join("\n");
+  const shortLink = new URL(popup.buildFalsePositiveIssueUrl(shortReport));
+
+  if (shortLink.searchParams.get("template") !== "false-positive.yml") {
+    fail("the prefilled link does not name false-positive.yml, so it opens a blank issue chooser.");
+  }
+  if (shortLink.searchParams.get("site") !== "https://www.olx.ua/d/uk/obyavlenie/telefon") {
+    fail(`the prefilled link put ${JSON.stringify(shortLink.searchParams.get("site"))} in the site field; it should carry the report's Page line.`);
+  }
+  if (shortLink.searchParams.get("report") !== shortReport) {
+    fail("the prefilled link did not round-trip the report body.");
+  }
+  if (!shortLink.searchParams.get("title").startsWith("[false-positive] ")) {
+    fail("the prefilled link's title lacks the prefix triage routes on.");
+  }
+  for (const blank of ["replaced", "severity"]) {
+    if (shortLink.searchParams.has(blank)) {
+      fail(`the prefilled link fills in "${blank}". That answer is the reporter's to give, not ours to put in their mouth.`);
+    }
+  }
+
+  const longReport = `${shortReport}\n${"9x  ad-like identifier  |  div.filler  |  300x250\n".repeat(600)}`;
+  const longLink = popup.buildFalsePositiveIssueUrl(longReport);
+  if (longLink.length > MAX_ISSUE_URL_LENGTH_EXPECTED) {
+    fail(`an oversized report produced a ${longLink.length}-character link; GitHub and the browser both stop honouring one past about 8k, and the failure is silent.`);
+  }
+  const trimmedBody = new URL(longLink).searchParams.get("report");
+  if (!trimmedBody.includes("full report is on your clipboard")) {
+    fail("a trimmed report does not say it was trimmed, so it reads as the whole picture.");
+  }
+  if (!trimmedBody.startsWith("Notes Not Ads Page Report")) {
+    fail("trimming ate the heading, so the paste is no longer recognisable as a report.");
+  }
+
   const contributing = await readFile(path.join(projectRoot, "CONTRIBUTING.md"), "utf8");
   if (!contributing.includes("origin plus path")) {
     fail("CONTRIBUTING.md no longer states what happens to the page URL. The promise and the code have to move together.");
   }
 
   console.log(
-    `PASS report contract (${urlCases.length} URL cases, ${REPORT_LABELS.length} report labels, ${Object.keys(ISSUE_FORMS).length} issue forms)`
+    `PASS report contract (${urlCases.length} URL cases, ${REPORT_LABELS.length} report labels, ${Object.keys(ISSUE_FORMS).length} issue forms, prefilled link built and trimmed)`
   );
 }
 

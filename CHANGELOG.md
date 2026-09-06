@@ -20,6 +20,20 @@ Stops the extension replacing the content of classifieds listings.
 - Measured against the 21-site regression track: one slot lost, on Bleacher
   Report, and it may be run-to-run ad variance.
 
+Adds a one-click way to report a wrongly replaced page.
+
+- New **Report a wrongly replaced page** button in the popup. It counts every
+  card on the page, groups identical ones into a single line, copies the result,
+  and opens a GitHub issue with the site and report already filled in. There was
+  a one-click report for missed ads but none for false positives, which are the
+  worse of the two.
+- Turning the extension off for a site now asks whether something was replaced
+  that should not have been. That is the moment someone is looking at the
+  evidence, and previously it was where they left silently.
+- Nothing is transmitted by the extension. The prefilled issue is a link the
+  user chooses to submit, the full report is on the clipboard either way, and
+  the page URL is still cut back to origin plus path.
+
 ## 1.0.2 — 2026-08
 
 Makes request blocking reliable when another filtering extension is already

@@ -954,6 +954,72 @@ function formatInspectorReport() {
   return lines.join("\n");
 }
 
+// The page-scale twin of the element report.
+//
+// One card being wrong and the whole page being wrong are different bugs, and
+// only the second one needs this. A classifieds item page produced fifteen cards
+// at once (2026-09-03); fifteen element reports would have been fifteen issues
+// describing one rule.
+//
+// Grouping identical reason/signature pairs is not tidying, it is the
+// diagnosis. On that page the report reads
+// `6x  ad-like identifier  |  div[data-testid=ad-card]`, and the repeated
+// `data-testid=ad-*` column names both the rule that fired and the site's own
+// vocabulary in a single line. That is the line that solved it.
+function formatPageReport() {
+  const slots = Array.from(
+    document.querySelectorAll("[data-attention-redirector-replaced='true']")
+  );
+
+  const groups = new Map();
+  for (const slot of slots) {
+    const reason = slot.dataset.attentionRedirectorReason || "unknown";
+    const signature = getElementSignature(slot);
+    const key = `${reason}\u0000${signature}`;
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.count += 1;
+      continue;
+    }
+
+    const rect = slot.getBoundingClientRect();
+    groups.set(key, {
+      count: 1,
+      reason,
+      signature,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height)
+    });
+  }
+
+  const lines = [
+    PAGE_REPORT_HEADING,
+    `Generated: ${new Date().toISOString()}`,
+    `Page: ${formatReportUrl(location.href)}`,
+    `Host: ${location.hostname}`,
+    `Title: ${document.title}`,
+    `Cards: ${slots.length}`,
+    `Viewport: ${window.innerWidth}x${window.innerHeight}`,
+    ""
+  ];
+
+  if (!groups.size) {
+    lines.push("No cards were on the page when the report was taken.");
+    return lines.join("\n");
+  }
+
+  Array.from(groups.values())
+    .sort((a, b) => b.count - a.count)
+    .forEach((row) => {
+      lines.push(
+        `${row.count}x  ${row.reason}  |  ${row.signature}  |  ${row.width}x${row.height}`
+      );
+    });
+
+  return lines.join("\n");
+}
+
 function formatElementReport(info, heading) {
   return [
     `${heading}: ${info.signature}`,

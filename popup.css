@@ -206,6 +206,11 @@ button {
   color: var(--text);
 }
 
+.wide-button {
+  width: 100%;
+  margin-top: 8px;
+}
+
 .advanced {
   margin-top: 12px;
   color: var(--muted);

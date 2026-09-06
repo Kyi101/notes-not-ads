@@ -95,6 +95,13 @@
            in the 2026-09-03 regression eval, which is why it has a control. -->
       <div class="box br-ad" id="classifieds-blocked-slot"
            style="width: 420px; height: 180px;"></div>
+
+      <!-- Two slots with the same class and no id, so they share a signature.
+           The page report has to collapse them into one "2x" row: on the OLX
+           page that is what turned fifteen cards into four lines and named the
+           rule. Without a repeat here, grouping is never exercised. -->
+      <div class="box ad-rail" style="width: 300px; height: 250px;"></div>
+      <div class="box ad-rail" style="width: 300px; height: 250px;"></div>
     </main>
   </body>
 </html>

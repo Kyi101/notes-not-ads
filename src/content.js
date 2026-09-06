@@ -549,6 +549,18 @@
 
   const REPORT_URL_WITHHELD = "(unparseable page URL withheld)";
 
+  const PAGE_REPORT_HEADING = "Notes Not Ads Page Report";
+
+  // A prefilled GitHub issue is a plain GET, so the whole report travels in the
+  // query string. Browsers and servers stop honouring a URL somewhere past 8k and
+  // a body cut at that boundary arrives as a corrupted report rather than an
+  // error, so the report is trimmed to fit here and the untrimmed text goes to
+  // the clipboard regardless. Nothing is transmitted by the extension: the user
+  // lands on a filled-in form and decides whether to press Submit.
+  const ISSUE_FORM_BASE_URL =
+    "https://github.com/Kyi101/notes-not-ads/issues/new";
+  const MAX_ISSUE_URL_LENGTH = 7000;
+
   // A report is written to be pasted into a public issue, so the page URL is cut
   // back to origin plus path first. A query string carries session tokens, search
   // terms and order numbers far more often than it carries anything a triager
@@ -818,6 +830,11 @@
       if (message.type === "AR_START_MISSED_AD_REPORT") {
         const inspectorStatus = startMissedAdReport();
         sendResponse({ ...getStatus(), ...inspectorStatus });
+        return false;
+      }
+
+      if (message.type === "AR_PAGE_REPORT") {
+        sendResponse({ ...getStatus(), pageReport: formatPageReport() });
         return false;
       }
 
@@ -2368,6 +2385,72 @@
       .slice(0, INSPECTOR_MAX_REPORT_CANDIDATES)
       .forEach((info, index) => {
         lines.push("", formatElementReport(info, `Suspect #${index + 1}`));
+      });
+
+    return lines.join("\n");
+  }
+
+  // The page-scale twin of the element report.
+  //
+  // One card being wrong and the whole page being wrong are different bugs, and
+  // only the second one needs this. A classifieds item page produced fifteen cards
+  // at once (2026-09-03); fifteen element reports would have been fifteen issues
+  // describing one rule.
+  //
+  // Grouping identical reason/signature pairs is not tidying, it is the
+  // diagnosis. On that page the report reads
+  // `6x  ad-like identifier  |  div[data-testid=ad-card]`, and the repeated
+  // `data-testid=ad-*` column names both the rule that fired and the site's own
+  // vocabulary in a single line. That is the line that solved it.
+  function formatPageReport() {
+    const slots = Array.from(
+      document.querySelectorAll("[data-attention-redirector-replaced='true']")
+    );
+
+    const groups = new Map();
+    for (const slot of slots) {
+      const reason = slot.dataset.attentionRedirectorReason || "unknown";
+      const signature = getElementSignature(slot);
+      const key = `${reason}\u0000${signature}`;
+      const existing = groups.get(key);
+
+      if (existing) {
+        existing.count += 1;
+        continue;
+      }
+
+      const rect = slot.getBoundingClientRect();
+      groups.set(key, {
+        count: 1,
+        reason,
+        signature,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height)
+      });
+    }
+
+    const lines = [
+      PAGE_REPORT_HEADING,
+      `Generated: ${new Date().toISOString()}`,
+      `Page: ${formatReportUrl(location.href)}`,
+      `Host: ${location.hostname}`,
+      `Title: ${document.title}`,
+      `Cards: ${slots.length}`,
+      `Viewport: ${window.innerWidth}x${window.innerHeight}`,
+      ""
+    ];
+
+    if (!groups.size) {
+      lines.push("No cards were on the page when the report was taken.");
+      return lines.join("\n");
+    }
+
+    Array.from(groups.values())
+      .sort((a, b) => b.count - a.count)
+      .forEach((row) => {
+        lines.push(
+          `${row.count}x  ${row.reason}  |  ${row.signature}  |  ${row.width}x${row.height}`
+        );
       });
 
     return lines.join("\n");
