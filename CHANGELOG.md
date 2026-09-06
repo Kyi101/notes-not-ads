@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.3 — 2026-09
 
 Stops the extension replacing the content of classifieds listings.
 
@@ -49,6 +49,19 @@ Makes the missed-ad report say what to do next.
   every site, and each carries its own page address, so an unscoped copy would
   have put a slice of your browsing history on the clipboard on its way to a
   public issue. The diagnostic inspector still exports everything.
+
+Safety fixes from a private security review by @ilyafefelov.
+
+- An element can conceal its contents from the checks that keep this extension
+  away from sign-in and payment controls. Those elements, and containers holding
+  one, are no longer replaced. Elements that identify themselves as ad slots are
+  unaffected, and a 21-site regression run found no ad slot lost.
+- The exception that switches the extension off for a request on a sensitive
+  page named eight resource types while the packaged rules can block ten, so a
+  stylesheet could still be blocked on a page the extension promises not to
+  touch. The two lists are now compared by a test that fails if they diverge.
+
+Full details will be published with the security advisory.
 
 Contributed fixes, from external proposals.
 
