@@ -6,6 +6,7 @@
 // they still do.
 
 import { readFile } from "node:fs/promises";
+import vm from "node:vm";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -93,42 +94,47 @@ const FIELD_TYPES = new Set(["markdown", "input", "textarea", "dropdown", "check
 
 const MAX_ISSUE_URL_LENGTH_EXPECTED = 7000;
 
-// Runs popup.js the way the browser does, with just enough DOM for its top-level
-// element lookups, and hands back the link builder. Same approach as
-// scripts/test-page-gate.mjs: executing the shipped source is the only way the
-// check cannot drift from it.
-function loadPopupLinkBuilder(source) {
-  const element = () => ({
-    addEventListener() {},
-    style: {},
-    classList: { add() {}, remove() {} },
-    appendChild() {},
-    remove() {},
-    select() {}
-  });
-  const documentStub = {
-    getElementById: element,
-    createElement: element,
-    addEventListener() {},
-    body: { appendChild() {} },
-    documentElement: { dataset: {}, style: {} },
-    execCommand() {}
+// Runs the shipped content modules and hands back the two link builders. Same
+// approach as scripts/test-page-gate.mjs, and for the same reason: executing the
+// real source is the only way this cannot drift from it. The bundle itself is an
+// IIFE that ends in init(), so the partials are wrapped here instead.
+async function loadIssueBuilders() {
+  const MODULES = ["shared", "main", "inspector", "scanner", "replacer"];
+  const body = (
+    await Promise.all(
+      MODULES.map((name) => readFile(path.join(projectRoot, `src/${name}.js`), "utf8"))
+    )
+  ).join("\n");
+
+  const sandbox = {
+    location: {
+      hostname: "www.olx.ua",
+      pathname: "/d/uk/obyavlenie/telefon",
+      href: "https://www.olx.ua/d/uk/obyavlenie/telefon"
+    },
+    document: { body: null, title: "", querySelectorAll: () => [] },
+    chrome: { runtime: {}, storage: { local: {} } },
+    console,
+    // The vm context is not the browser realm, so the web globals the builder
+    // uses have to be handed in explicitly.
+    URLSearchParams,
+    URL,
+    __out: {}
   };
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
 
-  const factory = new Function(
-    "document",
-    "chrome",
-    "navigator",
-    "window",
-    `${source}\nreturn { buildFalsePositiveIssueUrl, setDomain: (value) => { activeDomain = value; } };`
-  );
+  const source = [
+    "function __builders(){",
+    body,
+    "__out.buildFalsePositiveIssueUrl = buildFalsePositiveIssueUrl;",
+    "__out.buildMissedAdIssueUrl = buildMissedAdIssueUrl;",
+    "}",
+    "__builders();"
+  ].join("\n");
 
-  return factory(
-    documentStub,
-    { runtime: {}, storage: { local: {} }, tabs: {} },
-    {},
-    { matchMedia: () => ({ matches: false, addEventListener() {} }) }
-  );
+  vm.runInContext(source, vm.createContext(sandbox));
+  return sandbox.__out;
 }
 
 function fail(message) {
@@ -295,20 +301,14 @@ async function main() {
     fail("config.yml must offer private vulnerability reporting, or the first exploitable bug arrives as a public issue.");
   }
 
-  // The popup builds the prefilled issue link and the content script defines the
-  // same constants; they are separate scripts and neither imports the other, so
-  // a repository rename in one copy would quietly send reporters somewhere else.
+  // The popup no longer builds the link — src/main.js hands it one, so there is a
+  // single builder. What the popup must still do is use it.
   const popupSource = await readFile(path.join(projectRoot, "popup.js"), "utf8");
-  const sharedSource = await readFile(path.join(projectRoot, "src/shared.js"), "utf8");
-  for (const constant of ["ISSUE_FORM_BASE_URL", "MAX_ISSUE_URL_LENGTH"]) {
-    const pattern = new RegExp(`const ${constant} =\\s*([^;]+);`);
-    const inPopup = popupSource.match(pattern);
-    const inShared = sharedSource.match(pattern);
-    if (!inPopup) fail(`popup.js no longer defines ${constant}, which builds the prefilled issue link.`);
-    if (!inShared) fail(`src/shared.js no longer defines ${constant}.`);
-    if (inPopup[1].replace(/\s+/g, "") !== inShared[1].replace(/\s+/g, "")) {
-      fail(`${constant} differs between popup.js and src/shared.js. The two copies decide where a reporter is sent, so they have to agree.`);
-    }
+  if (!popupSource.includes("response.issueUrl")) {
+    fail("popup.js no longer opens the issueUrl handed back by AR_PAGE_REPORT, so its report button leads nowhere.");
+  }
+  if (/const ISSUE_FORM_BASE_URL/.test(popupSource)) {
+    fail("popup.js has grown its own copy of the issue URL again. One builder, in src/shared.js.");
   }
 
   // The classic silent break: a renamed id in one file and not the other leaves
@@ -324,54 +324,65 @@ async function main() {
     }
   }
 
-  // The form the popup prefills has to be the form that exists.
-  if (!popupSource.includes('template: "false-positive.yml"')) {
-    fail("popup.js does not name false-positive.yml as the prefill template, so the link opens a blank chooser.");
-  }
-
-  // The link is built by running popup.js, not by reading it. A prefilled issue
-  // that silently drops a field looks fine in review and arrives empty, and the
-  // trimming path in particular only runs on a report too long to ever appear in
-  // a hand-written test.
-  const popup = loadPopupLinkBuilder(popupSource);
-  popup.setDomain("www.olx.ua");
+  // The links are built by running the shipped code, not by reading it. A
+  // prefilled issue that silently drops a field looks fine in review and arrives
+  // empty, and the trimming path only runs on a report too long to write by hand.
+  const builders = await loadIssueBuilders();
 
   const shortReport = [
     "Notes Not Ads Page Report",
     "Page: https://www.olx.ua/d/uk/obyavlenie/telefon",
     "Cards: 15"
   ].join("\n");
-  const shortLink = new URL(popup.buildFalsePositiveIssueUrl(shortReport));
 
-  if (shortLink.searchParams.get("template") !== "false-positive.yml") {
-    fail("the prefilled link does not name false-positive.yml, so it opens a blank issue chooser.");
-  }
-  if (shortLink.searchParams.get("site") !== "https://www.olx.ua/d/uk/obyavlenie/telefon") {
-    fail(`the prefilled link put ${JSON.stringify(shortLink.searchParams.get("site"))} in the site field; it should carry the report's Page line.`);
-  }
-  if (shortLink.searchParams.get("report") !== shortReport) {
-    fail("the prefilled link did not round-trip the report body.");
-  }
-  if (!shortLink.searchParams.get("title").startsWith("[false-positive] ")) {
-    fail("the prefilled link's title lacks the prefix triage routes on.");
-  }
-  for (const blank of ["replaced", "severity"]) {
-    if (shortLink.searchParams.has(blank)) {
-      fail(`the prefilled link fills in "${blank}". That answer is the reporter's to give, not ours to put in their mouth.`);
+  const linkCases = [
+    ["buildFalsePositiveIssueUrl", "false-positive.yml", "[false-positive] ", ["replaced", "severity"]],
+    ["buildMissedAdIssueUrl", "missed-ad.yml", "[missed] ", ["reproducible", "notes"]]
+  ];
+
+  for (const [builder, template, titlePrefix, mustStayBlank] of linkCases) {
+    const link = new URL(builders[builder](shortReport));
+
+    if (link.searchParams.get("template") !== template) {
+      fail(`${builder} does not name ${template}, so the link opens a blank issue chooser.`);
+    }
+    if (!link.searchParams.get("title").startsWith(titlePrefix)) {
+      fail(`${builder} produces a title without the "${titlePrefix}" prefix that triage routes on.`);
+    }
+    if (link.searchParams.get("site") !== "https://www.olx.ua/d/uk/obyavlenie/telefon") {
+      fail(`${builder} did not carry the report's redacted Page line into the site field.`);
+    }
+    if (link.searchParams.get("report") !== shortReport) {
+      fail(`${builder} did not round-trip the report body.`);
+    }
+    for (const blank of mustStayBlank) {
+      if (link.searchParams.has(blank)) {
+        fail(`${builder} fills in "${blank}". That answer is the reporter's to give, not ours to put in their mouth.`);
+      }
+    }
+
+    const longReport = `${shortReport}\n${"9x  ad-like identifier  |  div.filler  |  300x250\n".repeat(600)}`;
+    const longLink = builders[builder](longReport);
+    if (longLink.length > MAX_ISSUE_URL_LENGTH_EXPECTED) {
+      fail(`${builder} produced a ${longLink.length}-character link; GitHub and the browser both stop honouring one past about 8k, and the failure is silent.`);
+    }
+    const trimmed = new URL(longLink).searchParams.get("report");
+    if (!trimmed.includes("full report is on your clipboard")) {
+      fail(`${builder} trims without saying so, so a partial report reads as the whole picture.`);
+    }
+    if (!trimmed.startsWith("Notes Not Ads Page Report")) {
+      fail(`${builder} trimmed away the heading, so the paste is no longer recognisable as a report.`);
     }
   }
 
-  const longReport = `${shortReport}\n${"9x  ad-like identifier  |  div.filler  |  300x250\n".repeat(600)}`;
-  const longLink = popup.buildFalsePositiveIssueUrl(longReport);
-  if (longLink.length > MAX_ISSUE_URL_LENGTH_EXPECTED) {
-    fail(`an oversized report produced a ${longLink.length}-character link; GitHub and the browser both stop honouring one past about 8k, and the failure is silent.`);
+  // The worker is the only thing that can open a tab, and it must refuse
+  // anything that is not the issue form.
+  const background = await readFile(path.join(projectRoot, "src/background.js"), "utf8");
+  if (!background.includes("AR_OPEN_ISSUE")) {
+    fail("src/background.js does not handle AR_OPEN_ISSUE, so the missed-ad report cannot open its prefilled issue.");
   }
-  const trimmedBody = new URL(longLink).searchParams.get("report");
-  if (!trimmedBody.includes("full report is on your clipboard")) {
-    fail("a trimmed report does not say it was trimmed, so it reads as the whole picture.");
-  }
-  if (!trimmedBody.startsWith("Notes Not Ads Page Report")) {
-    fail("trimming ate the heading, so the paste is no longer recognisable as a report.");
+  if (!background.includes("refused: not the issue form")) {
+    fail("src/background.js opens whatever URL it is handed. Keep the check that it is the issue form.");
   }
 
   const contributing = await readFile(path.join(projectRoot, "CONTRIBUTING.md"), "utf8");

@@ -561,6 +561,58 @@
     "https://github.com/Kyi101/notes-not-ads/issues/new";
   const MAX_ISSUE_URL_LENGTH = 7000;
 
+  // One builder for both report kinds. It lives here rather than in popup.js
+  // because the missed-ad flow runs entirely inside the page overlay, and two
+  // copies of this would be two places for a repository rename to go half-done.
+  //
+  // `trimField` names the one field worth shortening. Trimming the report rather
+  // than the URL matters: a URL cut at a length limit drops whichever parameter
+  // happens to sort last, silently and unpredictably, while a trimmed report
+  // keeps every other field intact and says in the body that it happened.
+  function buildIssueUrl({ template, title, fields = {}, trimField = "" }) {
+    const compose = (values) => {
+      const params = new URLSearchParams({ template, title });
+      for (const [key, value] of Object.entries(values)) {
+        if (value) {
+          params.set(key, value);
+        }
+      }
+      return `${ISSUE_FORM_BASE_URL}?${params.toString()}`;
+    };
+
+    const full = compose(fields);
+    if (
+      full.length <= MAX_ISSUE_URL_LENGTH ||
+      !trimField ||
+      !fields[trimField]
+    ) {
+      return full;
+    }
+
+    const notice =
+      "\n\n[trimmed to fit the issue link — the full report is on your clipboard]";
+    let text = fields[trimField];
+    while (
+      text.length > 400 &&
+      compose({ ...fields, [trimField]: `${text}${notice}` }).length >
+        MAX_ISSUE_URL_LENGTH
+    ) {
+      text = text.slice(0, Math.floor(text.length * 0.9));
+    }
+
+    return compose({ ...fields, [trimField]: `${text}${notice}` });
+  }
+
+  // Both reports carry the already-redacted page URL on their own `Page:` line, so
+  // the issue's site field is read back out of the report rather than recomputed.
+  // One source, one redaction.
+  function reportSiteLine(report) {
+    const line = String(report || "")
+      .split("\n")
+      .find((entry) => entry.startsWith("Page: "));
+    return line ? line.slice("Page: ".length).trim() : "";
+  }
+
   // A report is written to be pasted into a public issue, so the page URL is cut
   // back to origin plus path first. A query string carries session tokens, search
   // terms and order numbers far more often than it carries anything a triager
@@ -834,7 +886,14 @@
       }
 
       if (message.type === "AR_PAGE_REPORT") {
-        sendResponse({ ...getStatus(), pageReport: formatPageReport() });
+        // The URL is built here rather than in the popup so there is one copy of
+        // the link builder and one copy of the redaction that feeds it.
+        const pageReport = formatPageReport();
+        sendResponse({
+          ...getStatus(),
+          pageReport,
+          issueUrl: buildFalsePositiveIssueUrl(pageReport)
+        });
         return false;
       }
 
@@ -1561,6 +1620,7 @@
       ? "Report missed ad"
       : "Diagnostic inspector";
     const subtitle = document.createElement("span");
+    subtitle.dataset.attentionRedirectorInspectorSubtitle = "true";
     subtitle.textContent = state.inspector.reportMode
       ? "Click the missed ad. A local report will be copied."
       : "Click a missed banner, popup, or animated slot.";
@@ -1608,6 +1668,7 @@
     const exportButton = document.createElement("button");
     exportButton.type = "button";
     exportButton.textContent = "Export saved";
+    exportButton.dataset.attentionRedirectorExportSaved = "true";
     exportButton.addEventListener("click", copySavedInspectorReports);
 
     const clearButton = document.createElement("button");
@@ -1623,9 +1684,28 @@
     savedCount.dataset.attentionRedirectorSavedCount = "true";
     savedCount.textContent = "Saved: checking";
 
+    // Report mode used to show "Copy report" next to a click that had already
+    // copied, which read as a step you had missed rather than a retry, and it
+    // never said what the copy was for. The primary action is now the next thing
+    // to do; the copy is a fallback behind it, and the saved pile is reachable
+    // without leaving for the diagnostic inspector.
+    const openIssueButton = document.createElement("button");
+    openIssueButton.type = "button";
+    openIssueButton.textContent = "Open a prefilled issue";
+    openIssueButton.dataset.attentionRedirectorOpenIssue = "true";
+    openIssueButton.addEventListener("click", openIssueForSelectedReport);
+
     if (state.inspector.reportMode) {
-      saveCopyButton.textContent = "Copy report";
-      actions.append(saveCopyButton, copyStatus, savedCount);
+      saveCopyButton.textContent = "Copy again";
+      saveCopyButton.dataset.attentionRedirectorCopyAgain = "true";
+      exportButton.textContent = "Copy all saved";
+      actions.append(
+        openIssueButton,
+        saveCopyButton,
+        exportButton,
+        copyStatus,
+        savedCount
+      );
     } else {
       actions.append(
         refreshButton,
@@ -1970,12 +2050,36 @@
     );
 
     if (state.inspector.reportMode) {
-      summary.textContent = state.inspector.manualPick
-        ? "Click directly on the missed ad. Nothing is sent automatically."
-        : "Report selected. Use Copy report again if your clipboard missed it.";
-      details.textContent = state.inspector.selectedInfo
-        ? "Report copied locally. Paste it into feedback or an issue when you send it."
-        : "Click the missed ad on the page. The report includes page URL, element size, source, and safety reason.";
+      const picked = Boolean(state.inspector.selectedInfo);
+
+      summary.textContent = picked
+        ? "Copied to your clipboard, and saved on this device."
+        : "Click directly on the missed ad. Nothing is sent automatically.";
+      details.textContent = picked
+        ? "Open a prefilled issue to send it, or paste the copy anywhere you like. Nothing leaves this device until you press Submit on GitHub."
+        : "The report will hold the page address, the element's size and position, where its content came from, and why the extension left it alone.";
+
+      // Nothing to open or re-copy before something is picked, so the actions stay
+      // out of the way until they mean something.
+      const openIssueButton = state.inspector.overlay.querySelector(
+        "[data-attention-redirector-open-issue]"
+      );
+      const copyAgainButton = state.inspector.overlay.querySelector(
+        "[data-attention-redirector-copy-again]"
+      );
+      if (openIssueButton) openIssueButton.hidden = !picked;
+      if (copyAgainButton) copyAgainButton.hidden = !picked;
+
+      // The header still read "Click the missed ad" after the ad had been clicked
+      // and the report already copied, directly above a line saying so. Once
+      // something is picked the summary carries the state, so the standing
+      // instruction goes.
+      const subtitle = state.inspector.overlay.querySelector(
+        "[data-attention-redirector-inspector-subtitle]"
+      );
+      if (subtitle) {
+        subtitle.hidden = picked;
+      }
     } else {
       summary.textContent = state.inspector.manualPick
         ? "Manual pick is on. Hover a missed area, then click to select it."
@@ -2142,6 +2246,35 @@
     window.setTimeout(() => {
       status.textContent = "";
     }, 1600);
+  }
+
+  // The missed-ad flow's counterpart to the popup's false-positive button. Both
+  // end in the same place: a filled-in form the reporter chooses to submit.
+  async function openIssueForSelectedReport() {
+    const status = state.inspector.overlay.querySelector(
+      "[data-attention-redirector-inspector-copy-status]"
+    );
+
+    if (!state.inspector.selectedInfo) {
+      return;
+    }
+
+    const record = createInspectorReportRecord(state.inspector.selectedInfo);
+
+    // Copy first. If the tab does not open, or they close it, or they would rather
+    // send this somewhere else entirely, the report is still in hand.
+    try {
+      await copyText(record.text);
+    } catch (_error) {}
+
+    await openIssueUrl(buildMissedAdIssueUrl(record.text));
+
+    if (status) {
+      status.textContent = "Issue opened. Nothing was sent.";
+      window.setTimeout(() => {
+        status.textContent = "";
+      }, 2400);
+    }
   }
 
   async function saveAndCopyInspectorReport(options = {}) {
@@ -2345,7 +2478,24 @@
         ? knownCount
         : (await loadInspectorReports()).length;
 
-    countNode.textContent = `Saved: ${count}`;
+    // The diagnostic inspector is Hlib's tool and keeps the terse label it has
+    // always had; report mode is a stranger's first look at this UI, so it gets a
+    // sentence instead of a count.
+    countNode.textContent = state.inspector.reportMode
+      ? count === 0
+        ? ""
+        : `${count} saved on this device`
+      : `Saved: ${count}`;
+
+    // "Copy all saved" was previously reachable only from the diagnostic
+    // inspector, so report mode could tell someone they had twelve saved reports
+    // and give them no way to get them out.
+    const exportButton = state.inspector.overlay.querySelector(
+      "[data-attention-redirector-export-saved]"
+    );
+    if (exportButton) {
+      exportButton.hidden = count === 0;
+    }
   }
 
   async function copyText(text) {
@@ -2388,6 +2538,44 @@
       });
 
     return lines.join("\n");
+  }
+
+  // "What got replaced" / "How bad was it?" for a false positive, and "does it
+  // come back on reload?" for a missed ad, are all left blank. They are the
+  // answers only the person looking at the page can give, and a prefilled guess
+  // would arrive in the issue as their words.
+  function buildFalsePositiveIssueUrl(report) {
+    return buildIssueUrl({
+      template: "false-positive.yml",
+      title: `[false-positive] ${location.hostname}`,
+      fields: { site: reportSiteLine(report), report },
+      trimField: "report"
+    });
+  }
+
+  function buildMissedAdIssueUrl(report) {
+    return buildIssueUrl({
+      template: "missed-ad.yml",
+      title: `[missed] ${location.hostname}`,
+      fields: { site: reportSiteLine(report), report },
+      trimField: "report"
+    });
+  }
+
+  // A content script cannot open a tab, so the worker does it. Opening a link is
+  // the whole of the request: no report travels through this message, and the
+  // worker refuses anything that is not the issue form.
+  function openIssueUrl(url) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: "AR_OPEN_ISSUE", url }, () => {
+          void chrome.runtime.lastError;
+          resolve();
+        });
+      } catch (_error) {
+        resolve();
+      }
+    });
   }
 
   // The page-scale twin of the element report.

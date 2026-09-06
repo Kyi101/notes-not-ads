@@ -4,13 +4,6 @@ const CONTENT_STYLE_FILES = ["src/content.css"];
 const DEFAULT_ANCHOR_NOTE = "Finish what deserves your attention.";
 const MAX_ANCHOR_NOTES = 5;
 
-// Duplicated from src/shared.js rather than bundled, the way STORAGE_KEY and the
-// note defaults already are. scripts/report-contract.mjs asserts the two copies
-// still agree, because a popup pointing at a different repository than the
-// content script would send reporters to the wrong issue tracker.
-const ISSUE_FORM_BASE_URL = "https://github.com/Kyi101/notes-not-ads/issues/new";
-const MAX_ISSUE_URL_LENGTH = 7000;
-
 const DEFAULT_SETTINGS = {
   enabled: true,
   anchorNote: DEFAULT_ANCHOR_NOTE,
@@ -139,8 +132,12 @@ function bindEvents() {
       // still in hand. The prefilled form is a convenience on top, never the
       // only copy.
       await copyReportText(report);
-      await chrome.tabs.create({ url: buildFalsePositiveIssueUrl(report) });
-      setStatus("Copied, and a prefilled issue is open. Nothing was sent.");
+      if (response.issueUrl) {
+        await chrome.tabs.create({ url: response.issueUrl });
+        setStatus("Copied, and a prefilled issue is open. Nothing was sent.");
+      } else {
+        setStatus("Report copied. Paste it into an issue when you send it.");
+      }
     } catch (error) {
       setStatus(`Report failed: ${formatChromeError(error)}`);
     }
@@ -492,53 +489,6 @@ function canInjectIntoActiveTab(error) {
     message.includes("Receiving end does not exist") ||
     message.includes("Could not establish connection")
   );
-}
-
-// GitHub prefills an issue form from query parameters keyed by field id. This
-// builds the link; it does not open a connection or transmit anything. The
-// reporter lands on a filled-in form and decides whether to press Submit.
-//
-// `site` and `report` are machine facts and are filled in. "What got replaced"
-// and "How bad was it?" are left empty on purpose — they are the two answers
-// only the person looking at the page can give, and a prefilled guess would
-// read as their words.
-function buildFalsePositiveIssueUrl(report) {
-  const pageLine = report
-    .split("\n")
-    .find((line) => line.startsWith("Page: "));
-
-  const withReport = (text) => {
-    const params = new URLSearchParams({
-      template: "false-positive.yml",
-      title: `[false-positive] ${activeDomain}`
-    });
-    if (pageLine) {
-      params.set("site", pageLine.slice("Page: ".length).trim());
-    }
-    params.set("report", text);
-    return `${ISSUE_FORM_BASE_URL}?${params.toString()}`;
-  };
-
-  const full = withReport(report);
-  if (full.length <= MAX_ISSUE_URL_LENGTH) {
-    return full;
-  }
-
-  // Trim the report rather than the URL. A URL cut at a length limit loses
-  // whichever parameter happens to sort last, silently and unpredictably;
-  // trimming the report keeps every other field intact and says in the body
-  // that it happened. The untrimmed text is already on the clipboard.
-  const notice =
-    "\n\n[trimmed to fit the issue link — the full report is on your clipboard]";
-  let text = report;
-  while (
-    text.length > 400 &&
-    withReport(`${text}${notice}`).length > MAX_ISSUE_URL_LENGTH
-  ) {
-    text = text.slice(0, Math.floor(text.length * 0.9));
-  }
-
-  return withReport(`${text}${notice}`);
 }
 
 async function copyReportText(text) {

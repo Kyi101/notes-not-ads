@@ -6,10 +6,12 @@ body:
   - type: markdown
     attributes:
       value: |
-        Open the inspector from the extension popup, press **Report missed ad**,
-        and click the ad that survived. The report is copied to your clipboard.
-        Read it before pasting: the page URL is already cut back to origin plus
-        path, but element text is included verbatim.
+        Press **Report missed ad** in the extension popup, click the ad that
+        survived, then press **Open a prefilled issue**. The site and report
+        below arrive filled in, and the same text is on your clipboard.
+
+        Read the report before submitting. The page address is already cut back
+        to origin plus path, but the element's own text is included as-is.
 
   - type: input
     id: site
