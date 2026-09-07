@@ -253,11 +253,15 @@ Use the popup status and visual inspection. For the first proof, success means i
 Use the popup's **Report missed ad** button when a banner, popup, animated
 rectangle, or sponsored block is missed. It opens a small overlay: click the
 missed ad and the report is written, saved on your device, and copied — you do
-not have to press anything for that. The overlay then offers **Open a prefilled
-issue**, which fills in the site and the report for you; "does it come back on
-reload?" is left blank, because only you can answer it. **Copy** is there if
-your clipboard missed it, and **Copy this site's reports** hands back everything
-saved for the site you are on.
+not have to press anything for that. The overlay then offers **Open the issue
+form**, which opens GitHub in a new tab for you to paste into. **Copy** is there
+if your clipboard missed it, and **Copy this site's reports** hands back
+everything saved for the site you are on.
+
+The link carries nothing about your page. Query parameters travel in the request,
+so a prefilled report would reach GitHub the moment the tab opened, before you
+had read it — which is not what "nothing is ever sent" can mean. The clipboard
+is the only thing carrying the report, and you decide where it goes.
 
 That last one is deliberately limited to the current site. Reports are stored in
 one list across every site you have reported on, and a single button that copied
@@ -273,9 +277,8 @@ already filled in; "what got replaced" and "how bad was it" are left blank,
 because only you can answer those. Replacing something that was not an ad is
 worse than missing an ad, so these are read first.
 
-Neither report flow uploads anything. The extension never opens a connection of
-its own: the prefilled issue is a link you land on and choose whether to submit,
-and the same text is on your clipboard either way. Reports stay in
+Neither report flow uploads anything, and the extension never opens a
+connection of its own. Reports stay in
 `chrome.storage.local` and are capped at 75 recent reports. The page URL is cut
 back to origin plus path before it reaches either — a query string carries
 session tokens and search terms far more often than anything a fix needs.

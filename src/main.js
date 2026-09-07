@@ -69,12 +69,12 @@ function registerExtensionListeners() {
 
     if (message.type === "AR_PAGE_REPORT") {
       // The URL is built here rather than in the popup so there is one copy of
-      // the link builder and one copy of the redaction that feeds it.
-      const pageReport = formatPageReport();
+      // it. It names the form and carries no page data — the report reaches
+      // GitHub only when the reporter pastes it.
       sendResponse({
         ...getStatus(),
-        pageReport,
-        issueUrl: buildFalsePositiveIssueUrl(pageReport)
+        pageReport: formatPageReport(),
+        issueUrl: falsePositiveIssueUrl()
       });
       return false;
     }

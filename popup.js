@@ -127,14 +127,13 @@ function bindEvents() {
         return;
       }
 
-      // Clipboard first. If opening the tab fails, or the reporter closes it, or
-      // they would rather send this somewhere other than GitHub, the report is
-      // still in hand. The prefilled form is a convenience on top, never the
-      // only copy.
+      // Clipboard first, and it is the only copy: the link names the issue form
+      // and carries no page data, so the report reaches GitHub only when the
+      // reporter pastes it there.
       await copyReportText(report);
       if (response.issueUrl) {
         await chrome.tabs.create({ url: response.issueUrl });
-        setStatus("Copied, and a prefilled issue is open. Nothing was sent.");
+        setStatus("Copied. Paste it into the issue form that just opened.");
       } else {
         setStatus("Report copied. Paste it into an issue when you send it.");
       }

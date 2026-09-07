@@ -550,12 +550,7 @@ const REPORT_URL_WITHHELD = "(unparseable page URL withheld)";
 
 const PAGE_REPORT_HEADING = "Notes Not Ads Page Report";
 
-// A prefilled GitHub issue is a plain GET, so the whole report travels in the
-// query string. Browsers and servers stop honouring a URL somewhere past 8k and
-// a body cut at that boundary arrives as a corrupted report rather than an
-// error, so the report is trimmed to fit here and the untrimmed text goes to
-// the clipboard regardless. Nothing is transmitted by the extension: the user
-// lands on a filled-in form and decides whether to press Submit.
+// The issue form's address.
 //
 // Derived from the manifest rather than written here, because the worker needs
 // the same value to decide whether a URL it is asked to open is the issue form,
@@ -574,60 +569,19 @@ function issueFormBaseUrl() {
   }
 }
 
-const MAX_ISSUE_URL_LENGTH = 7000;
-
-// One builder for both report kinds. It lives here rather than in popup.js
-// because the missed-ad flow runs entirely inside the page overlay, and two
-// copies of this would be two places for a repository rename to go half-done.
+// The link names a form and nothing else. It deliberately carries no report,
+// no site and no title.
 //
-// `trimField` names the one field worth shortening. Trimming the report rather
-// than the URL matters: a URL cut at a length limit drops whichever parameter
-// happens to sort last, silently and unpredictably, while a trimmed report
-// keeps every other field intact and says in the body that it happened.
-function buildIssueUrl({ template, title, fields = {}, trimField = "" }) {
-  const compose = (values) => {
-    const params = new URLSearchParams({ template, title });
-    for (const [key, value] of Object.entries(values)) {
-      if (value) {
-        params.set(key, value);
-      }
-    }
-    const base = issueFormBaseUrl();
-    return base ? `${base}?${params.toString()}` : "";
-  };
-
-  const full = compose(fields);
-  if (
-    !full ||
-    full.length <= MAX_ISSUE_URL_LENGTH ||
-    !trimField ||
-    !fields[trimField]
-  ) {
-    return full;
-  }
-
-  const notice =
-    "\n\n[trimmed to fit the issue link — the full report is on your clipboard]";
-  let text = fields[trimField];
-  while (
-    text.length > 400 &&
-    compose({ ...fields, [trimField]: `${text}${notice}` }).length >
-      MAX_ISSUE_URL_LENGTH
-  ) {
-    text = text.slice(0, Math.floor(text.length * 0.9));
-  }
-
-  return compose({ ...fields, [trimField]: `${text}${notice}` });
-}
-
-// Both reports carry the already-redacted page URL on their own `Page:` line, so
-// the issue's site field is read back out of the report rather than recomputed.
-// One source, one redaction.
-function reportSiteLine(report) {
-  const line = String(report || "")
-    .split("\n")
-    .find((entry) => entry.startsWith("Page: "));
-  return line ? line.slice("Page: ".length).trim() : "";
+// An earlier version prefilled all three, which was more convenient and quietly
+// untrue: query parameters travel in the GET request, so GitHub received the
+// page address and the whole report the moment the tab opened — before the
+// reporter had read anything or pressed Submit. "Nothing is ever sent" is this
+// product's central claim and it cannot survive a convenience that sends
+// things. The report is already on the clipboard by then, so what this costs is
+// one paste.
+function issueFormUrl(template) {
+  const base = issueFormBaseUrl();
+  return base ? `${base}?${new URLSearchParams({ template }).toString()}` : "";
 }
 
 // A report is written to be pasted into a public issue, so the page URL is cut

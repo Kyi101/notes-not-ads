@@ -2263,7 +2263,7 @@ async function assertMissedAdReportFlow(browserContext, serviceWorker, fixtureUr
 
     if (await openIssue.isVisible()) {
       throw new Error(
-        "Report mode offers 'Open a prefilled issue' before anything is picked, so the primary action points at nothing."
+        "Report mode offers 'Open the issue form' before anything is picked, so the primary action points at nothing."
       );
     }
     if (await copyAgain.isVisible()) {
@@ -2318,7 +2318,7 @@ async function assertMissedAdReportFlow(browserContext, serviceWorker, fixtureUr
     const details = await page
       .locator("[data-attention-redirector-inspector-details]")
       .innerText();
-    if (!/prefilled issue/i.test(details) || !/until you press Submit/i.test(details)) {
+    if (!/issue form/i.test(details) || !/paste it/i.test(details)) {
       throw new Error(
         `Report mode does not say what to do with the copy, or what happens next: ${details}`
       );

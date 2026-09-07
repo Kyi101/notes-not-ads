@@ -66,8 +66,9 @@ export const ISSUE_FORMS = {
       severity: "How bad was it?",
       report: "Report from the extension"
     },
-    // The extension prefills this one, but a reporter who found the form
-    // directly cannot, so its absence must not make the issue unactionable.
+    // The extension puts this on the clipboard to paste, but a reporter who
+    // found the form directly has none, so its absence must not make the
+    // issue unactionable.
     optional: ["report"]
   },
   "broken-page.yml": {
@@ -96,7 +97,6 @@ export const ISSUE_FORMS = {
 
 const FIELD_TYPES = new Set(["markdown", "input", "textarea", "dropdown", "checkboxes"]);
 
-const MAX_ISSUE_URL_LENGTH_EXPECTED = 7000;
 
 // Runs the shipped content modules and hands back the two link builders. Same
 // approach as scripts/test-page-gate.mjs, and for the same reason: executing the
@@ -136,8 +136,8 @@ async function loadIssueBuilders(manifest) {
   const source = [
     "function __builders(){",
     body,
-    "__out.buildFalsePositiveIssueUrl = buildFalsePositiveIssueUrl;",
-    "__out.buildMissedAdIssueUrl = buildMissedAdIssueUrl;",
+    "__out.falsePositiveIssueUrl = falsePositiveIssueUrl;",
+    "__out.missedAdIssueUrl = missedAdIssueUrl;",
     "}",
     "__builders();"
   ].join("\n");
@@ -342,54 +342,40 @@ async function main() {
   const builders = await loadIssueBuilders(runtimeManifest);
   const expectedBase = `${runtimeManifest.homepage_url.replace(/\/+$/, "")}/issues/new`;
 
-  const shortReport = [
-    "Notes Not Ads Page Report",
-    "Page: https://www.olx.ua/d/uk/obyavlenie/telefon",
-    "Cards: 15"
-  ].join("\n");
-
-  const linkCases = [
-    ["buildFalsePositiveIssueUrl", "false-positive.yml", "[false-positive] ", ["replaced", "severity"]],
-    ["buildMissedAdIssueUrl", "missed-ad.yml", "[missed] ", ["reproducible", "notes"]]
-  ];
-
-  for (const [builder, template, titlePrefix, mustStayBlank] of linkCases) {
-    const link = new URL(builders[builder](shortReport));
+  // The links are built by running the shipped code, not by reading it, and
+  // what is asserted is an absence.
+  //
+  // Query parameters travel in the GET request, so anything prefilled here
+  // reaches GitHub the moment the tab opens — before the reporter has read it
+  // or pressed Submit. An earlier version prefilled the site and the whole
+  // report, which made "nothing is ever sent" false while reading like a
+  // convenience. The link may name a form and nothing else; the report travels
+  // on the clipboard, where the reporter decides what happens to it.
+  for (const [builder, template] of [
+    ["falsePositiveIssueUrl", "false-positive.yml"],
+    ["missedAdIssueUrl", "missed-ad.yml"]
+  ]) {
+    const link = new URL(builders[builder]());
 
     if (`${link.origin}${link.pathname}` !== expectedBase) {
-      fail(`${builder} points at ${link.origin}${link.pathname}, but the manifest's homepage_url makes the issue form ${expectedBase}. The link is derived so a repository rename cannot go half-done.`);
+      fail(`${builder} points at ${link.origin}${link.pathname}, but the manifest's homepage_url makes the issue form ${expectedBase}.`);
     }
-
     if (link.searchParams.get("template") !== template) {
       fail(`${builder} does not name ${template}, so the link opens a blank issue chooser.`);
     }
-    if (!link.searchParams.get("title").startsWith(titlePrefix)) {
-      fail(`${builder} produces a title without the "${titlePrefix}" prefix that triage routes on.`);
-    }
-    if (link.searchParams.get("site") !== "https://www.olx.ua/d/uk/obyavlenie/telefon") {
-      fail(`${builder} did not carry the report's redacted Page line into the site field.`);
-    }
-    if (link.searchParams.get("report") !== shortReport) {
-      fail(`${builder} did not round-trip the report body.`);
-    }
-    for (const blank of mustStayBlank) {
-      if (link.searchParams.has(blank)) {
-        fail(`${builder} fills in "${blank}". That answer is the reporter's to give, not ours to put in their mouth.`);
-      }
-    }
 
-    const longReport = `${shortReport}\n${"9x  ad-like identifier  |  div.filler  |  300x250\n".repeat(600)}`;
-    const longLink = builders[builder](longReport);
-    if (longLink.length > MAX_ISSUE_URL_LENGTH_EXPECTED) {
-      fail(`${builder} produced a ${longLink.length}-character link; GitHub and the browser both stop honouring one past about 8k, and the failure is silent.`);
+    const carried = [...link.searchParams.keys()].filter((key) => key !== "template");
+    if (carried.length) {
+      fail(
+        `${builder} puts ${carried.join(", ")} in the query string. Those reach GitHub when the tab opens, before the reporter submits anything, which is exactly what "nothing is ever sent" cannot mean.`
+      );
     }
-    const trimmed = new URL(longLink).searchParams.get("report");
-    if (!trimmed.includes("full report is on your clipboard")) {
-      fail(`${builder} trims without saying so, so a partial report reads as the whole picture.`);
-    }
-    if (!trimmed.startsWith("Notes Not Ads Page Report")) {
-      fail(`${builder} trimmed away the heading, so the paste is no longer recognisable as a report.`);
-    }
+  }
+
+  // The same absence against the shipped bundle, so a builder that starts
+  // concatenating page data onto the URL by some other route is caught too.
+  if (/issues\/new[^"'`\n]*[?&](report|site|title|body)=/.test(bundle)) {
+    fail("the content bundle builds an issue URL carrying report, site, title or body. Those reach GitHub on tab open.");
   }
 
   // The worker is the only thing that can open a tab, and it must refuse
@@ -413,7 +399,7 @@ async function main() {
   }
 
   if (!background.includes("AR_OPEN_ISSUE")) {
-    fail("src/background.js does not handle AR_OPEN_ISSUE, so the missed-ad report cannot open its prefilled issue.");
+    fail("src/background.js does not handle AR_OPEN_ISSUE, so the missed-ad report cannot open the issue form.");
   }
   if (!background.includes("refused: not the issue form")) {
     fail("src/background.js opens whatever URL it is handed. Keep the check that it is the issue form.");
@@ -425,7 +411,7 @@ async function main() {
   }
 
   console.log(
-    `PASS report contract (${urlCases.length} URL cases, ${REPORT_LABELS.length} report labels, ${Object.keys(ISSUE_FORMS).length} issue forms, prefilled link built and trimmed)`
+    `PASS report contract (${urlCases.length} URL cases, ${REPORT_LABELS.length} report labels, ${Object.keys(ISSUE_FORMS).length} issue forms, links carry no page data)`
   );
 }
 

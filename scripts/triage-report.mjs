@@ -117,8 +117,8 @@ export function triage({ title = "", body = "" } = {}) {
   const missing = [];
   const flags = [];
 
-  // A field the form marks optional is still read — the extension prefills the
-  // report field and it carries most of the diagnosis — but its absence must not
+  // A field the form marks optional is still read — the report pasted into it
+  // carries most of the diagnosis — but its absence must not
   // make the issue unactionable, or every hand-filed report would be chased for
   // something the reporter had no way to produce.
   const optional = new Set(form.optional || []);

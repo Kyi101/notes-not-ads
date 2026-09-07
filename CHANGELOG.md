@@ -24,24 +24,24 @@ Adds a one-click way to report a wrongly replaced page.
 
 - New **Report a wrongly replaced page** button in the popup. It counts every
   card on the page, groups identical ones into a single line, copies the result,
-  and opens a GitHub issue with the site and report already filled in. There was
+  and opens the GitHub issue form for you to paste into. There was
   a one-click report for missed ads but none for false positives, which are the
   worse of the two.
 - Turning the extension off for a site now asks whether something was replaced
   that should not have been. That is the moment someone is looking at the
   evidence, and previously it was where they left silently.
-- Nothing is transmitted by the extension. The prefilled issue is a link the
-  user chooses to submit, the full report is on the clipboard either way, and
-  the page URL is still cut back to origin plus path.
+- Nothing is transmitted by the extension, and the link it opens carries no
+  page data. The report travels on the clipboard only, and the page URL in it is
+  cut back to origin plus path with the title left out.
 
 Makes the missed-ad report say what to do next.
 
 - The report overlay offered "Copy report" beside a click that had already
   copied, which read as a step you had missed, and nothing said what the copy
   was for. It now shows no action until you pick something, then offers **Open
-  a prefilled issue** as the obvious next step, with **Copy again** behind it.
-- Missed-ad reports get the same prefilled issue as false positives. Previously
-  only one of the two did.
+  the issue form** as the obvious next step, with **Copy** behind it.
+- Missed-ad reports get the same one-press route to the issue form as false
+  positives. Previously only one of the two did.
 - **Copy this site's reports** is now reachable from the report overlay. It used
   to show a count of saved reports while offering no way to retrieve them —
   those lived behind Advanced, in the diagnostic inspector.

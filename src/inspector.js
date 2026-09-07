@@ -196,7 +196,7 @@ function buildInspectorOverlay() {
   // without leaving for the diagnostic inspector.
   const openIssueButton = document.createElement("button");
   openIssueButton.type = "button";
-  openIssueButton.textContent = "Open a prefilled issue";
+  openIssueButton.textContent = "Open the issue form";
   openIssueButton.dataset.attentionRedirectorOpenIssue = "true";
   openIssueButton.addEventListener("click", openIssueForSelectedReport);
 
@@ -561,7 +561,7 @@ function updateInspectorOverlay() {
       ? "Copied to your clipboard, and saved on this device."
       : "Click directly on the missed ad. Nothing is sent automatically.";
     details.textContent = picked
-      ? "Open a prefilled issue to send it, or paste the copy anywhere you like. Nothing leaves this device until you press Submit on GitHub."
+      ? "It is on your clipboard. Open the issue form and paste it in, or send it anywhere else you like. Nothing about this page reaches GitHub until you paste it there yourself."
       : "The report will hold the page address, the element's size and position, where its content came from, and why the extension left it alone.";
 
     // Nothing to open or re-copy before something is picked, so the actions stay
@@ -766,20 +766,20 @@ async function openIssueForSelectedReport() {
 
   const record = createInspectorReportRecord(state.inspector.selectedInfo);
 
-  // Copy first. If the tab does not open, or they close it, or they would rather
-  // send this somewhere else entirely, the report is still in hand.
+  // Copy first, and this is now load-bearing rather than a precaution: the link
+  // carries no report, so the clipboard is the only thing that does.
   try {
     await copyText(record.text);
   } catch (_error) {}
 
-  const opened = await openIssueUrl(buildMissedAdIssueUrl(record.text));
+  const opened = await openIssueUrl(missedAdIssueUrl());
 
   if (status) {
     // Saying "issue opened" when the worker refused the URL leaves someone
     // waiting for a tab that is never coming, believing they have reported it.
     // The copy above did happen either way, so that is what the failure says.
     status.textContent = opened
-      ? "Issue opened. Nothing was sent."
+      ? "Form opened. Paste the report into it."
       : "Could not open the issue page. The report is on your clipboard.";
     window.setTimeout(() => {
       status.textContent = "";
@@ -1089,26 +1089,14 @@ function formatInspectorReport() {
   return lines.join("\n");
 }
 
-// "What got replaced" / "How bad was it?" for a false positive, and "does it
-// come back on reload?" for a missed ad, are all left blank. They are the
-// answers only the person looking at the page can give, and a prefilled guess
-// would arrive in the issue as their words.
-function buildFalsePositiveIssueUrl(report) {
-  return buildIssueUrl({
-    template: "false-positive.yml",
-    title: `[false-positive] ${location.hostname}`,
-    fields: { site: reportSiteLine(report), report },
-    trimField: "report"
-  });
+// The link names the form; the report goes on the clipboard for the reporter to
+// paste. See issueFormUrl in src/shared.js for why nothing is prefilled.
+function falsePositiveIssueUrl() {
+  return issueFormUrl("false-positive.yml");
 }
 
-function buildMissedAdIssueUrl(report) {
-  return buildIssueUrl({
-    template: "missed-ad.yml",
-    title: `[missed] ${location.hostname}`,
-    fields: { site: reportSiteLine(report), report },
-    trimField: "report"
-  });
+function missedAdIssueUrl() {
+  return issueFormUrl("missed-ad.yml");
 }
 
 // A content script cannot open a tab, so the worker does it. Opening a link is

@@ -64,7 +64,7 @@ quiet card carrying one of the user's own notes.
 - `scripts/check-paired-change.mjs` - fails a change that edits filter data without adding a fixture or eval case.
 - `scripts/test-paired-change.mjs` - synthetic diff cases for the paired-change check.
 - `scripts/test-governance-contract.mjs` - keeps CONTRIBUTING.md, CODEOWNERS, and the issue templates in sync with the open/closed contribution split.
-- `scripts/report-contract.mjs` - the one definition of a report's shape: labels, headings, issue-form fields, the URL-redaction promise, and the prefilled-issue link, executed rather than asserted.
+- `scripts/report-contract.mjs` - the one definition of a report's shape: labels, headings, issue-form fields, the URL-redaction promise, and the fact that the issue link carries no page data, executed rather than asserted.
 - `scripts/triage-report.mjs` - deterministic first-pass triage of a filed issue; routes on facts only and leaves anything needing taste alone.
 - `scripts/test-triage-report.mjs` - triage routing cases, including the page-wide false positive.
 - `scripts/test-page-gate.mjs` - offline hostname/path classification of every surface into none/off/full.
@@ -120,8 +120,8 @@ quiet card carrying one of the user's own notes.
 - Keep selectors readable and auditable.
 - Store user settings only in `chrome.storage.local`.
 - Use `scripting` only for injecting this extension's existing content script into the active tab when popup messaging finds no listener.
-- A report's shape is owned by `scripts/report-contract.mjs`, which is the agreement between the formatter in `src/inspector.js`, the issue forms, the prefilled link in `popup.js`, and `scripts/triage-report.mjs`. Renaming a label, heading, or field id means changing it there too, or triage silently stops parsing.
-- The extension never transmits a report. The prefilled issue is a link the user lands on and chooses to submit, and the full text always goes to the clipboard as well, so no path depends on GitHub.
+- A report's shape is owned by `scripts/report-contract.mjs`, which is the agreement between the formatter in `src/inspector.js`, the issue forms, and `scripts/triage-report.mjs`. Renaming a label, heading, or field id means changing it there too, or triage silently stops parsing.
+- The extension never transmits a report, and the link it opens carries no page data. Query parameters travel in the GET request, so a prefilled report would reach GitHub on tab open, before the reporter submits anything — which is why the report goes to the clipboard and the link names only a form.
 - Register content-script message listeners synchronously before async storage loading, so popup messages cannot race listener setup.
 - Anything that reads a repo file line by line splits on `/\r?\n/`, not `"\n"`. A Windows checkout with `core.autocrlf=true` hands back a trailing `\r` on every line, which silently broke the mandatory pre-PR gate and would have shipped a bundle with trailing whitespace on every line.
 - Update the Map when files move or structure changes.

@@ -9,9 +9,9 @@ body:
         Replacing something that was not an ad is worse than missing an ad, so
         these are read first.
 
-        If you got here from the extension, the site and the report below are
-        already filled in and the same text is on your clipboard. Two questions
-        are left blank on purpose: only you can answer them.
+        If you got here from the extension, your report is on the clipboard —
+        paste it into the report field below. Nothing about your page was sent
+        by opening this form.
 
   - type: input
     id: site

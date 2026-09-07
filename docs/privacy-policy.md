@@ -53,11 +53,16 @@ written: query strings and fragments are removed, and the removal is labelled
 so you can see it happened. The page title is not included, because a title
 carries order numbers, search terms and names as often as a query string does.
 
-Either flow can open a **prefilled GitHub issue** for you. The extension does
-not send it. It builds the link, opens that page in a new tab with the site and
-the report already filled in, and nothing reaches GitHub or the developer
-unless you read it and press Submit yourself. The same text is placed on your
-clipboard either way, so you can send it somewhere else, or nowhere at all.
+Either flow can open **the GitHub issue form** for you in a new tab. That link
+names a form and carries nothing about your page: no report, no address, no
+title. Your report is on your clipboard, and it reaches GitHub only if you
+paste it in and submit it. You can equally paste it somewhere else, or nowhere
+at all.
+
+An earlier draft of this policy described the form as arriving prefilled. That
+was changed before release, because a prefilled link would have carried the
+report to GitHub in the address the moment the tab opened — before you had read
+anything — and that is not what "nothing is ever sent" can mean.
 
 Reports accumulate locally, up to 75. The export offered in the report flow
 covers only the site you are currently on, so one press cannot place addresses
@@ -66,8 +71,8 @@ from unrelated sites on your clipboard.
 ## Network Requests
 
 During normal browsing, the extension runtime does not make remote requests of
-its own. Opening a prefilled issue is a page you navigate to, not a request
-the extension sends. The extension may block browser requests to common ad,
+its own. Opening the issue form is a page you navigate to, and the address
+carries nothing about the page you were on. The extension may block browser requests to common ad,
 tracker, analytics, and error-monitoring domains using packaged Manifest V3
 declarativeNetRequest rules.
 

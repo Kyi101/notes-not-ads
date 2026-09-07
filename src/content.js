@@ -551,12 +551,7 @@
 
   const PAGE_REPORT_HEADING = "Notes Not Ads Page Report";
 
-  // A prefilled GitHub issue is a plain GET, so the whole report travels in the
-  // query string. Browsers and servers stop honouring a URL somewhere past 8k and
-  // a body cut at that boundary arrives as a corrupted report rather than an
-  // error, so the report is trimmed to fit here and the untrimmed text goes to
-  // the clipboard regardless. Nothing is transmitted by the extension: the user
-  // lands on a filled-in form and decides whether to press Submit.
+  // The issue form's address.
   //
   // Derived from the manifest rather than written here, because the worker needs
   // the same value to decide whether a URL it is asked to open is the issue form,
@@ -575,60 +570,19 @@
     }
   }
 
-  const MAX_ISSUE_URL_LENGTH = 7000;
-
-  // One builder for both report kinds. It lives here rather than in popup.js
-  // because the missed-ad flow runs entirely inside the page overlay, and two
-  // copies of this would be two places for a repository rename to go half-done.
+  // The link names a form and nothing else. It deliberately carries no report,
+  // no site and no title.
   //
-  // `trimField` names the one field worth shortening. Trimming the report rather
-  // than the URL matters: a URL cut at a length limit drops whichever parameter
-  // happens to sort last, silently and unpredictably, while a trimmed report
-  // keeps every other field intact and says in the body that it happened.
-  function buildIssueUrl({ template, title, fields = {}, trimField = "" }) {
-    const compose = (values) => {
-      const params = new URLSearchParams({ template, title });
-      for (const [key, value] of Object.entries(values)) {
-        if (value) {
-          params.set(key, value);
-        }
-      }
-      const base = issueFormBaseUrl();
-      return base ? `${base}?${params.toString()}` : "";
-    };
-
-    const full = compose(fields);
-    if (
-      !full ||
-      full.length <= MAX_ISSUE_URL_LENGTH ||
-      !trimField ||
-      !fields[trimField]
-    ) {
-      return full;
-    }
-
-    const notice =
-      "\n\n[trimmed to fit the issue link — the full report is on your clipboard]";
-    let text = fields[trimField];
-    while (
-      text.length > 400 &&
-      compose({ ...fields, [trimField]: `${text}${notice}` }).length >
-        MAX_ISSUE_URL_LENGTH
-    ) {
-      text = text.slice(0, Math.floor(text.length * 0.9));
-    }
-
-    return compose({ ...fields, [trimField]: `${text}${notice}` });
-  }
-
-  // Both reports carry the already-redacted page URL on their own `Page:` line, so
-  // the issue's site field is read back out of the report rather than recomputed.
-  // One source, one redaction.
-  function reportSiteLine(report) {
-    const line = String(report || "")
-      .split("\n")
-      .find((entry) => entry.startsWith("Page: "));
-    return line ? line.slice("Page: ".length).trim() : "";
+  // An earlier version prefilled all three, which was more convenient and quietly
+  // untrue: query parameters travel in the GET request, so GitHub received the
+  // page address and the whole report the moment the tab opened — before the
+  // reporter had read anything or pressed Submit. "Nothing is ever sent" is this
+  // product's central claim and it cannot survive a convenience that sends
+  // things. The report is already on the clipboard by then, so what this costs is
+  // one paste.
+  function issueFormUrl(template) {
+    const base = issueFormBaseUrl();
+    return base ? `${base}?${new URLSearchParams({ template }).toString()}` : "";
   }
 
   // A report is written to be pasted into a public issue, so the page URL is cut
@@ -905,12 +859,12 @@
 
       if (message.type === "AR_PAGE_REPORT") {
         // The URL is built here rather than in the popup so there is one copy of
-        // the link builder and one copy of the redaction that feeds it.
-        const pageReport = formatPageReport();
+        // it. It names the form and carries no page data — the report reaches
+        // GitHub only when the reporter pastes it.
         sendResponse({
           ...getStatus(),
-          pageReport,
-          issueUrl: buildFalsePositiveIssueUrl(pageReport)
+          pageReport: formatPageReport(),
+          issueUrl: falsePositiveIssueUrl()
         });
         return false;
       }
@@ -1709,7 +1663,7 @@
     // without leaving for the diagnostic inspector.
     const openIssueButton = document.createElement("button");
     openIssueButton.type = "button";
-    openIssueButton.textContent = "Open a prefilled issue";
+    openIssueButton.textContent = "Open the issue form";
     openIssueButton.dataset.attentionRedirectorOpenIssue = "true";
     openIssueButton.addEventListener("click", openIssueForSelectedReport);
 
@@ -2074,7 +2028,7 @@
         ? "Copied to your clipboard, and saved on this device."
         : "Click directly on the missed ad. Nothing is sent automatically.";
       details.textContent = picked
-        ? "Open a prefilled issue to send it, or paste the copy anywhere you like. Nothing leaves this device until you press Submit on GitHub."
+        ? "It is on your clipboard. Open the issue form and paste it in, or send it anywhere else you like. Nothing about this page reaches GitHub until you paste it there yourself."
         : "The report will hold the page address, the element's size and position, where its content came from, and why the extension left it alone.";
 
       // Nothing to open or re-copy before something is picked, so the actions stay
@@ -2279,20 +2233,20 @@
 
     const record = createInspectorReportRecord(state.inspector.selectedInfo);
 
-    // Copy first. If the tab does not open, or they close it, or they would rather
-    // send this somewhere else entirely, the report is still in hand.
+    // Copy first, and this is now load-bearing rather than a precaution: the link
+    // carries no report, so the clipboard is the only thing that does.
     try {
       await copyText(record.text);
     } catch (_error) {}
 
-    const opened = await openIssueUrl(buildMissedAdIssueUrl(record.text));
+    const opened = await openIssueUrl(missedAdIssueUrl());
 
     if (status) {
       // Saying "issue opened" when the worker refused the URL leaves someone
       // waiting for a tab that is never coming, believing they have reported it.
       // The copy above did happen either way, so that is what the failure says.
       status.textContent = opened
-        ? "Issue opened. Nothing was sent."
+        ? "Form opened. Paste the report into it."
         : "Could not open the issue page. The report is on your clipboard.";
       window.setTimeout(() => {
         status.textContent = "";
@@ -2602,26 +2556,14 @@
     return lines.join("\n");
   }
 
-  // "What got replaced" / "How bad was it?" for a false positive, and "does it
-  // come back on reload?" for a missed ad, are all left blank. They are the
-  // answers only the person looking at the page can give, and a prefilled guess
-  // would arrive in the issue as their words.
-  function buildFalsePositiveIssueUrl(report) {
-    return buildIssueUrl({
-      template: "false-positive.yml",
-      title: `[false-positive] ${location.hostname}`,
-      fields: { site: reportSiteLine(report), report },
-      trimField: "report"
-    });
+  // The link names the form; the report goes on the clipboard for the reporter to
+  // paste. See issueFormUrl in src/shared.js for why nothing is prefilled.
+  function falsePositiveIssueUrl() {
+    return issueFormUrl("false-positive.yml");
   }
 
-  function buildMissedAdIssueUrl(report) {
-    return buildIssueUrl({
-      template: "missed-ad.yml",
-      title: `[missed] ${location.hostname}`,
-      fields: { site: reportSiteLine(report), report },
-      trimField: "report"
-    });
+  function missedAdIssueUrl() {
+    return issueFormUrl("missed-ad.yml");
   }
 
   // A content script cannot open a tab, so the worker does it. Opening a link is
