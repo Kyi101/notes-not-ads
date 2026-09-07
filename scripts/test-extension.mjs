@@ -2202,6 +2202,16 @@ async function assertPageReport(browserContext, serviceWorker, url) {
       throw new Error(`Page report did not label the removal: ${pageLine}`);
     }
 
+    // The page title is as sensitive as the query string that is already cut
+    // out — "Order #4412 confirmed", a seller's name, a search phrase — and
+    // this text is written to be pasted into a public issue. Redacting the URL
+    // and printing the title beside it was the promise half-kept.
+    if (/^Title:/m.test(report)) {
+      throw new Error(
+        `The report carries the page title, which is not redacted and is headed for a public issue:\n${report.split("\n").find((line) => line.startsWith("Title:"))}`
+      );
+    }
+
     const cardsLine = report.split("\n").find((line) => line.startsWith("Cards: "));
     if (cardsLine !== "Cards: 7") {
       throw new Error(
