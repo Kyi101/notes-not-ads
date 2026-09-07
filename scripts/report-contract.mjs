@@ -19,7 +19,6 @@ const projectRoot = path.resolve(__dirname, "..");
 export const REPORT_LABELS = [
   "Generated",
   "Page",
-  "Title",
   "Reasons",
   "Would replace now",
   "Safety blocks",
@@ -34,11 +33,16 @@ export const REPORT_LABELS = [
   "Viewport"
 ];
 
+// Exported on its own as well as in the list below: triage routes on this one
+// specifically, and a second copy of the string there is a second thing to
+// forget when it changes.
+export const PAGE_REPORT_HEADING = "Notes Not Ads Page Report";
+
 export const REPORT_HEADINGS = [
   "Notes Not Ads Inspector Report",
   "Notes Not Ads Missed Clutter Report",
   "Notes Not Ads Saved Inspector Reports",
-  "Notes Not Ads Page Report"
+  PAGE_REPORT_HEADING
 ];
 
 // A form is only useful to triage if the fields it routes on are present. The
@@ -98,7 +102,7 @@ const MAX_ISSUE_URL_LENGTH_EXPECTED = 7000;
 // approach as scripts/test-page-gate.mjs, and for the same reason: executing the
 // real source is the only way this cannot drift from it. The bundle itself is an
 // IIFE that ends in init(), so the partials are wrapped here instead.
-async function loadIssueBuilders() {
+async function loadIssueBuilders(manifest) {
   const MODULES = ["shared", "main", "inspector", "scanner", "replacer"];
   const body = (
     await Promise.all(
@@ -113,7 +117,12 @@ async function loadIssueBuilders() {
       href: "https://www.olx.ua/d/uk/obyavlenie/telefon"
     },
     document: { body: null, title: "", querySelectorAll: () => [] },
-    chrome: { runtime: {}, storage: { local: {} } },
+    // The real manifest, not a stub: the issue URL is derived from
+    // homepage_url now, so a stubbed one would test the stub.
+    chrome: {
+      runtime: { getManifest: () => manifest },
+      storage: { local: {} }
+    },
     console,
     // The vm context is not the browser realm, so the web globals the builder
     // uses have to be handed in explicitly.
@@ -327,7 +336,11 @@ async function main() {
   // The links are built by running the shipped code, not by reading it. A
   // prefilled issue that silently drops a field looks fine in review and arrives
   // empty, and the trimming path only runs on a report too long to write by hand.
-  const builders = await loadIssueBuilders();
+  const runtimeManifest = JSON.parse(
+    await readFile(path.join(projectRoot, "manifest.json"), "utf8")
+  );
+  const builders = await loadIssueBuilders(runtimeManifest);
+  const expectedBase = `${runtimeManifest.homepage_url.replace(/\/+$/, "")}/issues/new`;
 
   const shortReport = [
     "Notes Not Ads Page Report",
@@ -342,6 +355,10 @@ async function main() {
 
   for (const [builder, template, titlePrefix, mustStayBlank] of linkCases) {
     const link = new URL(builders[builder](shortReport));
+
+    if (`${link.origin}${link.pathname}` !== expectedBase) {
+      fail(`${builder} points at ${link.origin}${link.pathname}, but the manifest's homepage_url makes the issue form ${expectedBase}. The link is derived so a repository rename cannot go half-done.`);
+    }
 
     if (link.searchParams.get("template") !== template) {
       fail(`${builder} does not name ${template}, so the link opens a blank issue chooser.`);
@@ -378,6 +395,23 @@ async function main() {
   // The worker is the only thing that can open a tab, and it must refuse
   // anything that is not the issue form.
   const background = await readFile(path.join(projectRoot, "src/background.js"), "utf8");
+
+  // The worker validates the URL it is asked to open and the content script
+  // builds it. They cannot import each other, so both derive from the manifest;
+  // a literal reintroduced in either is the half-done rename this guards.
+  const sharedSource = await readFile(path.join(projectRoot, "src/shared.js"), "utf8");
+  for (const [name, source] of [
+    ["src/background.js", background],
+    ["src/shared.js", sharedSource]
+  ]) {
+    if (/https:\/\/github\.com\/[^"'`\s]*\/issues\/new/.test(source)) {
+      fail(`${name} hardcodes the issue-form URL. Derive it from the manifest's homepage_url, which is the one place a repository rename already has to touch.`);
+    }
+    if (!source.includes("getManifest")) {
+      fail(`${name} no longer derives the issue-form URL from the manifest.`);
+    }
+  }
+
   if (!background.includes("AR_OPEN_ISSUE")) {
     fail("src/background.js does not handle AR_OPEN_ISSUE, so the missed-ad report cannot open its prefilled issue.");
   }

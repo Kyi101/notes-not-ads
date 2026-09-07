@@ -9,9 +9,11 @@
 //
 // Reads ISSUE_TITLE and ISSUE_BODY from the environment and prints JSON.
 
-import { ISSUE_FORMS, REPORT_HEADINGS } from "./report-contract.mjs";
-
-const PAGE_REPORT_HEADING = "Notes Not Ads Page Report";
+import {
+  ISSUE_FORMS,
+  PAGE_REPORT_HEADING,
+  REPORT_HEADINGS
+} from "./report-contract.mjs";
 import { pathToFileURL } from "node:url";
 
 const NO_RESPONSE = "_No response_";

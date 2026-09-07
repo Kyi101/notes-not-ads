@@ -557,8 +557,24 @@
   // error, so the report is trimmed to fit here and the untrimmed text goes to
   // the clipboard regardless. Nothing is transmitted by the extension: the user
   // lands on a filled-in form and decides whether to press Submit.
-  const ISSUE_FORM_BASE_URL =
-    "https://github.com/Kyi101/notes-not-ads/issues/new";
+  //
+  // Derived from the manifest rather than written here, because the worker needs
+  // the same value to decide whether a URL it is asked to open is the issue form,
+  // and it cannot import this file. Two literals is two places for a repository
+  // rename to go half-done — which is exactly what this comment used to claim to
+  // prevent while doing it. `homepage_url` already has to change on a rename, so
+  // deriving from it leaves one place.
+  function issueFormBaseUrl() {
+    try {
+      const homepage = String(
+        chrome.runtime.getManifest().homepage_url || ""
+      ).replace(/\/+$/, "");
+      return homepage ? `${homepage}/issues/new` : "";
+    } catch (_error) {
+      return "";
+    }
+  }
+
   const MAX_ISSUE_URL_LENGTH = 7000;
 
   // One builder for both report kinds. It lives here rather than in popup.js
@@ -577,11 +593,13 @@
           params.set(key, value);
         }
       }
-      return `${ISSUE_FORM_BASE_URL}?${params.toString()}`;
+      const base = issueFormBaseUrl();
+      return base ? `${base}?${params.toString()}` : "";
     };
 
     const full = compose(fields);
     if (
+      !full ||
       full.length <= MAX_ISSUE_URL_LENGTH ||
       !trimField ||
       !fields[trimField]
@@ -2267,13 +2285,18 @@
       await copyText(record.text);
     } catch (_error) {}
 
-    await openIssueUrl(buildMissedAdIssueUrl(record.text));
+    const opened = await openIssueUrl(buildMissedAdIssueUrl(record.text));
 
     if (status) {
-      status.textContent = "Issue opened. Nothing was sent.";
+      // Saying "issue opened" when the worker refused the URL leaves someone
+      // waiting for a tab that is never coming, believing they have reported it.
+      // The copy above did happen either way, so that is what the failure says.
+      status.textContent = opened
+        ? "Issue opened. Nothing was sent."
+        : "Could not open the issue page. The report is on your clipboard.";
       window.setTimeout(() => {
         status.textContent = "";
-      }, 2400);
+      }, 3200);
     }
   }
 
@@ -2362,7 +2385,6 @@
       createdAt,
       url: formatReportUrl(location.href),
       hostname: location.hostname,
-      title: document.title,
       inferredType,
       signature: info.signature,
       text: formatSelectedInspectorReport(info, {
@@ -2402,13 +2424,24 @@
     return "missed clutter";
   }
 
+  // The page title is not in any of these reports, and that is deliberate.
+  //
+  // The page URL is cut back to origin plus path because a query string carries
+  // order numbers, search terms and session tokens far more often than anything a
+  // triager needs. A title carries exactly the same things — "Order #4412
+  // confirmed", a seller's own listing name, a search phrase — and these reports
+  // are written to be pasted into a public issue. Redacting one and printing the
+  // other next to it was the promise half-kept.
+  //
+  // Nothing was lost diagnostically: triage never routed on it, and the OLX
+  // investigation that prompted this reporting work was solved from the path and
+  // the element signature alone.
   function formatSelectedInspectorReport(info, context) {
     return [
       "Notes Not Ads Missed Clutter Report",
       `Generated: ${context.createdAt}`,
       `Page: ${formatReportUrl(location.href)}`,
       `Host: ${location.hostname}`,
-      `Title: ${document.title}`,
       `Inferred type: ${context.inferredType}`,
       "",
       formatElementReport(info, "Clicked element")
@@ -2549,7 +2582,6 @@
       "Notes Not Ads Inspector Report",
       `Generated: ${new Date().toISOString()}`,
       `Page: ${formatReportUrl(location.href)}`,
-      `Title: ${document.title}`,
       "",
       state.inspector.selectedInfo
         ? formatElementReport(state.inspector.selectedInfo, "Selected element")
@@ -2598,12 +2630,14 @@
   function openIssueUrl(url) {
     return new Promise((resolve) => {
       try {
-        chrome.runtime.sendMessage({ type: "AR_OPEN_ISSUE", url }, () => {
-          void chrome.runtime.lastError;
-          resolve();
+        chrome.runtime.sendMessage({ type: "AR_OPEN_ISSUE", url }, (response) => {
+          // lastError has to be read or Chrome logs it, and a missing worker is a
+          // failure to open, not a success.
+          const failed = Boolean(chrome.runtime.lastError);
+          resolve(!failed && Boolean(response && response.ok));
         });
       } catch (_error) {
-        resolve();
+        resolve(false);
       }
     });
   }
@@ -2652,7 +2686,6 @@
       `Generated: ${new Date().toISOString()}`,
       `Page: ${formatReportUrl(location.href)}`,
       `Host: ${location.hostname}`,
-      `Title: ${document.title}`,
       `Cards: ${slots.length}`,
       `Viewport: ${window.innerWidth}x${window.innerHeight}`,
       ""

@@ -556,8 +556,24 @@ const PAGE_REPORT_HEADING = "Notes Not Ads Page Report";
 // error, so the report is trimmed to fit here and the untrimmed text goes to
 // the clipboard regardless. Nothing is transmitted by the extension: the user
 // lands on a filled-in form and decides whether to press Submit.
-const ISSUE_FORM_BASE_URL =
-  "https://github.com/Kyi101/notes-not-ads/issues/new";
+//
+// Derived from the manifest rather than written here, because the worker needs
+// the same value to decide whether a URL it is asked to open is the issue form,
+// and it cannot import this file. Two literals is two places for a repository
+// rename to go half-done — which is exactly what this comment used to claim to
+// prevent while doing it. `homepage_url` already has to change on a rename, so
+// deriving from it leaves one place.
+function issueFormBaseUrl() {
+  try {
+    const homepage = String(
+      chrome.runtime.getManifest().homepage_url || ""
+    ).replace(/\/+$/, "");
+    return homepage ? `${homepage}/issues/new` : "";
+  } catch (_error) {
+    return "";
+  }
+}
+
 const MAX_ISSUE_URL_LENGTH = 7000;
 
 // One builder for both report kinds. It lives here rather than in popup.js
@@ -576,11 +592,13 @@ function buildIssueUrl({ template, title, fields = {}, trimField = "" }) {
         params.set(key, value);
       }
     }
-    return `${ISSUE_FORM_BASE_URL}?${params.toString()}`;
+    const base = issueFormBaseUrl();
+    return base ? `${base}?${params.toString()}` : "";
   };
 
   const full = compose(fields);
   if (
+    !full ||
     full.length <= MAX_ISSUE_URL_LENGTH ||
     !trimField ||
     !fields[trimField]

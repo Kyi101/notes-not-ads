@@ -217,12 +217,24 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 // a tab is a capability worth keeping narrow: the report itself never travels
 // through this message, only a link, and a link that is not the issue form is
 // refused rather than opened.
-const ISSUE_FORM_BASE_URL = "https://github.com/Kyi101/notes-not-ads/issues/new";
+// Same derivation as src/shared.js, from the one place a repository rename
+// already has to touch. Neither file can import the other.
+function issueFormBaseUrl() {
+  try {
+    const homepage = String(
+      chrome.runtime.getManifest().homepage_url || ""
+    ).replace(/\/+$/, "");
+    return homepage ? `${homepage}/issues/new` : "";
+  } catch (_error) {
+    return "";
+  }
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message && message.type === "AR_OPEN_ISSUE") {
     const url = String(message.url || "");
-    if (!url.startsWith(`${ISSUE_FORM_BASE_URL}?`)) {
+    const base = issueFormBaseUrl();
+    if (!base || !url.startsWith(`${base}?`)) {
       sendResponse({ ok: false, error: "refused: not the issue form" });
       return false;
     }
