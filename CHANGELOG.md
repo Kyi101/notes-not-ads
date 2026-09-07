@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.4 — 2026-09
+## 1.0.3 — 2026-09
 
 Stops the extension replacing the content of classifieds listings.
 
