@@ -41,17 +41,35 @@ remote rule service and does not upload page contents.
 
 ## Missed-Ad And Inspector Reports
 
-The missed-ad report flow and diagnostic inspector can save a compact local
-report about an element on the page, including selector-like details, size,
-position, source URLs, and safety checks. Reports are stored locally in Chrome
-extension storage and are not uploaded. If you choose to copy or share a report
-manually, you control where it goes.
+The missed-ad flow, the wrongly-replaced-page flow, and the diagnostic
+inspector can save a compact local report about an element or about the page,
+including selector-like details, size, position, source URLs, and safety
+checks. Reports are stored locally in Chrome extension storage and are not
+uploaded. If you choose to copy or share a report manually, you control where
+it goes.
+
+The page address in a report is cut back to origin plus path before it is
+written: query strings and fragments are removed, and the removal is labelled
+so you can see it happened. The page title is not included, because a title
+carries order numbers, search terms and names as often as a query string does.
+
+Either flow can open a **prefilled GitHub issue** for you. The extension does
+not send it. It builds the link, opens that page in a new tab with the site and
+the report already filled in, and nothing reaches GitHub or the developer
+unless you read it and press Submit yourself. The same text is placed on your
+clipboard either way, so you can send it somewhere else, or nowhere at all.
+
+Reports accumulate locally, up to 75. The export offered in the report flow
+covers only the site you are currently on, so one press cannot place addresses
+from unrelated sites on your clipboard.
 
 ## Network Requests
 
 During normal browsing, the extension runtime does not make remote requests of
-its own. It may block browser requests to common ad, tracker, analytics, and
-error-monitoring domains using packaged Manifest V3 declarativeNetRequest rules.
+its own. Opening a prefilled issue is a page you navigate to, not a request
+the extension sends. The extension may block browser requests to common ad,
+tracker, analytics, and error-monitoring domains using packaged Manifest V3
+declarativeNetRequest rules.
 
 Developer-only scripts in the source repository can fetch public filter lists
 for local development, but those scripts are not run by the installed extension
