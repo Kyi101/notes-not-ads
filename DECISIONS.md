@@ -2068,3 +2068,34 @@ an unrelated article about protecting your finances to promote a note reading
 replaces an ad with the user's *own* note precisely so it cuts across the page,
 and a note that agrees with the page is closer to what the ad was doing. That is
 a product decision, not a code review, and it belongs to Hlib.
+
+## 2026-09-08 - Protect `main`, But Not Against Its Only Maintainer
+
+**Decision**: Enable branch protection on `main`: pull request required, one
+approving review, code-owner review required, the two deterministic CI checks
+required, linear history, no force pushes, no branch deletion. Leave
+`enforce_admins` off.
+
+**Why**: `main` had no protection at all, which meant CODEOWNERS enforced
+nothing. The whole open/closed contribution split in CONTRIBUTING.md was
+advisory — the ownership flag appeared in the diff view and stopped no one. The
+question that surfaced it was whether to add an outside contributor as a
+collaborator; on a user-owned repository that role is binary, so write access
+would have meant unreviewed pushes straight to a shipping extension.
+
+**Consequences**:
+- `enforce_admins` is off because a sole maintainer cannot approve his own pull
+  request. Turning it on would have made the repository unmergeable by the only
+  person who merges. The rules bind collaborators; Hlib keeps the override.
+  Turn it on when a second maintainer exists who can actually review him.
+- Required linear history rejects merge commits, so `gh pr merge --merge` now
+  fails. Rebase and squash both work, and rebase is what this repository has
+  been using.
+- `Filter changes ship a case` is deliberately not a required check. It runs
+  conditionally, and a required check that legitimately skips can wedge a merge.
+  It still runs and still shows on the pull request.
+- Required checks plus fork pull requests gated behind workflow approval means
+  an outside contributor's PR cannot merge until the run is approved by hand.
+  That is now the friction to fix, and the proportionate fix is the Actions
+  setting for first-time contributors — not granting write access.
+
