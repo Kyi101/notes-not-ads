@@ -2212,3 +2212,49 @@ was kept everywhere except where it mattered.
   possible with declarativeNetRequest, since installing a session rule is async
   while the network stack consults the rules synchronously. The window is now
   bounded by a `document_start` message round trip instead of a full parse.
+## 2026-09-08 - Refuse EasyList Exceptions That Only Permit Ad Delivery
+
+**Decision**: Add a semantic gate to `scripts/update-lists.mjs` refusing any
+EasyList exception whose URL filter names an ad-delivery endpoint. Two carve-outs
+survive it: requests initiated by the video-ad SDK, held pending evidence, and a
+hand-reviewed functional list currently holding one entry. 26 shipped `allow`
+rules were removed; 106 remain.
+
+**Why**: Finding 3 of the private report of 2026-08-31. EasyList exceptions exist
+to un-break sites, and the generator converted them into priority-2 `allow`
+rules. Some of them un-break a site by letting its ads through, so the extension
+shipped rules whose entire effect was to permit advertising on named publishers —
+GAMPAD on bloomberg.com and spiegel.de, Amazon's header-bidding tag on
+accuweather.com, AppNexus on zone.msn.com. Chrome's own matcher confirmed the
+exception beat the block.
+
+**Measured before removing anything.** A build with every ad-delivery exception
+dropped was compared against the shipped build across 12 of the 129 named sites:
+10 were byte-identical, and ad serving fell from one host to zero on seven of
+them. The two apparent regressions were investigated rather than accepted —
+wunderground's 22% text drop reproduced identically in the unmodified build
+across two further trials, and thestreet's HTTP 403 appeared in both builds
+twice, so both were page variance and bot detection rather than breakage.
+
+**Consequences**:
+- The video subset is held back rather than endorsed, and the reason is recorded
+  in the code and in a matcher fixture. The measurement counted `<video>`
+  elements but never got playback started in either build, so it settled nothing
+  about the case those exceptions exist for. Releasing them needs a harness that
+  actually plays a video, or the reporter's answer.
+- The functional re-admit list needs a reason per entry that is about page
+  function rather than advertising. Its one member is Amazon's affiliate widget:
+  image-only, unscoped, and serving the product picture in an affiliate link
+  rather than an impression, so dropping it would blank pictures wherever the
+  widget appears.
+- Four matcher fixtures assert the named endpoints are now blocked, and two
+  assert the deliberate carve-outs still allow. All four block cases were run
+  against the pre-fix ruleset and fail there, which is the only thing that
+  distinguishes a regression guard from a decoration. Two of the six were
+  rebuilt after that check caught them matching no rule at all: a URL that
+  merely resembles an exception's pattern passes whether or not the fix exists.
+- The packaged total falls to 28,974 of 29,000. A future regeneration will
+  backfill the freed slots with block rules, which is the right direction.
+- The gate is applied to the shipped artifact directly rather than by
+  regenerating from a live EasyList fetch, so the diff is 26 removed rules
+  instead of a whole list's churn.
