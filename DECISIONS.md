@@ -2099,3 +2099,40 @@ would have meant unreviewed pushes straight to a shipping extension.
   That is now the friction to fix, and the proportionate fix is the Actions
   setting for first-time contributors — not granting write access.
 
+
+## 2026-09-08 - The Sensitive-Page Allow Dies With The Page
+
+**Decision**: Drop a tab's priority-1000 allow the moment that tab's URL
+changes, then ask the page whether it is still owed. `chrome.tabs.onUpdated`
+in the worker does the dropping; a new `AR_REEVALUATE_TAB_ALLOW` message does
+the asking. No new permission.
+
+**Why**: Finding 2 of the private report of 2026-08-31. The allow was installed
+by the content script at `document_end` and removed only when the tab closed, so
+navigating from a bank to an ordinary site in the same tab left every request in
+that tab unblocked until the new page's content script ran — after the parser had
+already requested everything in `<head>`. Reproduced before fixing: a normally
+blocked script loaded on an ordinary page purely because the tab had previously
+shown a password field. The single-page-app half was worse, since without a
+document load nothing removed the rule at all.
+
+**Consequences**:
+- Dropping first and asking second inverts the failure deliberately. The worst
+  case is now a few parser-time requests blocked on a sensitive page, instead of
+  every request allowed on an ordinary one. Blocking too much on a bank is
+  recoverable; blocking nothing on the rest of the web is the bug being fixed.
+- `changeInfo.url` is checked as well as `status`, because a History API route
+  change reports a URL without ever reporting "loading". Both fields are
+  available without the `tabs` permission given the manifest's existing host
+  permissions, so the fix costs no new install warning.
+- The re-ask has to be a message from the worker. On a sensitive page the
+  mutation observer is deliberately not running, so the content script has
+  nothing watching the DOM to notice a route change; and a `pushState` called by
+  the page is invisible from the isolated world a content script lives in. An
+  earlier attempt hooked `handlePageMutations` and silently did nothing on
+  exactly the pages that mattered.
+- The regression test's probe is a parser-time `<script>` rather than an injected
+  one. A dynamically injected probe runs after `document_end` and so cannot see
+  the window this bug lived in — it would have passed against the unfixed build.
+  Verified by running the assertion against a copy with the listener removed,
+  where it fails.

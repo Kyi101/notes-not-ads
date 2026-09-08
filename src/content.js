@@ -764,6 +764,10 @@
       timer: 0,
       nextAttempt: 0
     },
+    // Last address the tab allow was decided for. A single-page app can change
+    // route without a document load, and the decision has to be revisited when it
+    // does.
+    lastSyncedHref: "",
     isScanning: false,
     cosmeticRules: [],
     domainCosmeticRules: [],
@@ -854,6 +858,23 @@
       if (message.type === "AR_START_MISSED_AD_REPORT") {
         const inspectorStatus = startMissedAdReport();
         sendResponse({ ...getStatus(), ...inspectorStatus });
+        return false;
+      }
+
+      // The worker drops a tab's allow the moment the tab's URL changes, which is
+      // right when a single-page app leaves a sign-in route and wrong when it
+      // moves between two sensitive ones. Only the page can tell those apart, so
+      // the worker asks rather than guesses.
+      //
+      // It has to be a message rather than something the content script notices
+      // for itself: on a sensitive page the mutation observer is deliberately not
+      // running, so there is nothing watching the DOM to catch the route change,
+      // and a pushState called by the page is invisible from the isolated world a
+      // content script lives in.
+      if (message.type === "AR_REEVALUATE_TAB_ALLOW") {
+        state.lastSyncedHref = location.href;
+        syncPageDnrAllowRule();
+        sendResponse({ ok: true });
         return false;
       }
 

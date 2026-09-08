@@ -763,6 +763,10 @@ const state = {
     timer: 0,
     nextAttempt: 0
   },
+  // Last address the tab allow was decided for. A single-page app can change
+  // route without a document load, and the decision has to be revisited when it
+  // does.
+  lastSyncedHref: "",
   isScanning: false,
   cosmeticRules: [],
   domainCosmeticRules: [],
