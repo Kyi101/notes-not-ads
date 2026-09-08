@@ -468,6 +468,56 @@ export function parseBlock(line) {
   return condition;
 }
 
+// EasyList exceptions exist to un-break sites. Some of them un-break a site by
+// letting its ads through, and converting those into packaged `allow` rules
+// means shipping rules whose whole effect is to permit advertising on named
+// publishers. Reported privately 2026-08-31: 36 of the 138 shipped allow rules
+// named an ad-delivery endpoint — GAMPAD on bloomberg.com, spiegel.de and
+// wunderground.com, Amazon apstag on accuweather.com, adnxs on zone.msn.com.
+// Chrome's own matcher confirmed the exception beat the block.
+//
+// Measured 2026-09-08 before removing any of them: a build with all 36 dropped
+// was byte-identical to the shipped build on 10 of 12 named sites, while ad
+// serving fell to zero on seven. The two apparent regressions were page
+// variance and bot detection, both reproduced in the unmodified build.
+const AD_DELIVERY_ENDPOINT_RE =
+  /(doubleclick|googlesyndication|googleadservices|googletagservices|adservice|adsystem|amazon-adsystem|adnxs|criteo|rubiconproject|openx|pubmatic|taboola|outbrain|adsbygoogle|gampad|360yield)/i;
+
+// Held back rather than endorsed. These are the video-ad SDK's own requests,
+// and they are the one subset where "un-break" plausibly means the player will
+// not start without an ad response. The 2026-09-08 measurement counted video
+// elements but never got playback started in either build, so it proved nothing
+// about them either way. Blocking a video ad at the cost of a player that hangs
+// is a product decision that wants evidence first.
+const VIDEO_AD_SDK_INITIATOR = "imasdk.googleapis.com";
+
+// Hand-reviewed re-admits. Each entry needs a reason that is about page
+// function rather than about advertising.
+const FUNCTIONAL_EXCEPTIONS = [
+  {
+    urlFilter: "||amazon-adsystem.com/widgets/q?",
+    why: "Affiliate widget product images, image resource type only. Serves the picture in an affiliate link rather than an impression, and it is unscoped, so dropping it would blank product images anywhere the widget is used."
+  }
+];
+
+// Pure so it can be tested without the network and without regenerating.
+// Returns null to keep the exception, or a string saying why it was refused.
+export function refuseAdDeliveryException(condition) {
+  if (!condition || !AD_DELIVERY_ENDPOINT_RE.test(condition.urlFilter || "")) {
+    return null;
+  }
+
+  if (FUNCTIONAL_EXCEPTIONS.some((entry) => entry.urlFilter === condition.urlFilter)) {
+    return null;
+  }
+
+  if ((condition.initiatorDomains || []).includes(VIDEO_AD_SDK_INITIATOR)) {
+    return null;
+  }
+
+  return `exception targets an ad-delivery endpoint: ${condition.urlFilter}`;
+}
+
 // Returns a DNR condition for an @@ exception, or null when the exception
 // cannot be expressed safely. An allow rule must be scoped by initiator or by
 // its own pattern; an unscoped one would unblock a tracker on every site.
@@ -492,6 +542,9 @@ export function parseException(line, blockedDomains) {
   if (parsed.initiatorDomains) condition.initiatorDomains = parsed.initiatorDomains;
   if (parsed.resourceTypes.length) condition.resourceTypes = parsed.resourceTypes;
   if (parsed.domainType) condition.domainType = parsed.domainType;
+
+  if (refuseAdDeliveryException(condition)) return null;
+
   return condition;
 }
 
