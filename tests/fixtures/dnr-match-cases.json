@@ -25,7 +25,6 @@
       "expect": "block",
       "why": "Observed, high-prevalence generated host near the end of the alphabet. A source-order cutoff loses this class first; evidence ranking must keep it."
     },
-
     {
       "id": "ima-sdk-unlisted-site",
       "url": "https://imasdk.googleapis.com/js/sdkloader/ima3.js",
@@ -74,7 +73,6 @@
       "expect": "allow",
       "why": "Exception rules must be scoped to their initiator, never applied globally."
     },
-
     {
       "id": "vast-tag-rotating-host-a",
       "url": "https://r6.adstag0102.xyz/code/video-steam/?id=99&vast=3&channel1=example.com",
@@ -131,7 +129,6 @@
       "expect": "allow",
       "why": "The player bootstrap itself. Must survive any rule aimed at the ad chain."
     },
-
     {
       "id": "lookalike-suffixed-host",
       "url": "https://adnxs.com.example.org/app.js",
@@ -148,7 +145,6 @@
       "expect": "allow",
       "why": "Same class without a dot boundary. An innocent host must not inherit a block because its name starts with a blocked one."
     },
-
     {
       "id": "domain-scoped-on-listed-site",
       "url": "https://dxyz.cloudfront.net/player.js",
@@ -357,7 +353,6 @@
       "expect": "block",
       "why": "The same API endpoint from anywhere else stays blocked."
     },
-
     {
       "id": "ordinary-site-asset-wikipedia",
       "url": "https://en.wikipedia.org/w/load.php",
@@ -373,6 +368,54 @@
       "initiator": "https://github.com",
       "expect": "allow",
       "why": "False-positive canary on a first-party asset host."
+    },
+    {
+      "id": "exception-gampad-bloomberg",
+      "url": "https://securepubads.g.doubleclick.net/gampad/ads?iu=/1/x",
+      "type": "xmlhttprequest",
+      "initiator": "https://www.bloomberg.com",
+      "expect": "block",
+      "why": "EasyList carved GAMPAD out for bloomberg.com and the generator turned that into a priority-2 allow, so the shipped rules permitted ad delivery on a named publisher. Reported privately 2026-08-31."
+    },
+    {
+      "id": "exception-apstag-accuweather",
+      "url": "https://c.amazon-adsystem.com/aax2/apstag.js",
+      "type": "script",
+      "initiator": "https://www.accuweather.com",
+      "expect": "block",
+      "why": "Same shape, Amazon's header-bidding tag carved out for accuweather.com."
+    },
+    {
+      "id": "exception-adnxs-msn",
+      "url": "https://adnxs.com/ast/ast.js",
+      "type": "script",
+      "initiator": "https://zone.msn.com",
+      "expect": "block",
+      "why": "Same shape, AppNexus carved out for zone.msn.com."
+    },
+    {
+      "id": "exception-gampad-spiegel",
+      "url": "https://g.doubleclick.net/gampad/ads?x=1&prev_scp=kw%3Diqdspiegel%2Cdigtransform%2Ciqadtile4%2F",
+      "type": "xmlhttprequest",
+      "initiator": "https://www.spiegel.de",
+      "expect": "block",
+      "why": "Same shape, a publisher-specific GAMPAD carve-out for spiegel.de. The URL reproduces the exception's literal prev_scp parameter, because a URL that merely looks similar matches nothing and the case would pass whether or not the fix was applied."
+    },
+    {
+      "id": "exception-ima-video-held",
+      "url": "https://g.doubleclick.net/gampad/ads?sz=640x480&iu=%2F18190176%2C22509719621%2FAdThrive_Video_Collapse_Autoplay_x",
+      "type": "xmlhttprequest",
+      "initiator": "https://imasdk.googleapis.com",
+      "expect": "allow",
+      "why": "Deliberately still allowed. The video-ad SDK's own requests are the one subset where un-breaking a site may mean the player will not start without an ad response, and the 2026-09-08 measurement never got playback started in either build. Held pending evidence, not endorsed. If this flips to block, that decision was taken on purpose and this case should be updated with the measurement that justified it."
+    },
+    {
+      "id": "exception-amazon-widget-functional",
+      "url": "https://ws-eu.amazon-adsystem.com/widgets/q?_encoding=UTF8&ASIN=X",
+      "type": "image",
+      "initiator": "https://example.com",
+      "expect": "allow",
+      "why": "Hand-reviewed re-admit. The affiliate widget serves the product picture in an affiliate link rather than an impression, it is image-only, and it is unscoped, so dropping it would blank product images anywhere the widget is used."
     }
   ]
 }

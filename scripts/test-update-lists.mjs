@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   GENERATED_DNR_RULE_LIMIT,
+  refuseAdDeliveryException,
   MAX_PACKAGED_STATIC_RULES,
   parseRules,
   selectDnrRules
@@ -151,3 +152,69 @@ assert.equal(
 }
 
 console.log('PASS EasyList ranked-selection tests');
+
+// --- The ad-delivery exception gate --------------------------------------
+//
+// EasyList exceptions un-break sites, and some of them do it by letting the
+// site's ads through. Converting those into packaged allow rules meant shipping
+// rules whose entire effect was to permit advertising on named publishers.
+// Reported privately 2026-08-31 and confirmed against Chrome's own matcher.
+
+// Refused: an ad-delivery endpoint carved out for a publisher.
+for (const [urlFilter, initiator] of [
+  ['||g.doubleclick.net/gampad/ads', 'bloomberg.com'],
+  ['||amazon-adsystem.com/aax2/apstag.js', 'accuweather.com'],
+  ['||adnxs.com/ast/ast.js', 'zone.msn.com'],
+  ['||googlesyndication.com/pagead/js/adsbygoogle.js', 'example.com']
+]) {
+  const verdict = refuseAdDeliveryException({ urlFilter, initiatorDomains: [initiator] });
+  assert.ok(verdict, `${urlFilter} on ${initiator} must be refused, it only permits advertising`);
+  assert.match(verdict, /ad-delivery endpoint/);
+}
+
+// Kept: an exception that has nothing to do with ad delivery.
+assert.equal(
+  refuseAdDeliveryException({ urlFilter: '||example.com/app.js', initiatorDomains: ['example.org'] }),
+  null,
+  'an ordinary exception must survive the gate'
+);
+
+// Kept, deliberately: the video-ad SDK's own requests. These are the one subset
+// where "un-break" plausibly means the player will not start without an ad
+// response, and the 2026-09-08 measurement never got playback started in either
+// build, so it settled nothing. Held pending evidence rather than endorsed.
+assert.equal(
+  refuseAdDeliveryException({
+    urlFilter: '||g.doubleclick.net/gampad/ads?env=',
+    initiatorDomains: ['imasdk.googleapis.com']
+  }),
+  null,
+  'IMA-initiated exceptions are held back on purpose; changing this needs a playback measurement'
+);
+
+// Kept, hand-reviewed: Amazon's affiliate widget serves product images, not
+// impressions, and it is unscoped, so dropping it blanks pictures anywhere the
+// widget appears.
+assert.equal(
+  refuseAdDeliveryException({
+    urlFilter: '||amazon-adsystem.com/widgets/q?',
+    resourceTypes: ['image']
+  }),
+  null,
+  'the functional re-admit list must be honoured'
+);
+
+// The shipped artifact must agree with the gate that produced it.
+const shipped = JSON.parse(
+  fs.readFileSync(path.join(projectRoot, 'rules/easylist_dnr.json'), 'utf8')
+);
+const leaked = shipped.filter(
+  (rule) => rule.action.type === 'allow' && refuseAdDeliveryException(rule.condition)
+);
+assert.deepEqual(
+  leaked.map((rule) => rule.condition.urlFilter),
+  [],
+  'rules/easylist_dnr.json still ships exceptions that permit ad delivery'
+);
+
+console.log('PASS ad-delivery exception gate');
