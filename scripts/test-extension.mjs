@@ -1329,6 +1329,18 @@ function startFixtureServer() {
         return;
       }
 
+      // A page whose blocked request happens while the parser is still running,
+      // so it races the content script rather than waiting politely for it.
+      if (url.pathname.endsWith("/parser-time-probe.html")) {
+        response.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-store" });
+        response.end(
+          '<!doctype html><title>Ordinary</title>' +
+            '<script src="/attention-redirector-dnr-probe.js"></script>' +
+            "<p>ordinary page</p>"
+        );
+        return;
+      }
+
       const isClassifieds = url.pathname.endsWith("/classifieds-item.html");
       const isClosedShadow = url.pathname.endsWith("/closed-shadow-sensitive.html");
 
@@ -1400,6 +1412,8 @@ async function assertDnrBehavior(context, serviceWorker, fixtureUrl) {
       `DNR probe stayed blocked on a sensitive path: ${JSON.stringify(sensitiveProbe)}`
     );
   }
+
+  await assertTabAllowDoesNotOutliveTheSensitivePage(context, serviceWorker, fixtureOrigin);
 
   await saveExtensionSettings(serviceWorker, {
     ...DEFAULT_EXTENSION_SETTINGS,
@@ -2502,6 +2516,57 @@ async function assertClosedShadowGuard(browserContext, url) {
 
     console.log(
       "Closed-shadow guard OK — opaque custom elements and their wrappers refused, declared ad elements still replaced."
+    );
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+// The sensitive-page allow is a network authorization, and it was outliving the
+// page that earned it.
+//
+// It is installed by the content script at `document_end` and used to be removed
+// only when the tab closed, so navigating from a bank to an ordinary site in the
+// same tab left every request in that tab unblocked until the new page's content
+// script ran — which is after the parser has already asked for the scripts in
+// <head>. Reported privately 2026-08-31 and reproduced: a normally blocked
+// script loaded on an ordinary page purely because the tab had previously shown
+// a password field.
+//
+// The probe here is a parser-time <script> on purpose. A dynamically injected
+// one waits until after `document_end` and so cannot see the window this bug
+// lived in — it would pass against the unfixed build.
+async function assertTabAllowDoesNotOutliveTheSensitivePage(
+  browserContext,
+  serviceWorker,
+  origin
+) {
+  const page = await browserContext.newPage();
+
+  try {
+    await page.goto(`${origin}/parser-time-probe.html`);
+    await page.waitForTimeout(700);
+    if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
+      throw new Error(
+        "The probe loaded on an ordinary page before any sensitive page was visited, so this check cannot prove anything."
+      );
+    }
+
+    await page.goto(`${origin}/checkout/ad-clutter.html#tab-allow-lifetime`);
+    const tabId = await findTabIdForUrl(serviceWorker, page.url());
+    await waitForDnrTabAllow(serviceWorker, tabId);
+
+    await page.goto(`${origin}/parser-time-probe.html`);
+    await page.waitForTimeout(900);
+
+    if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
+      throw new Error(
+        "A blocked script loaded on an ordinary page because the tab had previously shown a sensitive one. The tab allow outlived the page that justified it."
+      );
+    }
+
+    console.log(
+      "Tab allow lifetime OK — the sensitive-page allow does not survive a navigation away."
     );
   } finally {
     await page.close().catch(() => {});

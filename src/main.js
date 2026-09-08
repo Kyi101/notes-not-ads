@@ -67,6 +67,23 @@ function registerExtensionListeners() {
       return false;
     }
 
+    // The worker drops a tab's allow the moment the tab's URL changes, which is
+    // right when a single-page app leaves a sign-in route and wrong when it
+    // moves between two sensitive ones. Only the page can tell those apart, so
+    // the worker asks rather than guesses.
+    //
+    // It has to be a message rather than something the content script notices
+    // for itself: on a sensitive page the mutation observer is deliberately not
+    // running, so there is nothing watching the DOM to catch the route change,
+    // and a pushState called by the page is invisible from the isolated world a
+    // content script lives in.
+    if (message.type === "AR_REEVALUATE_TAB_ALLOW") {
+      state.lastSyncedHref = location.href;
+      syncPageDnrAllowRule();
+      sendResponse({ ok: true });
+      return false;
+    }
+
     if (message.type === "AR_PAGE_REPORT") {
       // The URL is built here rather than in the popup so there is one copy of
       // it. It names the form and carries no page data — the report reaches

@@ -269,6 +269,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
+// The tab allow is a network authorization, and it was outliving the page that
+// justified it. It is installed by the content script at `document_end` and was
+// removed only when the tab closed, so navigating from a bank to an ordinary
+// site in the same tab left every request in that tab unblocked until the new
+// page's content script ran — which is after the parser has already requested
+// the scripts in <head>. Reported privately 2026-08-31 and reproduced: a
+// normally blocked script loaded on an ordinary page purely because the tab had
+// previously shown a password field.
+//
+// Dropping it the moment a navigation starts inverts the failure. The content
+// script reinstalls it at `document_end` if the new page is sensitive too, so
+// the worst case is a few parser-time requests blocked on a sensitive page
+// rather than every request allowed on an ordinary one. Blocking too much on a
+// bank is recoverable; blocking nothing on the rest of the web is the bug.
+//
+// `changeInfo.url` rather than only `status` because a History API route change
+// reports a URL without ever reporting "loading", which is the SPA half of the
+// same report. No new permission is needed for either field: the manifest
+// already holds host permissions for all URLs.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status !== "loading" && !changeInfo.url) {
+    return;
+  }
+
+  syncTabDnrAllowRule(tabId, false)
+    .then(() => {
+      // Dropping is the safe half. Asking is the other half: a single-page app
+      // moving between two sensitive routes also reports a URL change, and the
+      // page is the only thing that can say whether the allow is still owed.
+      // A tab with no content script simply does not answer.
+      chrome.tabs.sendMessage(tabId, { type: "AR_REEVALUATE_TAB_ALLOW" }, () => {
+        void chrome.runtime.lastError;
+      });
+    })
+    .catch((error) => {
+      console.error("Notes Not Ads tab allow teardown failed", error);
+    });
+});
+
 chrome.tabs.onRemoved.addListener((tabId) => {
   syncTabDnrAllowRule(tabId, false).catch((error) => {
     console.error("Notes Not Ads tab DNR cleanup failed", error);
