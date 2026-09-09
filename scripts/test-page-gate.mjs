@@ -71,6 +71,35 @@ const sharedDomains = gate.SENSITIVE_DOMAINS;
 const onlyShared = sharedDomains.filter((d) => !dnrDomains.includes(d));
 const onlyBackground = dnrDomains.filter((d) => !sharedDomains.includes(d));
 
+// The worker also mirrors the path and host-word rules, because it has to reach
+// the same verdict at navigation time that the content script reaches at
+// document_end. Same reason as the domain list: two copies that drift are how a
+// surface ends up half protected.
+const sharedText = (
+  await Promise.all(
+    ["shared"].map((name) => readFile(path.join(projectRoot, `src/${name}.js`), "utf8"))
+  )
+).join("\n");
+
+for (const [sharedName, backgroundName] of [
+  ["SENSITIVE_HOST_WORDS", "SENSITIVE_DNR_HOST_WORDS"],
+  ["SENSITIVE_PATH_RE", "SENSITIVE_DNR_PATH_RE"]
+]) {
+  const inShared = sharedText.match(new RegExp(`const ${sharedName} =\\s*([\\s\\S]*?);\\n`));
+  const inBackground = backgroundSource.match(
+    new RegExp(`const ${backgroundName} =\\s*([\\s\\S]*?);\\n`)
+  );
+  if (!inShared) throw new Error(`src/shared.js no longer defines ${sharedName}`);
+  if (!inBackground) throw new Error(`src/background.js no longer defines ${backgroundName}`);
+  const normalize = (value) => value.replace(/\s+/g, "");
+  if (normalize(inShared[1]) !== normalize(inBackground[1])) {
+    console.error(
+      `${sharedName} and ${backgroundName} have drifted. The worker decides sensitivity at navigation time and the content script decides it again at document_end; if they disagree, a page is protected by one and not the other.`
+    );
+    process.exit(1);
+  }
+}
+
 if (onlyShared.length || onlyBackground.length) {
   console.error("SENSITIVE_DOMAINS and SENSITIVE_DNR_DOMAINS have drifted:\n");
   for (const d of onlyShared) console.error(`  only in src/shared.js:     ${d}`);
