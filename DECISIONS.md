@@ -2144,5 +2144,21 @@ twice, so both were page variance and bot detection rather than breakage.
 - The packaged total falls to 28,974 of 29,000. A future regeneration will
   backfill the freed slots with block rules, which is the right direction.
 - The gate is applied to the shipped artifact directly rather than by
-  regenerating from a live EasyList fetch, so the diff is 26 removed rules
+  regenerating from a live EasyList fetch, so the diff is 16 removed rules
   instead of a whole list's churn.
+- **Ad infrastructure is exempt, and that distinction was learned the hard way.**
+  The first version of the gate matched on host alone and dropped the exceptions
+  for the Google Publisher Tag library and the AdSense implementation scripts.
+  Those do not fetch a creative; they lay out the slots, so blocking them leaves
+  a publisher's page broken while the ad request happens elsewhere.
+  `tests/fixtures/dnr-match-cases.json` had asserted since before this gate that
+  `gpt.js` stays allowed on the carved-out sites, and the gate broke it. CI
+  caught it; the local run had not, because the matcher suite is not part of
+  `npm run check` and the output was grepped for the newly added case names,
+  which hid a pre-existing case flipping. `AGENTS.md` now says to read that
+  output whole.
+- The exemption leaves an asymmetry worth naming: `gpt.js` survives the gate and
+  `pagead/js/adsbygoogle.js` does not. GPT is what publishers build their layout
+  on and the project had already decided about it; the AdSense loader's job is to
+  fetch and inject the ad, and nothing asserts it must be allowed. Both
+  directions are pinned by tests so this stays a decision.

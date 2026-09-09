@@ -172,6 +172,37 @@ for (const [urlFilter, initiator] of [
   assert.match(verdict, /ad-delivery endpoint/);
 }
 
+// Kept: ad infrastructure rather than ad delivery. The publisher tag library
+// and the AdSense implementation scripts do not fetch a creative by themselves;
+// blocking them leaves the page's layout broken while the ad request happens
+// elsewhere. dnr-match-cases.json has asserted gpt.js stays allowed on the
+// carved-out sites since before this gate existed, and the first version of the
+// gate broke exactly that.
+for (const urlFilter of [
+  '||g.doubleclick.net/tag/js/gpt.js',
+  '||googletagservices.com/tag/js/gpt.js',
+  '||g.doubleclick.net/pagead/managed/js/gpt/*/pubads_impl.js',
+  '||g.doubleclick.net/gpt/pubads_impl_',
+  '||pagead2.googlesyndication.com/pagead/managed/js/adsense/*/slotcar_library_'
+]) {
+  assert.equal(
+    refuseAdDeliveryException({ urlFilter, initiatorDomains: ['example.com'] }),
+    null,
+    `${urlFilter} lays out slots rather than delivering an ad; blocking it only breaks the page`
+  );
+}
+
+// And the asymmetry that leaves, asserted so it stays a decision rather than
+// drifting into an accident: the AdSense loader's job is to fetch and inject
+// the ad, and nothing requires it to be allowed.
+assert.ok(
+  refuseAdDeliveryException({
+    urlFilter: '||pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
+    initiatorDomains: ['example.com']
+  }),
+  'the AdSense loader is delivery, not layout'
+);
+
 // Kept: an exception that has nothing to do with ad delivery.
 assert.equal(
   refuseAdDeliveryException({ urlFilter: '||example.com/app.js', initiatorDomains: ['example.org'] }),
