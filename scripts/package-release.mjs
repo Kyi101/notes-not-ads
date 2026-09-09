@@ -28,6 +28,7 @@ const requiredReleasePaths = [
   "welcome.css",
   "welcome.js",
   "src/background.js",
+  "src/sensitive-gate.js",
   "src/content.css",
   "src/content.js",
   "src/cosmetic-filters.js",
