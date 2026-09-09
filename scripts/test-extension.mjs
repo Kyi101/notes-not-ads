@@ -1429,6 +1429,8 @@ async function assertDnrBehavior(context, serviceWorker, fixtureUrl) {
     );
   }
 
+  await assertSensitivePathKeepsParserTimeRequests(context, fixtureOrigin);
+
   await assertTabAllowDoesNotOutliveTheSensitivePage(
     context,
     serviceWorker,
@@ -2604,6 +2606,50 @@ async function assertTabAllowDoesNotOutliveTheSensitivePage(
 
     console.log(
       "Tab allow lifetime OK — the sensitive-page allow does not follow the tab to another site."
+    );
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+// A page can be sensitive because of its address rather than its domain — a
+// checkout or sign-in route on an ordinary site — and no packaged domain list
+// can cover those.
+//
+// The content script only reaches that verdict at `document_end`, by which time
+// the parser has already asked for the scripts and stylesheets in <head>. Any
+// that matched a block rule were gone, and nothing replays them. Reported
+// privately 2026-08-31 and reproduced: a checkout page lost a parser-time
+// resource while its allow was installed correctly a moment later, so the
+// extension's promise to do nothing there was kept everywhere except where it
+// mattered.
+//
+// The worker now answers from `changeInfo.url` when the navigation commits. The
+// probe has to be a parser-time <script> for the same reason as the lifetime
+// check: an injected one runs after `document_end` and already worked.
+async function assertSensitivePathKeepsParserTimeRequests(browserContext, origin) {
+  const page = await browserContext.newPage();
+
+  try {
+    await page.goto(`${origin}/parser-time-probe.html`);
+    await page.waitForTimeout(700);
+    if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
+      throw new Error(
+        "The probe loaded on an ordinary path, so this check cannot tell the sensitive case apart."
+      );
+    }
+
+    await page.goto(`${origin}/checkout/parser-time-probe.html`);
+    await page.waitForTimeout(1200);
+
+    if (!(await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded)))) {
+      throw new Error(
+        "A checkout page lost a parser-time resource. The safety allow arrived after the parser had already asked for it, so the extension blocked something on a page where it promises to do nothing."
+      );
+    }
+
+    console.log(
+      "Sensitive-path timing OK — a checkout route keeps its parser-time requests."
     );
   } finally {
     await page.close().catch(() => {});

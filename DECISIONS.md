@@ -2157,3 +2157,38 @@ document load nothing removed the rule at all.
   asserts what the fix guarantees rather than what it merely usually achieves.
   An earlier version used one host and so tested the racy path, which is what CI
   rejected.
+
+## 2026-09-08 - Decide Sensitivity At Navigation, Not At document_end
+
+**Decision**: The worker judges a URL's sensitivity from `changeInfo.url` when a
+navigation commits, and installs the safety allow there. The content script
+still has the final say a moment later. `src/background.js` gains mirrors of
+`SENSITIVE_HOST_WORDS` and `SENSITIVE_PATH_RE`, asserted against the originals
+by `scripts/test-page-gate.mjs`.
+
+**Why**: Finding 4 of the private report of 2026-08-31, and the exact inverse of
+finding 2. A page can be sensitive because of its address rather than its domain
+— a checkout or sign-in route on an ordinary site — and no packaged domain list
+covers those. The content script only reached that verdict at `document_end`, by
+which time the parser had already requested the scripts and stylesheets in
+`<head>`; any that matched a block rule were gone and nothing replayed them.
+Reproduced before fixing: a checkout page lost a parser-time resource while its
+allow was installed correctly a moment later, so the promise to do nothing there
+was kept everywhere except where it mattered.
+
+**Consequences**:
+- The two findings are fixed by the same listener pulling in opposite
+  directions. It drops the allow when a tab's URL stops being sensitive and
+  installs it when the address says it has started. Reading them together is the
+  only way either makes sense, which is why they are one branch.
+- The content script is still authoritative. It can see a password field the
+  address gives no hint of, and it drops the allow when a page turns out to be
+  ordinary. The worker's verdict is an early guess that errs toward doing
+  nothing, which is the safe direction on a page like this.
+- Mirroring the rules into the worker is duplication, and the drift check is the
+  price of it. It was verified by perturbing one copy and watching the gate fail,
+  rather than by trusting that it would.
+- The regression probe is a parser-time `<script>` for the same reason as the
+  lifetime check: an injected probe runs after `document_end` and already
+  worked, so it would have passed against the unfixed build. Confirmed by
+  running the assertion against a copy with the early install disabled.
