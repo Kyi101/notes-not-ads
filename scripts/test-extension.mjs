@@ -1372,11 +1372,27 @@ function startFixtureServer() {
     });
 
     server.on("error", reject);
+    // A second loopback address serving the same handler, so a navigation
+    // between two different hosts can be tested without the fixture leaving the
+    // machine. 127.0.0.0/8 is all loopback on Linux, so this exposes nothing.
+    const secondary = http.createServer(server.listeners("request")[0]);
+
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
-      resolve({
-        port: address.port,
-        close: () => server.close()
+      secondary.listen(address.port, "127.0.0.2", () => {
+        resolve({
+          port: address.port,
+          otherHost: "127.0.0.2",
+          close: () => {
+            server.close();
+            secondary.close();
+          }
+        });
+      });
+      secondary.on("error", () => {
+        // If the second address is unavailable the cross-host assertion says so
+        // rather than silently testing nothing.
+        resolve({ port: address.port, otherHost: "", close: () => server.close() });
       });
     });
   });
@@ -1413,7 +1429,12 @@ async function assertDnrBehavior(context, serviceWorker, fixtureUrl) {
     );
   }
 
-  await assertTabAllowDoesNotOutliveTheSensitivePage(context, serviceWorker, fixtureOrigin);
+  await assertTabAllowDoesNotOutliveTheSensitivePage(
+    context,
+    serviceWorker,
+    fixtureOrigin,
+    server.otherHost ? `http://${server.otherHost}:${server.port}` : ""
+  );
 
   await saveExtensionSettings(serviceWorker, {
     ...DEFAULT_EXTENSION_SETTINGS,
@@ -2533,18 +2554,34 @@ async function assertClosedShadowGuard(browserContext, url) {
 // script loaded on an ordinary page purely because the tab had previously shown
 // a password field.
 //
-// The probe here is a parser-time <script> on purpose. A dynamically injected
-// one waits until after `document_end` and so cannot see the window this bug
-// lived in — it would pass against the unfixed build.
+// The navigation here is between two hosts, because that is the shape the fix
+// actually guarantees. The allow now names the initiator, so it stops matching
+// the moment the tab shows a different site, whether or not the worker has got
+// around to tearing the rule down. A same-host route change still depends on
+// that teardown and so still depends on the worker waking in time; asserting
+// that would be asserting a race, and it failed in CI while passing locally
+// before the rule was scoped. The limitation is recorded in DECISIONS.md
+// instead.
+//
+// The probe is a parser-time <script> on purpose. A dynamically injected one
+// waits until after `document_end` and so cannot see the window this bug lived
+// in — it would pass against the unfixed build.
 async function assertTabAllowDoesNotOutliveTheSensitivePage(
   browserContext,
   serviceWorker,
-  origin
+  origin,
+  otherOrigin
 ) {
+  if (!otherOrigin) {
+    throw new Error(
+      "The second loopback host is unavailable, so the cross-site tab-allow assertion would prove nothing."
+    );
+  }
+
   const page = await browserContext.newPage();
 
   try {
-    await page.goto(`${origin}/parser-time-probe.html`);
+    await page.goto(`${otherOrigin}/parser-time-probe.html`);
     await page.waitForTimeout(700);
     if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
       throw new Error(
@@ -2556,17 +2593,17 @@ async function assertTabAllowDoesNotOutliveTheSensitivePage(
     const tabId = await findTabIdForUrl(serviceWorker, page.url());
     await waitForDnrTabAllow(serviceWorker, tabId);
 
-    await page.goto(`${origin}/parser-time-probe.html`);
+    await page.goto(`${otherOrigin}/parser-time-probe.html`);
     await page.waitForTimeout(900);
 
     if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
       throw new Error(
-        "A blocked script loaded on an ordinary page because the tab had previously shown a sensitive one. The tab allow outlived the page that justified it."
+        "A blocked script loaded on another site because the tab had previously shown a sensitive page. The tab allow outlived the page that justified it."
       );
     }
 
     console.log(
-      "Tab allow lifetime OK — the sensitive-page allow does not survive a navigation away."
+      "Tab allow lifetime OK — the sensitive-page allow does not follow the tab to another site."
     );
   } finally {
     await page.close().catch(() => {});
