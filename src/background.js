@@ -136,26 +136,41 @@ async function clearAllDnrAllowRules() {
   });
 }
 
-async function syncTabDnrAllowRule(tabId, allowRequests) {
+// `initiatorDomain` is what keeps this rule from outliving its page.
+//
+// Scoping the allow to the tab alone meant it applied to whatever the tab
+// showed next, and removing it on navigation is a race the worker can lose: a
+// terminated service worker has to be woken before the listener runs, and the
+// parser has already asked for everything in <head> by then. That race is
+// exactly what failed in CI while passing locally. Naming the initiator makes
+// the rule stop matching the moment the tab is showing a different site,
+// whether or not anything got around to tearing it down.
+//
+// The teardown below is still worth having: it covers a route change within one
+// host, which the initiator scope cannot distinguish.
+async function syncTabDnrAllowRule(tabId, allowRequests, initiatorDomain = "") {
   if (!Number.isInteger(tabId) || tabId < 0) {
     return;
   }
 
+  const domain = normalizeDomain(initiatorDomain);
   const ruleId = DNR_TAB_ALLOW_RULE_START_ID + tabId;
   const removeRuleIds = [ruleId];
-  const addRules = allowRequests
-    ? [
-        {
-          id: ruleId,
-          priority: 1000,
-          action: { type: "allow" },
-          condition: {
-            tabIds: [tabId],
-            resourceTypes: DNR_RESOURCE_TYPES
+  const addRules =
+    allowRequests && domain
+      ? [
+          {
+            id: ruleId,
+            priority: 1000,
+            action: { type: "allow" },
+            condition: {
+              tabIds: [tabId],
+              initiatorDomains: [domain],
+              resourceTypes: DNR_RESOURCE_TYPES
+            }
           }
-        }
-      ]
-    : [];
+        ]
+      : [];
 
   await chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds,
@@ -257,7 +272,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  syncTabDnrAllowRule(sender.tab && sender.tab.id, message.allow === true)
+  // The host comes from the sender rather than the message, so a page cannot
+  // ask for an allow scoped to somebody else.
+  let senderHost = "";
+  try {
+    senderHost = new URL(sender.origin || (sender.tab && sender.tab.url) || "").hostname;
+  } catch (_error) {
+    senderHost = "";
+  }
+
+  syncTabDnrAllowRule(sender.tab && sender.tab.id, message.allow === true, senderHost)
     .then(() => {
       sendResponse({ ok: true });
     })

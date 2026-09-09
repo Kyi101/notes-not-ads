@@ -2136,3 +2136,24 @@ document load nothing removed the rule at all.
   the window this bug lived in — it would have passed against the unfixed build.
   Verified by running the assertion against a copy with the listener removed,
   where it fails.
+- The allow also names its initiator domain, and that is the part that actually
+  holds. Removing the rule on navigation is a race the worker can lose: a
+  terminated service worker has to be woken before the listener runs, and the
+  parser has asked for everything in `<head>` by then. That race passed locally
+  and failed in CI, which is the only reason it was caught. Naming the initiator
+  makes the rule stop matching the moment the tab shows a different site,
+  whether or not anything got around to tearing it down. The host is taken from
+  the message sender rather than the message, so a page cannot request an allow
+  scoped to somebody else.
+- **Known limitation, stated rather than papered over:** a route change within a
+  single host — `bank.example/login` to `bank.example/blog` — cannot be
+  distinguished by initiator, so it still depends on the teardown winning the
+  race against the worker waking. The window is bounded by that wake latency and
+  the page-gate logic is mostly host-based anyway, so the exposure is a handful
+  of parser-time requests on a host the user was already trusting. Closing it
+  properly needs `webNavigation`, which is a new install warning, and that is not
+  worth buying for this.
+- The regression test navigates between two loopback hosts for that reason: it
+  asserts what the fix guarantees rather than what it merely usually achieves.
+  An earlier version used one host and so tested the racy path, which is what CI
+  rejected.
