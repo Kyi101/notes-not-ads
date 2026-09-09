@@ -25,6 +25,61 @@ const DNR_RESOURCE_TYPES = [
 // Must mirror SENSITIVE_DOMAINS in src/shared.js. The content script also asks
 // for a per-tab allow rule, but that arrives at document_end; these are in
 // place before the first request.
+// Mirrors of the sensitivity rules in src/shared.js, because the worker cannot
+// import from a content script and has to answer the same question earlier than
+// the content script can.
+//
+// A page is sensitive by path or by host word as well as by domain — a checkout
+// or sign-in route on an ordinary site. The content script only reaches that
+// verdict at `document_end`, by which time the parser has already requested the
+// scripts and stylesheets in <head> and any that matched a block rule are gone,
+// unreplayed. Reported privately 2026-08-31 and reproduced: a checkout page lost
+// a parser-time resource while its allow was installed correctly a moment later.
+//
+// scripts/test-page-gate.mjs asserts these copies against the originals, the way
+// it already does for SENSITIVE_DNR_DOMAINS. Two copies that drift are how a
+// host ends up half protected.
+const SENSITIVE_DNR_HOST_WORDS = [
+  "bank",
+  "brokerage",
+  "checkout",
+  "payments",
+  "billing",
+  "wallet"
+];
+
+const SENSITIVE_DNR_PATH_RE =
+  /\/(checkout|cart|basket|payment|payments|billing|invoice|invoices|pay|order|orders|purchase|subscribe|subscription|login|signin|sign-in|password|account\/security)(\/|$)/i;
+
+function isSensitiveUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch (_error) {
+    return false;
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return false;
+  }
+
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+
+  if (
+    SENSITIVE_DNR_DOMAINS.some((domain) => {
+      return host === domain || host.endsWith(`.${domain}`);
+    })
+  ) {
+    return true;
+  }
+
+  if (SENSITIVE_DNR_HOST_WORDS.some((word) => host.includes(word))) {
+    return true;
+  }
+
+  return SENSITIVE_DNR_PATH_RE.test(parsed.pathname);
+}
+
 const SENSITIVE_DNR_DOMAINS = [
   "accounts.google.com",
   "docs.google.com",
@@ -317,7 +372,21 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     return;
   }
 
-  syncTabDnrAllowRule(tabId, false)
+  // Install rather than drop when the address itself says the page is
+  // sensitive. This is the earliest the extension can know: `changeInfo.url`
+  // arrives when the navigation commits, before the parser has asked for
+  // anything, whereas the content script only answers at `document_end` — after
+  // the requests in <head> have already been made and lost. A checkout route on
+  // an ordinary domain is the case that needs it, since no packaged domain list
+  // can cover those.
+  //
+  // The content script still has the final say a moment later: it can see a
+  // password field the address gives no hint of, and it will drop the allow if
+  // the page turns out to be ordinary after all.
+  const sensitiveByUrl = isSensitiveUrl(changeInfo.url || "");
+  const host = sensitiveByUrl ? new URL(changeInfo.url).hostname : "";
+
+  syncTabDnrAllowRule(tabId, sensitiveByUrl, host)
     .then(() => {
       // Dropping is the safe half. Asking is the other half: a single-page app
       // moving between two sensitive routes also reports a URL change, and the
