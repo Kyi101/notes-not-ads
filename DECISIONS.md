@@ -2192,3 +2192,23 @@ was kept everywhere except where it mattered.
   lifetime check: an injected probe runs after `document_end` and already
   worked, so it would have passed against the unfixed build. Confirmed by
   running the assertion against a copy with the early install disabled.
+- **The worker alone was not early enough, and CI is what proved it.** Judging
+  the URL from `chrome.tabs.onUpdated` beat the parser on a warm local machine
+  and lost on the runner, because a terminated service worker has to be woken
+  before its listener runs. `src/sensitive-gate.js` now runs at `document_start`
+  inside the page and asks for the allow there, which is the earliest point
+  available without a new permission. The worker's listener stays as the second
+  chance.
+- That gate runs on every page load in the browser, so it is deliberately tiny:
+  no storage, no filter parsing, no DOM, and silence on every ordinary page. It
+  carries its own copy of the sensitivity rules because it has to answer before
+  anything can be imported.
+- Three copies of those rules now exist, in three execution contexts that each
+  have to answer at a different moment. `scripts/test-page-gate.mjs` asserts all
+  three agree, and that assertion was verified against each copy in turn by
+  perturbing it and watching the gate fail.
+- Neither mechanism is synchronous, so a cold worker on a slow machine can still
+  lose a parser-time request on a sensitive path. Closing that completely is not
+  possible with declarativeNetRequest, since installing a session rule is async
+  while the network stack consults the rules synchronously. The window is now
+  bounded by a `document_start` message round trip instead of a full parse.

@@ -35,6 +35,7 @@ quiet card carrying one of the user's own notes.
 
 - `manifest.json` - extension manifest, DNR rulesets, popup, options, and content script registration.
 - `src/background.js` - MV3 service worker for DNR ruleset toggling and per-site/sensitive-page allow rules.
+- `src/sensitive-gate.js` - document_start gate that asks for the sensitive-page allow before the parser can lose a resource to a block rule; carries its own copy of the sensitivity rules because it has to answer before anything can be imported.
 - `src/site-policy.js` - pure risk-tier classifier for future protected/standard/ad-heavy/hostile protocol routing; currently covered by deterministic tests before runtime wiring.
 - `src/cosmetic-filters.js` - conservative EasyList/uBlock-style cosmetic `##` selector parser plus local cosmetic rules.
 - `src/shared.js` - shared content-script constants, settings defaults, regexes, and mutable runtime state.
@@ -122,6 +123,7 @@ quiet card carrying one of the user's own notes.
 - Use `scripting` only for injecting this extension's existing content script into the active tab when popup messaging finds no listener.
 - A report's shape is owned by `scripts/report-contract.mjs`, which is the agreement between the formatter in `src/inspector.js`, the issue forms, and `scripts/triage-report.mjs`. Renaming a label, heading, or field id means changing it there too, or triage silently stops parsing.
 - The extension never transmits a report, and the link it opens carries no page data. Query parameters travel in the GET request, so a prefilled report would reach GitHub on tab open, before the reporter submits anything — which is why the report goes to the clipboard and the link names only a form.
+- The sensitivity rules exist in three copies — `src/shared.js`, `src/background.js`, `src/sensitive-gate.js` — because three execution contexts have to answer the same question at three different moments and none of them can import from the others. `scripts/test-page-gate.mjs` asserts all three agree. Change one, change all three.
 - Register content-script message listeners synchronously before async storage loading, so popup messages cannot race listener setup.
 - Anything that reads a repo file line by line splits on `/\r?\n/`, not `"\n"`. A Windows checkout with `core.autocrlf=true` hands back a trailing `\r` on every line, which silently broke the mandatory pre-PR gate and would have shipped a bundle with trailing whitespace on every line.
 - Update the Map when files move or structure changes.

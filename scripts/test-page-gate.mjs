@@ -81,6 +81,8 @@ const sharedText = (
   )
 ).join("\n");
 
+const gateSource = await readFile(path.join(projectRoot, "src/sensitive-gate.js"), "utf8");
+
 for (const [sharedName, backgroundName] of [
   ["SENSITIVE_HOST_WORDS", "SENSITIVE_DNR_HOST_WORDS"],
   ["SENSITIVE_PATH_RE", "SENSITIVE_DNR_PATH_RE"]
@@ -95,6 +97,21 @@ for (const [sharedName, backgroundName] of [
   if (normalize(inShared[1]) !== normalize(inBackground[1])) {
     console.error(
       `${sharedName} and ${backgroundName} have drifted. The worker decides sensitivity at navigation time and the content script decides it again at document_end; if they disagree, a page is protected by one and not the other.`
+    );
+    process.exit(1);
+  }
+
+  // And the third copy. The document_start gate carries these too, because it
+  // has to answer before anything can be imported or asked. Three copies is the
+  // price of being early in three different execution contexts; drifting is what
+  // makes that price too high.
+  const inGate = gateSource.match(new RegExp(`const ${sharedName} =\\s*([\\s\\S]*?);\\n`));
+  if (!inGate) {
+    throw new Error(`src/sensitive-gate.js no longer defines ${sharedName}`);
+  }
+  if (inGate[1].replace(/\s+/g, "") !== inShared[1].replace(/\s+/g, "")) {
+    console.error(
+      `${sharedName} has drifted between src/shared.js and src/sensitive-gate.js. The gate decides at document_start and the content script decides again at document_end; if they disagree, a page is protected by one and not the other.`
     );
     process.exit(1);
   }
