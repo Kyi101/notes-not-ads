@@ -500,10 +500,31 @@ const FUNCTIONAL_EXCEPTIONS = [
   }
 ];
 
+// Ad infrastructure is not ad delivery, and the difference decides whether
+// blocking helps or just breaks the page. The Google Publisher Tag library and
+// the AdSense implementation scripts do not fetch a creative by themselves;
+// they lay out the slots, and blocking them leaves a publisher's page broken
+// while the ad request still happens elsewhere. EasyList carves them out for
+// that reason, and tests/fixtures/dnr-match-cases.json has asserted that
+// `gpt.js` stays allowed on the carved-out sites since before this gate
+// existed — an assertion the first version of this gate broke, which CI caught
+// and a too-narrow grep of the local run had hidden.
+//
+// Note the asymmetry this leaves: `gpt.js` survives and
+// `pagead/js/adsbygoogle.js` does not. That is deliberate rather than an
+// oversight. GPT is what publishers build their layout on, and the project had
+// already decided about it; the AdSense loader's job is to fetch and inject the
+// ad, and nothing asserts it must be allowed.
+const AD_LIBRARY_PATH_RE = /\/(tag\/js\/|pagead\/managed\/js\/|gpt\/|gpt\.js)/i;
+
 // Pure so it can be tested without the network and without regenerating.
 // Returns null to keep the exception, or a string saying why it was refused.
 export function refuseAdDeliveryException(condition) {
   if (!condition || !AD_DELIVERY_ENDPOINT_RE.test(condition.urlFilter || "")) {
+    return null;
+  }
+
+  if (AD_LIBRARY_PATH_RE.test(condition.urlFilter || "")) {
     return null;
   }
 
