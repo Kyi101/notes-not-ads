@@ -54,6 +54,12 @@ for (const name of ["isPageAllowed", "isDomReplacementAllowed"]) {
 const manifest = JSON.parse(
   await readFile(path.join(projectRoot, "manifest.json"), "utf8")
 );
+const seedRules = JSON.parse(
+  await readFile(path.join(projectRoot, "rules/rules_1.json"), "utf8")
+);
+const staticSensitiveRules = seedRules.filter(
+  (rule) => rule.action?.type === "allowAllRequests"
+);
 const manifestExcluded = (manifest.content_scripts || [])
   .flatMap((entry) => entry.exclude_matches || [])
   .map((pattern) => pattern.replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
@@ -233,6 +239,32 @@ for (const [url, expected, label] of CASES) {
   if (actual !== expected) {
     failures.push({ url, expected, actual, label });
   }
+
+  const staticSensitive = staticSensitiveRules.some((rule) => {
+    const domains = rule.condition?.requestDomains || [];
+    if (domains.some((domain) =>
+      parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+    )) return true;
+    const regex = rule.condition?.regexFilter;
+    return typeof regex === "string" && new RegExp(regex, "i").test(url);
+  });
+  if (staticSensitive !== (expected === "none")) {
+    failures.push({
+      url,
+      expected: expected === "none" ? "none" : "full",
+      actual: staticSensitive ? "none" : "full",
+      label: `${label} — packaged sensitive-navigation profile drift`
+    });
+  }
+}
+
+if (staticSensitiveRules.length !== 6) {
+  failures.push({
+    url: "rules/rules_1.json",
+    expected: "6",
+    actual: String(staticSensitiveRules.length),
+    label: "packaged sensitive-navigation profile count"
+  });
 }
 
 if (failures.length) {

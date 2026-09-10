@@ -1547,5 +1547,59 @@
       "urlFilter": "||admob.googleapis.com^",
       "initiatorDomains": ["admob.com"]
     }
+  },
+  {
+    "id": 170,
+    "priority": 1000,
+    "action": { "type": "allowAllRequests" },
+    "condition": {
+      "requestDomains": ["accounts.google.com", "docs.google.com", "drive.google.com", "mail.google.com", "inbox.google.com", "calendar.google.com", "pay.google.com", "payments.google.com", "wallet.google.com", "passwords.google.com", "notion.so", "notion.com", "figma.com", "canva.com", "paypal.com", "stripe.com", "venmo.com", "cash.app", "coinbase.com", "robinhood.com", "chase.com", "wellsfargo.com", "bankofamerica.com", "capitalone.com", "americanexpress.com", "amex.com", "citi.com", "citibank.com", "schwab.com", "fidelity.com", "vanguard.com", "etrade.com", "interactivebrokers.com", "ally.com", "wise.com", "revolut.com", "monzo.com", "n26.com", "kraken.com", "binance.com", "1password.com", "bitwarden.com", "lastpass.com", "dashlane.com", "keepersecurity.com", "authy.com"],
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 171,
+    "priority": 1000,
+    "action": { "type": "allowAllRequests" },
+    "condition": {
+      "regexFilter": "^https?://[^/@:]*(bank|brokerage|checkout|payments|billing|wallet)[^/@:]*(?::[0-9]+)?/",
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 172,
+    "priority": 1000,
+    "action": { "type": "allowAllRequests" },
+    "condition": {
+      "regexFilter": "^https?://[^/@]+/([^/?#]+/)*(checkout|cart|basket|payment|payments)(/|[?#]|$)",
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 173,
+    "priority": 1000,
+    "action": { "type": "allowAllRequests" },
+    "condition": {
+      "regexFilter": "^https?://[^/@]+/([^/?#]+/)*(billing|invoice|invoices|pay|order|orders)(/|[?#]|$)",
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 174,
+    "priority": 1000,
+    "action": { "type": "allowAllRequests" },
+    "condition": {
+      "regexFilter": "^https?://[^/@]+/([^/?#]+/)*(purchase|subscribe|subscription|login|signin)(/|[?#]|$)",
+      "resourceTypes": ["main_frame"]
+    }
+  },
+  {
+    "id": 175,
+    "priority": 1000,
+    "action": { "type": "allowAllRequests" },
+    "condition": {
+      "regexFilter": "^https?://[^/@]+/([^/?#]+/)*(sign-in|password|account/security)(/|[?#]|$)",
+      "resourceTypes": ["main_frame"]
+    }
   }
 ]

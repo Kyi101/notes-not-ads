@@ -172,23 +172,20 @@ for (const [urlFilter, initiator] of [
   assert.match(verdict, /ad-delivery endpoint/);
 }
 
-// Kept: ad infrastructure rather than ad delivery. The publisher tag library
-// and the AdSense implementation scripts do not fetch a creative by themselves;
-// blocking them leaves the page's layout broken while the ad request happens
-// elsewhere. dnr-match-cases.json has asserted gpt.js stays allowed on the
-// carved-out sites since before this gate existed, and the first version of the
-// gate broke exactly that.
-for (const urlFilter of [
-  '||g.doubleclick.net/tag/js/gpt.js',
-  '||googletagservices.com/tag/js/gpt.js',
-  '||g.doubleclick.net/pagead/managed/js/gpt/*/pubads_impl.js',
-  '||g.doubleclick.net/gpt/pubads_impl_',
-  '||pagead2.googlesyndication.com/pagead/managed/js/adsense/*/slotcar_library_'
+// Kept: the exact, already-tested compatibility profiles. GPT participates in
+// ad requests; retaining these is a scoped compatibility choice, not a claim
+// that the libraries only arrange layout.
+for (const [urlFilter, resourceTypes, initiator] of [
+  ['||g.doubleclick.net/tag/js/gpt.js', ['script', 'xmlhttprequest'], 'bloomberg.com'],
+  ['||googletagservices.com/tag/js/gpt.js', undefined, 'vimeo.com'],
+  ['||g.doubleclick.net/pagead/managed/js/gpt/*/pubads_impl.js', undefined, 'laurelberninteriors.com'],
+  ['||g.doubleclick.net/gpt/pubads_impl_', undefined, 'weather.com'],
+  ['||pagead2.googlesyndication.com/pagead/managed/js/adsense/*/slotcar_library_', ['script'], 'sudokugame.org']
 ]) {
   assert.equal(
-    refuseAdDeliveryException({ urlFilter, initiatorDomains: ['example.com'] }),
+    refuseAdDeliveryException({ urlFilter, resourceTypes, initiatorDomains: [initiator] }),
     null,
-    `${urlFilter} lays out slots rather than delivering an ad; blocking it only breaks the page`
+    `${urlFilter} must retain its reviewed compatibility profile`
   );
 }
 
@@ -203,24 +200,74 @@ assert.ok(
   'the AdSense loader is delivery, not layout'
 );
 
+// A library-looking query fragment is not a reviewed library endpoint.
+assert.ok(
+  refuseAdDeliveryException({
+    urlFilter: '||g.doubleclick.net/gampad/ads?asset=/gpt.js',
+    resourceTypes: ['script'],
+    initiatorDomains: ['example.com']
+  }),
+  'a gpt.js string in query data must not exempt an ad-delivery endpoint'
+);
+
+assert.ok(
+  refuseAdDeliveryException({
+    urlFilter: '||g.doubleclick.net/tag/js/gpt.js',
+    resourceTypes: ['script'],
+    initiatorDomains: ['bloomberg.com', 'randomsite.example']
+  }),
+  'a reviewed library filter must not add an unreviewed publisher'
+);
+
+// The functional Amazon profile is image-only and third-party.
+for (const condition of [
+  { urlFilter: '||amazon-adsystem.com/widgets/q?', resourceTypes: ['script'], domainType: 'thirdParty' },
+  { urlFilter: '||amazon-adsystem.com/widgets/q?', resourceTypes: ['image'] },
+  { urlFilter: '||amazon-adsystem.com/widgets/q?', resourceTypes: ['image', 'script'], domainType: 'thirdParty' }
+]) {
+  assert.ok(refuseAdDeliveryException(condition), 'the Amazon compatibility profile must not widen');
+}
+
+// IMA does not exempt an ad-delivery endpoint, alone or mixed with a publisher.
+assert.ok(
+  refuseAdDeliveryException({
+    urlFilter: '||g.doubleclick.net/gampad/ads*%20Web%20Player',
+    initiatorDomains: ['imasdk.googleapis.com']
+  }),
+  'an IMA-only scope still delivers an ad and must be refused'
+);
+assert.ok(
+  refuseAdDeliveryException({
+    urlFilter: '||g.doubleclick.net/gampad/ads*%20Web%20Player',
+    initiatorDomains: ['imasdk.googleapis.com', 'example.com']
+  }),
+  'a mixed IMA/publisher scope must be refused'
+);
+
+// Exercise the real parser and block-dependency path, not only the pure helper.
+for (const [host, exception] of [
+  ['g.doubleclick.net', '@@||g.doubleclick.net/gampad/ads?asset=/gpt.js$script,domain=example.com'],
+  ['g.doubleclick.net', '@@||g.doubleclick.net/tag/js/gpt.js$script,domain=bloomberg.com|randomsite.example'],
+  ['amazon-adsystem.com', '@@||amazon-adsystem.com/widgets/q?$script,third-party'],
+  ['g.doubleclick.net', '@@||g.doubleclick.net/gampad/ads*%20Web%20Player$domain=imasdk.googleapis.com|example.com']
+]) {
+  const parsed = parseRules(`||${host}^\n${exception}`, {
+    ruleLimit: 100,
+    hostPrevalence: {},
+    observedAdHosts: {}
+  });
+  assert.equal(
+    parsed.dnrRules.filter((rule) => rule.action.type === 'allow').length,
+    0,
+    `${exception} must be refused at the parser boundary`
+  );
+}
+
 // Kept: an exception that has nothing to do with ad delivery.
 assert.equal(
   refuseAdDeliveryException({ urlFilter: '||example.com/app.js', initiatorDomains: ['example.org'] }),
   null,
   'an ordinary exception must survive the gate'
-);
-
-// Kept, deliberately: the video-ad SDK's own requests. These are the one subset
-// where "un-break" plausibly means the player will not start without an ad
-// response, and the 2026-09-08 measurement never got playback started in either
-// build, so it settled nothing. Held pending evidence rather than endorsed.
-assert.equal(
-  refuseAdDeliveryException({
-    urlFilter: '||g.doubleclick.net/gampad/ads?env=',
-    initiatorDomains: ['imasdk.googleapis.com']
-  }),
-  null,
-  'IMA-initiated exceptions are held back on purpose; changing this needs a playback measurement'
 );
 
 // Kept, hand-reviewed: Amazon's affiliate widget serves product images, not
@@ -229,7 +276,8 @@ assert.equal(
 assert.equal(
   refuseAdDeliveryException({
     urlFilter: '||amazon-adsystem.com/widgets/q?',
-    resourceTypes: ['image']
+    resourceTypes: ['image'],
+    domainType: 'thirdParty'
   }),
   null,
   'the functional re-admit list must be honoured'

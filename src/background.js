@@ -142,7 +142,10 @@ async function syncNetRequestState(settings = {}) {
     return;
   }
 
-  await syncDnrAllowRules([...SENSITIVE_DNR_DOMAINS, ...(settings.disabledDomains || [])]);
+  // Fixed sensitive domains and URL-visible routes are packaged in rules_1 so
+  // they exist before the worker starts. Session allows are only for the
+  // user's mutable disabled-domain list.
+  await syncDnrAllowRules(settings.disabledDomains || []);
 }
 
 async function syncDnrAllowRules(allowedInitiatorDomains = []) {
@@ -208,7 +211,7 @@ async function syncTabDnrAllowRule(tabId, allowRequests, initiatorDomain = "") {
     return;
   }
 
-  const domain = normalizeDomain(initiatorDomain);
+  const domain = normalizeInitiatorDomain(initiatorDomain);
   const ruleId = DNR_TAB_ALLOW_RULE_START_ID + tabId;
   const removeRuleIds = [ruleId];
   const addRules =
@@ -262,6 +265,23 @@ function normalizeDomain(value) {
     return stripWww(new URL(raw.includes("://") ? raw : `https://${raw}`).hostname);
   } catch (_error) {
     return stripWww(raw.split("/")[0]);
+  }
+}
+
+// Do not broaden `www.example` to the apex for a tab authorization: DNR domain
+// conditions already include descendants, so the apex would also cover
+// unrelated sibling hosts while a sleeping worker had not removed the rule.
+function normalizeInitiatorDomain(value) {
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (!raw) return "";
+
+  try {
+    return new URL(raw.includes("://") ? raw : `https://${raw}`).hostname;
+  } catch (_error) {
+    return raw.split("/")[0];
   }
 }
 
@@ -330,10 +350,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // The host comes from the sender rather than the message, so a page cannot
   // ask for an allow scoped to somebody else.
   let senderHost = "";
+  let senderUrl = "";
   try {
-    senderHost = new URL(sender.origin || (sender.tab && sender.tab.url) || "").hostname;
+    senderUrl = (sender.tab && sender.tab.url) || sender.origin || "";
+    senderHost = new URL(senderUrl).hostname;
   } catch (_error) {
     senderHost = "";
+    senderUrl = "";
+  }
+
+  // URL-visible sensitivity is already covered by preinstalled
+  // allowAllRequests or the fixed domain allowlist. A tab allow here would be
+  // broader and could survive a same-host route change, so reserve it for
+  // sensitivity discovered only from the DOM.
+  if (message.allow === true && isSensitiveUrl(senderUrl)) {
+    // Do not mutate the session rules after the frame matched
+    // allowAllRequests: replacing the ruleset can discard that frame-scoped
+    // decision in Chromium. There is no tab rule to install for this case.
+    sendResponse({ ok: true });
+    return false;
   }
 
   syncTabDnrAllowRule(sender.tab && sender.tab.id, message.allow === true, senderHost)
@@ -372,21 +407,17 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     return;
   }
 
-  // Install rather than drop when the address itself says the page is
-  // sensitive. This is the earliest the extension can know: `changeInfo.url`
-  // arrives when the navigation commits, before the parser has asked for
-  // anything, whereas the content script only answers at `document_end` — after
-  // the requests in <head> have already been made and lost. A checkout route on
-  // an ordinary domain is the case that needs it, since no packaged domain list
-  // can cover those.
-  //
-  // The content script still has the final say a moment later: it can see a
-  // password field the address gives no hint of, and it will drop the allow if
-  // the page turns out to be ordinary after all.
+  // URL-visible sensitive navigations match the preinstalled allowAllRequests
+  // rules before this event and need no tab authorization. More importantly,
+  // mutating session rules here can discard Chromium's frame-scoped
+  // allowAllRequests decision. Only an ordinary destination needs an immediate
+  // teardown; DOM-only sensitivity is installed later by the content script.
   const sensitiveByUrl = isSensitiveUrl(changeInfo.url || "");
-  const host = sensitiveByUrl ? new URL(changeInfo.url).hostname : "";
+  if (sensitiveByUrl) {
+    return;
+  }
 
-  syncTabDnrAllowRule(tabId, sensitiveByUrl, host)
+  syncTabDnrAllowRule(tabId, false)
     .then(() => {
       // Dropping is the safe half. Asking is the other half: a single-page app
       // moving between two sensitive routes also reports a URL change, and the

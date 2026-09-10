@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
-const ALLOWED_ACTIONS = new Set(["block", "allow"]);
+const ALLOWED_ACTIONS = new Set(["block", "allow", "allowAllRequests"]);
 const MIN_FILTER_LENGTH = 4;
 const MIN_ALLOW_DISCRIMINATOR = 4;
 const DEFAULT_TARGETS = ["rules/rules_1.json", "rules/easylist_dnr.json"];
@@ -49,8 +49,13 @@ for (const target of targets) {
     const action = rule.action?.type;
     if (!ALLOWED_ACTIONS.has(action)) {
       throw new Error(
-        `DNR lint violation: ${where} uses the action "${action}". Only block and allow ship — redirect and modifyHeaders would let a packaged rule rewrite traffic.`
+        `DNR lint violation: ${where} uses the action "${action}". Only block, scoped allow, and audited main-frame allowAllRequests rules ship.`
       );
+    }
+
+    if (action === "allowAllRequests") {
+      validateMainFrameAllow(rule, where);
+      return;
     }
 
     if (rule.condition?.regexFilter !== undefined) {
@@ -98,6 +103,55 @@ for (const target of targets) {
   });
 
   console.log(`  ${label}: ${rules.length} rules`);
+}
+
+function validateMainFrameAllow(rule, where) {
+  const condition = rule.condition || {};
+  if (rule.priority !== 1000) {
+    throw new Error(`DNR lint violation: ${where} allowAllRequests must use priority 1000.`);
+  }
+  if (
+    !Array.isArray(condition.resourceTypes) ||
+    condition.resourceTypes.length !== 1 ||
+    condition.resourceTypes[0] !== "main_frame"
+  ) {
+    throw new Error(
+      `DNR lint violation: ${where} allowAllRequests must target main_frame only; sub-frame matching can exempt an ad iframe on an ordinary page.`
+    );
+  }
+  if (condition.initiatorDomains || condition.tabIds || condition.excludedTabIds) {
+    throw new Error(
+      `DNR lint violation: ${where} allowAllRequests must be owned by the destination URL, not an initiator or tab lifetime.`
+    );
+  }
+
+  const domains = condition.requestDomains || [];
+  const regex = condition.regexFilter;
+  if (domains.length) {
+    if (regex !== undefined || condition.urlFilter !== undefined) {
+      throw new Error(`DNR lint violation: ${where} mixes requestDomains with a URL filter.`);
+    }
+    for (const domain of domains) {
+      if (typeof domain !== "string" || !isScopableDomain(domain)) {
+        throw new Error(`DNR lint violation: ${where} has an invalid sensitive request domain "${domain}".`);
+      }
+    }
+    return;
+  }
+
+  if (
+    typeof regex !== "string" ||
+    !regex.startsWith("^https?://[^/@") ||
+    regex.includes(".*") ||
+    !regex.endsWith("(/|[?#]|$)") && !regex.endsWith("(?::[0-9]+)?/")
+  ) {
+    throw new Error(
+      `DNR lint violation: ${where} allowAllRequests regex must be HTTP(S)-anchored, exclude userinfo, and end on an audited host/path boundary.`
+    );
+  }
+  if (condition.urlFilter !== undefined) {
+    throw new Error(`DNR lint violation: ${where} allowAllRequests must not mix regexFilter and urlFilter.`);
+  }
 }
 
 console.log("PASS DNR rule lint");

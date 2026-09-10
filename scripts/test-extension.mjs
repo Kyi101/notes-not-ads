@@ -1341,6 +1341,15 @@ function startFixtureServer() {
         return;
       }
 
+      if (url.pathname.endsWith("/password-sensitive.html")) {
+        response.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-store" });
+        response.end(
+          '<!doctype html><title>Password-sensitive fixture</title>' +
+            '<label>Password <input type="password" autocomplete="current-password"></label>'
+        );
+        return;
+      }
+
       const isClassifieds = url.pathname.endsWith("/classifieds-item.html");
       const isClosedShadow = url.pathname.endsWith("/closed-shadow-sensitive.html");
 
@@ -1420,7 +1429,7 @@ async function assertDnrBehavior(context, serviceWorker, fixtureUrl) {
   const sensitivePage = await context.newPage();
   await sensitivePage.goto(`${fixtureOrigin}/checkout/ad-clutter.html#dnr-sensitive`);
   const sensitiveTabId = await findTabIdForUrl(serviceWorker, sensitivePage.url());
-  await waitForDnrTabAllow(serviceWorker, sensitiveTabId);
+  await waitForNoDnrTabAllow(serviceWorker, sensitiveTabId);
   const sensitiveProbe = await loadDnrProbeScript(sensitivePage);
   await sensitivePage.close();
   if (!sensitiveProbe.loaded) {
@@ -1429,7 +1438,12 @@ async function assertDnrBehavior(context, serviceWorker, fixtureUrl) {
     );
   }
 
-  await assertSensitivePathKeepsParserTimeRequests(context, fixtureOrigin);
+  await assertSensitivePathKeepsParserTimeRequests(context, fixtureOrigin, serviceWorker);
+  await assertUrlSensitiveAllowDoesNotOutliveSameHostRoute(
+    context,
+    fixtureOrigin,
+    serviceWorker
+  );
 
   await assertTabAllowDoesNotOutliveTheSensitivePage(
     context,
@@ -1869,6 +1883,19 @@ async function waitForDnrTabAllow(serviceWorker, tabId) {
   }
 
   throw new Error(`Timed out waiting for DNR tab allow rule for tab ${tabId}.`);
+}
+
+async function waitForNoDnrTabAllow(serviceWorker, tabId) {
+  await delay(500);
+  const found = await serviceWorker.evaluate(async (targetTabId) => {
+    const rules = await chrome.declarativeNetRequest.getSessionRules();
+    return rules.some((rule) =>
+      rule.id >= 910000 && rule.condition?.tabIds?.includes(targetTabId)
+    );
+  }, tabId);
+  if (found) {
+    throw new Error(`A URL-covered sensitive page retained a tab allow for ${tabId}.`);
+  }
 }
 
 async function waitForNoDnrAllowRules(serviceWorker) {
@@ -2556,14 +2583,11 @@ async function assertClosedShadowGuard(browserContext, url) {
 // script loaded on an ordinary page purely because the tab had previously shown
 // a password field.
 //
-// The navigation here is between two hosts, because that is the shape the fix
-// actually guarantees. The allow now names the initiator, so it stops matching
-// the moment the tab shows a different site, whether or not the worker has got
-// around to tearing the rule down. A same-host route change still depends on
-// that teardown and so still depends on the worker waking in time; asserting
-// that would be asserting a race, and it failed in CI while passing locally
-// before the rule was scoped. The limitation is recorded in DECISIONS.md
-// instead.
+// This starts from DOM-only sensitivity: URL-visible routes use preinstalled
+// allowAllRequests and deliberately never acquire this broader tab rule. The
+// navigation crosses hosts so the initiator scope is a deterministic barrier
+// even if a cold worker has not removed the rule. A same-host departure from a
+// DOM-only password page remains the narrow residual race.
 //
 // The probe is a parser-time <script> on purpose. A dynamically injected one
 // waits until after `document_end` and so cannot see the window this bug lived
@@ -2591,7 +2615,7 @@ async function assertTabAllowDoesNotOutliveTheSensitivePage(
       );
     }
 
-    await page.goto(`${origin}/checkout/ad-clutter.html#tab-allow-lifetime`);
+    await page.goto(`${origin}/password-sensitive.html#tab-allow-lifetime`);
     const tabId = await findTabIdForUrl(serviceWorker, page.url());
     await waitForDnrTabAllow(serviceWorker, tabId);
 
@@ -2624,13 +2648,51 @@ async function assertTabAllowDoesNotOutliveTheSensitivePage(
 // extension's promise to do nothing there was kept everywhere except where it
 // mattered.
 //
-// The worker now answers from `changeInfo.url` when the navigation commits. The
-// probe has to be a parser-time <script> for the same reason as the lifetime
-// check: an injected one runs after `document_end` and already worked.
-async function assertSensitivePathKeepsParserTimeRequests(browserContext, origin) {
+// A preinstalled allowAllRequests rule now answers URL-visible sensitivity in
+// the network stack even when the worker is cold. The document_start message is
+// retained for DOM-only sensitivity. The probe has to be a parser-time <script>
+// for the same reason as the lifetime check: an injected one runs after
+// `document_end` and already worked.
+async function assertSensitivePathKeepsParserTimeRequests(browserContext, origin, serviceWorker) {
   const page = await browserContext.newPage();
 
   try {
+    const matcherCases = await serviceWorker.evaluate(async (urls) => {
+      const rows = [];
+      for (const [url, type] of urls) {
+        const outcome = await chrome.declarativeNetRequest.testMatchOutcome({
+          url,
+          type,
+          initiator: "https://news.example",
+          method: "get"
+        });
+        rows.push({ url, type, matchedRules: outcome.matchedRules });
+      }
+      return rows;
+    }, [
+      ...[
+        "https://accounts.google.com/",
+        "https://checkout.example/",
+        "https://example.com/checkout",
+        "https://example.com/shop/account/security?continue=1",
+        "https://example.com/blog/sign-in/"
+      ].map((url) => [url, "main_frame"]),
+      ["https://example.com/blog/checkout-guide", "main_frame"],
+      ["https://bank@ordinary.example/", "main_frame"],
+      ["https://g.doubleclick.net/checkout/frame.html", "sub_frame"]
+    ]);
+    const hasSensitiveAllow = (row) => row.matchedRules.some(
+      (rule) => rule.rulesetId === "ruleset_1" && rule.ruleId >= 170 && rule.ruleId <= 175
+    );
+    if (
+      !matcherCases.slice(0, 5).every(hasSensitiveAllow) ||
+      matcherCases.slice(5).some(hasSensitiveAllow)
+    ) {
+      throw new Error(
+        `The packaged sensitive-navigation profiles are missing or overbroad: ${JSON.stringify(matcherCases)}`
+      );
+    }
+
     await page.goto(`${origin}/parser-time-probe.html`);
     await page.waitForTimeout(700);
     if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
@@ -2650,6 +2712,35 @@ async function assertSensitivePathKeepsParserTimeRequests(browserContext, origin
 
     console.log(
       "Sensitive-path timing OK — a checkout route keeps its parser-time requests."
+    );
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+async function assertUrlSensitiveAllowDoesNotOutliveSameHostRoute(
+  browserContext,
+  origin,
+  serviceWorker
+) {
+  const page = await browserContext.newPage();
+  try {
+    await page.goto(`${origin}/checkout/parser-time-probe.html`);
+    if (!(await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded)))) {
+      throw new Error("The sensitive control did not load, so the route-lifetime check is invalid.");
+    }
+    const tabId = await findTabIdForUrl(serviceWorker, page.url());
+    await waitForNoDnrTabAllow(serviceWorker, tabId);
+
+    await page.goto(`${origin}/parser-time-probe.html`);
+    await page.waitForTimeout(500);
+    if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
+      throw new Error(
+        "A URL-sensitive allow followed the tab to an ordinary route on the same host."
+      );
+    }
+    console.log(
+      "Sensitive-route lifetime OK — the declarative allow does not follow a same-host ordinary route."
     );
   } finally {
     await page.close().catch(() => {});

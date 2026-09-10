@@ -404,9 +404,9 @@ detection had no match reason because the source host was unknown.
 **Decision**: Keep MV3 `declarativeNetRequest` active for the release
 candidate, but bound it with the same user/safety contract as DOM replacement:
 global off disables static rulesets, disabled domains get high-priority session
-`allow` rules, known sensitive domains get high-priority session `allow` rules,
-and path-sensitive pages can request tab-scoped `allow` rules from the content
-script.
+`allow` rules, known sensitive domains and URL-visible routes get packaged
+main-frame `allowAllRequests` rules, and DOM-only sensitive pages can request
+tab-scoped `allow` rules from the content script.
 
 **Why**: The product is moving beyond the original visual-only MVP toward a
 usable public extension. Network blocking improves real-world usefulness and
@@ -416,7 +416,8 @@ as the visual layer.
 
 **Consequences**:
 - `manifest.json` includes the DNR permission and packaged static rulesets.
-- `src/background.js` owns DNR ruleset toggling plus domain/tab allow rules.
+- `rules/rules_1.json` owns fixed sensitive navigation profiles;
+  `src/background.js` owns DNR toggling plus mutable domain/tab allows.
 - `src/main.js` reports skipped/sensitive pages to the background worker so
   path-sensitive tabs can stop network blocking.
 - `scripts/test-release-contract.mjs` fails if DNR or allow-rule behavior is
@@ -2145,24 +2146,24 @@ document load nothing removed the rule at all.
   whether or not anything got around to tearing it down. The host is taken from
   the message sender rather than the message, so a page cannot request an allow
   scoped to somebody else.
-- **Known limitation, stated rather than papered over:** a route change within a
-  single host — `bank.example/login` to `bank.example/blog` — cannot be
-  distinguished by initiator, so it still depends on the teardown winning the
-  race against the worker waking. The window is bounded by that wake latency and
-  the page-gate logic is mostly host-based anyway, so the exposure is a handful
-  of parser-time requests on a host the user was already trusting. Closing it
-  properly needs `webNavigation`, which is a new install warning, and that is not
-  worth buying for this.
-- The regression test navigates between two loopback hosts for that reason: it
-  asserts what the fix guarantees rather than what it merely usually achieves.
-  An earlier version used one host and so tested the racy path, which is what CI
-  rejected.
+- URL-visible sensitive pages no longer acquire this tab allow. Their
+  preinstalled navigation rule ends with the matching frame, so the regression
+  now proves `example/login` to `example/blog` on the same host as well as the
+  cross-host case. The initiator rule is reserved for sensitivity discovered
+  only from the DOM.
+- **Narrow residual limitation:** an ordinary-looking URL that becomes sensitive
+  solely because the DOM contains a password/control still needs a tab-scoped
+  initiator allow. A same-host departure from that page can race its teardown.
+  The cross-host test is deterministic because the tab rule retains the exact
+  sender host (`www.` is no longer stripped); closing the DOM-only same-host case
+  would require a different product/network design, not merely another event.
 
 ## 2026-09-08 - Decide Sensitivity At Navigation, Not At document_end
 
-**Decision**: The worker judges a URL's sensitivity from `changeInfo.url` when a
-navigation commits, and installs the safety allow there. The content script
-still has the final say a moment later. `src/background.js` gains mirrors of
+**Decision**: Package URL-matching `allowAllRequests` rules in `rules_1`, so
+known sensitive domains and routes are protected before the MV3 worker starts
+and across browser restarts. The worker and document-start gate remain fallbacks
+for state changes and DOM-only sensitivity. `src/background.js` mirrors
 `SENSITIVE_HOST_WORDS` and `SENSITIVE_PATH_RE`, asserted against the originals
 by `scripts/test-page-gate.mjs`.
 
@@ -2177,14 +2178,22 @@ allow was installed correctly a moment later, so the promise to do nothing there
 was kept everywhere except where it mattered.
 
 **Consequences**:
-- The two findings are fixed by the same listener pulling in opposite
-  directions. It drops the allow when a tab's URL stops being sensitive and
-  installs it when the address says it has started. Reading them together is the
-  only way either makes sense, which is why they are one branch.
-- The content script is still authoritative. It can see a password field the
-  address gives no hint of, and it drops the allow when a page turns out to be
-  ordinary. The worker's verdict is an early guess that errs toward doing
-  nothing, which is the safe direction on a page like this.
+- URL-visible sensitivity is represented by six static profiles: one
+  `requestDomains` profile for the fixed sensitive-domain list, one
+  RE2-compatible host-word profile, and four path profiles. Splitting the path
+  expression avoids Chrome's per-regex 2 KB compiled-memory limit, which
+  rejected the initial combined expression.
+- `allowAllRequests` is scoped to main-frame navigation and priority 1000.
+  It permits a matching top-level frame's lower-priority subrequests without
+  adding a host permission or a tab rule that can follow the tab to an ordinary
+  route. It deliberately does not match `sub_frame`: otherwise an ad iframe
+  with a sensitive-looking path could exempt itself on an ordinary publisher.
+- The host regex excludes userinfo before matching sensitive words. Chrome's
+  matcher regression asserts that `https://bank@ordinary.example/` and a
+  sensitive-looking DoubleClick subframe do not receive the allow.
+- The content script remains authoritative for a password field the address
+  gives no hint of. That DOM-only case installs the narrower exact-host tab
+  allow and retains the residual same-host teardown race documented above.
 - Mirroring the rules into the worker is duplication, and the drift check is the
   price of it. It was verified by perturbing one copy and watching the gate fail,
   rather than by trusting that it would.
@@ -2207,11 +2216,14 @@ was kept everywhere except where it mattered.
   have to answer at a different moment. `scripts/test-page-gate.mjs` asserts all
   three agree, and that assertion was verified against each copy in turn by
   perturbing it and watching the gate fail.
-- Neither mechanism is synchronous, so a cold worker on a slow machine can still
-  lose a parser-time request on a sensitive path. Closing that completely is not
-  possible with declarativeNetRequest, since installing a session rule is async
-  while the network stack consults the rules synchronously. The window is now
-  bounded by a `document_start` message round trip instead of a full parse.
+- The async mechanisms have no documented ordering guarantee and previously
+  lost on CI. URL-visible sensitive routes are therefore covered by packaged
+  `allowAllRequests` rules already in the network stack while the worker sleeps;
+  a second-launch experiment also navigated before touching the worker and kept
+  the sensitive parser request while the ordinary control remained blocked.
+- DOM-only sensitivity cannot be known at navigation time. The document-start
+  and content-script messages remain the best-effort path for a password field
+  on an otherwise ordinary URL; this is the narrower residual limitation.
 ## 2026-09-08 - Refuse EasyList Exceptions That Only Permit Ad Delivery
 
 **Decision**: Add a semantic gate to `scripts/update-lists.mjs` refusing any
@@ -2274,3 +2286,36 @@ twice, so both were page variance and bot detection rather than breakage.
   on and the project had already decided about it; the AdSense loader's job is to
   fetch and inject the ad, and nothing asserts it must be allowed. Both
   directions are pinned by tests so this stays a decision.
+- The compatibility carve-outs are exact reviewed profiles, not path-fragment
+  heuristics. Google documents GPT as issuing ad requests, so preserving its
+  current exceptions is an explicit compatibility choice rather than a claim
+  that those scripts only affect layout. The Amazon profile is exactly a
+  third-party image request. The reviewed library registry also freezes the
+  existing publisher scopes; parser-level negative tests prevent query,
+  resource-type, and publisher widening. IMA ad-delivery exceptions are handled
+  by the removal decision below rather than by this registry.
+
+## 2026-09-10 - Remove The Deferred IMA Ad-Delivery Exceptions
+
+**Decision**: Remove the eleven remaining IMA-initiated exceptions that target
+GAMPAD/pagead delivery endpoints. The SDK loaders remain governed separately;
+this decision is only about allowing the ad responses themselves.
+
+**Why**: A controlled Chrome 148 A/B proved a representative retained rule
+changes the DNR outcome from block to allow. Actual content playback started in
+both variants, but the live IMA sample failed before exercising that endpoint,
+and the named Laurel publisher canary no longer matched either retained rule.
+That is not proof that every publisher is compatible. It is also no evidence
+that serving an ad is necessary. With no demonstrated content dependency, the
+product invariant is decisive: an ad blocker must not ship an exception whose
+known effect is to permit an ad merely in case a player handles ad failure
+poorly. The private experiment and raw results live outside Git under
+`runs/advisory-104/experiments/`.
+
+**Consequences**:
+- Players that refuse to resume content after an ad error may still fail. This
+  is an explicit product tradeoff, not a compatibility claim.
+- The matcher fixture now pins a representative IMA delivery request as blocked.
+- A future exception needs an actual reproducer where content playback fails,
+  a narrow request profile, and a decision explaining why serving that request
+  is consistent with the product.

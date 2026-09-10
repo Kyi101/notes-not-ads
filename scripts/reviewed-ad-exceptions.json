@@ -1,0 +1,253 @@
+{
+  "libraryProfiles": [
+    {
+      "urlFilter": "||g.doubleclick.net/gpt/pubads_impl_",
+      "resourceTypes": null,
+      "initiatorDomains": [
+        "accuweather.com",
+        "blastingnews.com",
+        "bloomberg.com",
+        "chelseafc.com",
+        "chromatographyonline.com",
+        "cornwalllive.com",
+        "digitaltrends.com",
+        "downdetector.com",
+        "edy.rakuten.co.jp",
+        "epaper.timesgroup.com",
+        "formularywatch.com",
+        "game.anymanager.io",
+        "games.coolgames.com",
+        "managedhealthcareexecutive.com",
+        "medicaleconomics.com",
+        "nationalreview.com",
+        "nationalworld.com",
+        "nbcsports.com",
+        "nycgo.com",
+        "physicianspractice.com",
+        "scotsman.com",
+        "telsu.fi",
+        "voici.fr",
+        "weather.com"
+      ]
+    },
+    {
+      "urlFilter": "||g.doubleclick.net/pagead/managed/js/gpt/",
+      "resourceTypes": [
+        "script"
+      ],
+      "initiatorDomains": [
+        "adamtheautomator.com",
+        "allestoringen.be",
+        "allestoringen.nl",
+        "aussieoutages.com",
+        "canadianoutages.com",
+        "downdetector.ae",
+        "downdetector.ca",
+        "downdetector.co.nz",
+        "downdetector.co.uk",
+        "downdetector.co.za",
+        "downdetector.com",
+        "downdetector.com.ar",
+        "downdetector.com.br",
+        "downdetector.dk",
+        "downdetector.es",
+        "downdetector.fi",
+        "downdetector.fr",
+        "downdetector.hk",
+        "downdetector.ie",
+        "downdetector.in",
+        "downdetector.it",
+        "downdetector.jp",
+        "downdetector.mx",
+        "downdetector.no",
+        "downdetector.pl",
+        "downdetector.pt",
+        "downdetector.ru",
+        "downdetector.se",
+        "downdetector.sg",
+        "downdetector.tw",
+        "downdetector.web.tr",
+        "euronews.com",
+        "filmweb.pl",
+        "hoyme.jp",
+        "ictnews.org",
+        "journaldequebec.com",
+        "kino.de",
+        "samsclub.com",
+        "spiegel.de",
+        "thestar.co.uk",
+        "thestreet.com",
+        "xn--allestrungen-9ib.at",
+        "xn--allestrungen-9ib.ch",
+        "xn--allestrungen-9ib.de",
+        "yorkshirepost.co.uk"
+      ]
+    },
+    {
+      "urlFilter": "||g.doubleclick.net/pagead/managed/js/gpt/*/pubads_impl.js",
+      "resourceTypes": null,
+      "initiatorDomains": [
+        "blog.nicovideo.jp",
+        "laurelberninteriors.com",
+        "metropcs.mobi"
+      ]
+    },
+    {
+      "urlFilter": "||g.doubleclick.net/tag/js/gpt.js",
+      "resourceTypes": [
+        "script",
+        "xmlhttprequest"
+      ],
+      "initiatorDomains": [
+        "accuweather.com",
+        "adamtheautomator.com",
+        "bestiefy.com",
+        "blastingnews.com",
+        "blog.nicovideo.jp",
+        "bloomberg.com",
+        "chromatographyonline.com",
+        "cornwalllive.com",
+        "devclass.com",
+        "digitaltrends.com",
+        "edy.rakuten.co.jp",
+        "epaper.timesgroup.com",
+        "euronews.com",
+        "filmweb.pl",
+        "formularywatch.com",
+        "games.coolgames.com",
+        "gearpatrol.com",
+        "hoyme.jp",
+        "journaldequebec.com",
+        "kino.de",
+        "laurelberninteriors.com",
+        "managedhealthcareexecutive.com",
+        "medicaleconomics.com",
+        "metropcs.mobi",
+        "newsweek.com",
+        "nycgo.com",
+        "olx.pl",
+        "physicianspractice.com",
+        "repretel.com",
+        "samsclub.com",
+        "spiegel.de",
+        "standard.co.uk",
+        "telsu.fi",
+        "thestreet.com",
+        "theta.tv",
+        "weather.com",
+        "wralsportsfan.com"
+      ]
+    },
+    {
+      "urlFilter": "||googletagservices.com/tag/js/gpt.js",
+      "resourceTypes": null,
+      "initiatorDomains": [
+        "allestoringen.be",
+        "allestoringen.nl",
+        "chegg.com",
+        "chelseafc.com",
+        "downdetector.ae",
+        "downdetector.ca",
+        "downdetector.cl",
+        "downdetector.co.nz",
+        "downdetector.co.uk",
+        "downdetector.co.za",
+        "downdetector.com",
+        "downdetector.com.ar",
+        "downdetector.com.au",
+        "downdetector.com.br",
+        "downdetector.com.co",
+        "downdetector.cz",
+        "downdetector.dk",
+        "downdetector.ec",
+        "downdetector.es",
+        "downdetector.fi",
+        "downdetector.fr",
+        "downdetector.gr",
+        "downdetector.hk",
+        "downdetector.hr",
+        "downdetector.hu",
+        "downdetector.id",
+        "downdetector.ie",
+        "downdetector.in",
+        "downdetector.it",
+        "downdetector.jp",
+        "downdetector.mx",
+        "downdetector.my",
+        "downdetector.no",
+        "downdetector.pe",
+        "downdetector.ph",
+        "downdetector.pk",
+        "downdetector.pl",
+        "downdetector.pt",
+        "downdetector.ro",
+        "downdetector.ru",
+        "downdetector.se",
+        "downdetector.sg",
+        "downdetector.sk",
+        "downdetector.tw",
+        "downdetector.web.tr",
+        "epaper.timesgroup.com",
+        "farfeshplus.com",
+        "k2radio.com",
+        "koel.com",
+        "kowb1290.com",
+        "nationalreview.com",
+        "nationalworld.com",
+        "nbcsports.com",
+        "scotsman.com",
+        "tv-asahi.co.jp",
+        "uefa.com",
+        "vimeo.com",
+        "vlive.tv",
+        "voici.fr",
+        "windalert.com",
+        "xn--allestrungen-9ib.at",
+        "xn--allestrungen-9ib.ch",
+        "xn--allestrungen-9ib.de"
+      ]
+    },
+    {
+      "urlFilter": "||pagead2.googlesyndication.com/pagead/managed/js/*/show_ads_impl",
+      "resourceTypes": [
+        "script"
+      ],
+      "initiatorDomains": [
+        "battlecats-db.com",
+        "game.anymanager.io",
+        "games.wkb.jp",
+        "sudokugame.org",
+        "ycp.synk-casualgames.com"
+      ]
+    },
+    {
+      "urlFilter": "||pagead2.googlesyndication.com/pagead/managed/js/adsense/*/slotcar_library_",
+      "resourceTypes": [
+        "script"
+      ],
+      "initiatorDomains": [
+        "game.anymanager.io",
+        "sudokugame.org",
+        "ycp.synk-casualgames.com"
+      ]
+    },
+    {
+      "urlFilter": "||pagead2.googlesyndication.com/pagead/managed/js/gpt/*/pubads_impl.js?",
+      "resourceTypes": [
+        "script"
+      ],
+      "initiatorDomains": [
+        "wunderground.com"
+      ]
+    },
+    {
+      "urlFilter": "||pagead2.googlesyndication.com/tag/js/gpt.js",
+      "resourceTypes": [
+        "script"
+      ],
+      "initiatorDomains": [
+        "wunderground.com"
+      ]
+    }
+  ]
+}
