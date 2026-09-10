@@ -402,12 +402,12 @@
       "why": "Same shape, a publisher-specific GAMPAD carve-out for spiegel.de. The URL reproduces the exception's literal prev_scp parameter, because a URL that merely looks similar matches nothing and the case would pass whether or not the fix was applied."
     },
     {
-      "id": "exception-ima-video-held",
+      "id": "exception-ima-video-delivery",
       "url": "https://g.doubleclick.net/gampad/ads?sz=640x480&iu=%2F18190176%2C22509719621%2FAdThrive_Video_Collapse_Autoplay_x",
       "type": "xmlhttprequest",
       "initiator": "https://imasdk.googleapis.com",
-      "expect": "allow",
-      "why": "Deliberately still allowed. The video-ad SDK's own requests are the one subset where un-breaking a site may mean the player will not start without an ad response, and the 2026-09-08 measurement never got playback started in either build. Held pending evidence, not endorsed. If this flips to block, that decision was taken on purpose and this case should be updated with the measurement that justified it."
+      "expect": "block",
+      "why": "The request delivers a video ad. Playback A/B on 2026-09-10 started content in both variants but did not exercise this live endpoint, and the named publisher canary no longer matched it. With no demonstrated content dependency, the product invariant wins: an ad blocker must not ship a rule whose proven effect is to allow the ad."
     },
     {
       "id": "exception-amazon-widget-functional",

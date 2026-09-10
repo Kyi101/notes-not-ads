@@ -483,39 +483,20 @@ export function parseBlock(line) {
 const AD_DELIVERY_ENDPOINT_RE =
   /(doubleclick|googlesyndication|googleadservices|googletagservices|adservice|adsystem|amazon-adsystem|adnxs|criteo|rubiconproject|openx|pubmatic|taboola|outbrain|adsbygoogle|gampad|360yield)/i;
 
-// Held back rather than endorsed. These are the video-ad SDK's own requests,
-// and they are the one subset where "un-break" plausibly means the player will
-// not start without an ad response. The 2026-09-08 measurement counted video
-// elements but never got playback started in either build, so it proved nothing
-// about them either way. Blocking a video ad at the cost of a player that hangs
-// is a product decision that wants evidence first.
-const VIDEO_AD_SDK_INITIATOR = "imasdk.googleapis.com";
+// Hand-reviewed compatibility profiles. These are exact DNR filter shapes,
+// not substrings: a familiar library name in an ad endpoint's query must not
+// turn that endpoint into an allow rule. Google documents GPT as participating
+// in ad requests, so this is a compatibility policy for already-tested
+// publisher integrations, not a claim that these files only affect layout.
+// null means the shipped exception omitted resourceTypes; explicit type lists
+// are still safe because they narrow that legacy profile.
+const REVIEWED_LIBRARY_EXCEPTION_PROFILES = new Map(
+  JSON.parse(
+    fs.readFileSync(path.join(__dirname, "reviewed-ad-exceptions.json"), "utf8")
+  ).libraryProfiles.map((profile) => [profile.urlFilter, profile])
+);
 
-// Hand-reviewed re-admits. Each entry needs a reason that is about page
-// function rather than about advertising.
-const FUNCTIONAL_EXCEPTIONS = [
-  {
-    urlFilter: "||amazon-adsystem.com/widgets/q?",
-    why: "Affiliate widget product images, image resource type only. Serves the picture in an affiliate link rather than an impression, and it is unscoped, so dropping it would blank product images anywhere the widget is used."
-  }
-];
-
-// Ad infrastructure is not ad delivery, and the difference decides whether
-// blocking helps or just breaks the page. The Google Publisher Tag library and
-// the AdSense implementation scripts do not fetch a creative by themselves;
-// they lay out the slots, and blocking them leaves a publisher's page broken
-// while the ad request still happens elsewhere. EasyList carves them out for
-// that reason, and tests/fixtures/dnr-match-cases.json has asserted that
-// `gpt.js` stays allowed on the carved-out sites since before this gate
-// existed — an assertion the first version of this gate broke, which CI caught
-// and a too-narrow grep of the local run had hidden.
-//
-// Note the asymmetry this leaves: `gpt.js` survives and
-// `pagead/js/adsbygoogle.js` does not. That is deliberate rather than an
-// oversight. GPT is what publishers build their layout on, and the project had
-// already decided about it; the AdSense loader's job is to fetch and inject the
-// ad, and nothing asserts it must be allowed.
-const AD_LIBRARY_PATH_RE = /\/(tag\/js\/|pagead\/managed\/js\/|gpt\/|gpt\.js)/i;
+const REVIEWED_AMAZON_WIDGET_FILTER = "||amazon-adsystem.com/widgets/q?";
 
 // Pure so it can be tested without the network and without regenerating.
 // Returns null to keep the exception, or a string saying why it was refused.
@@ -524,19 +505,37 @@ export function refuseAdDeliveryException(condition) {
     return null;
   }
 
-  if (AD_LIBRARY_PATH_RE.test(condition.urlFilter || "")) {
+  if (isReviewedLibraryException(condition)) {
     return null;
   }
 
-  if (FUNCTIONAL_EXCEPTIONS.some((entry) => entry.urlFilter === condition.urlFilter)) {
-    return null;
-  }
-
-  if ((condition.initiatorDomains || []).includes(VIDEO_AD_SDK_INITIATOR)) {
+  if (isReviewedAmazonWidgetException(condition)) {
     return null;
   }
 
   return `exception targets an ad-delivery endpoint: ${condition.urlFilter}`;
+}
+
+function isReviewedLibraryException(condition) {
+  const profile = REVIEWED_LIBRARY_EXCEPTION_PROFILES.get(condition.urlFilter || "");
+  if (!profile || !condition.initiatorDomains?.length) return false;
+  if (!condition.initiatorDomains.every((domain) => profile.initiatorDomains.includes(domain))) {
+    return false;
+  }
+  if (profile.resourceTypes === null) return true;
+  return Array.isArray(condition.resourceTypes) &&
+    condition.resourceTypes.length > 0 &&
+    condition.resourceTypes.every((type) => profile.resourceTypes.includes(type));
+}
+
+function isReviewedAmazonWidgetException(condition) {
+  return (
+    condition.urlFilter === REVIEWED_AMAZON_WIDGET_FILTER &&
+    condition.domainType === "thirdParty" &&
+    Array.isArray(condition.resourceTypes) &&
+    condition.resourceTypes.length === 1 &&
+    condition.resourceTypes[0] === "image"
+  );
 }
 
 // Returns a DNR condition for an @@ exception, or null when the exception

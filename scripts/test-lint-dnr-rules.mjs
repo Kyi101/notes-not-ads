@@ -58,6 +58,21 @@ try {
       priority: 2,
       action: { type: "allow" },
       condition: { urlFilter: "||abcnews.com/assets/js/prebid.min.js" }
+    },
+    {
+      id: 5,
+      priority: 1000,
+      action: { type: "allowAllRequests" },
+      condition: { requestDomains: ["payments.example"], resourceTypes: ["main_frame"] }
+    },
+    {
+      id: 6,
+      priority: 1000,
+      action: { type: "allowAllRequests" },
+      condition: {
+        regexFilter: "^https?://[^/@]+/([^/?#]+/)*(checkout|payment)(/|[?#]|$)",
+        resourceTypes: ["main_frame"]
+      }
     }
   ]);
   if (clean !== null) {
@@ -83,6 +98,32 @@ try {
       }
     ],
     "redirect"
+  );
+  await expectReject(
+    "sub-frame allowAllRequests",
+    [{
+      id: 1,
+      priority: 1000,
+      action: { type: "allowAllRequests" },
+      condition: {
+        regexFilter: "^https?://[^/@]+/checkout(/|[?#]|$)",
+        resourceTypes: ["main_frame", "sub_frame"]
+      }
+    }],
+    "main_frame only"
+  );
+  await expectReject(
+    "userinfo-broad allowAllRequests",
+    [{
+      id: 1,
+      priority: 1000,
+      action: { type: "allowAllRequests" },
+      condition: {
+        regexFilter: "^https?://.*bank.*/",
+        resourceTypes: ["main_frame"]
+      }
+    }],
+    "exclude userinfo"
   );
   await expectReject("wildcard filter", [blockRule(1, "*")], "too broadly");
   await expectReject("short filter", [blockRule(1, "||ad^")], "too broadly");

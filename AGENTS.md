@@ -58,7 +58,7 @@ quiet card carrying one of the user's own notes.
 - `scripts/test-release-contract.mjs` - guardrail that keeps packaged DNR and per-site allow behavior in the release runtime.
 - `scripts/lint-cosmetic-seed.mjs` - rejects any cosmetic seed entry that is not a plain quoted string, so contributed filter text cannot become executable code.
 - `scripts/test-lint-cosmetic-seed.mjs` - fixture-driven checks for the cosmetic seed lint.
-- `scripts/lint-dnr-rules.mjs` - structural lint for packaged DNR rule files: unique ids, block/allow only, no degenerate filter, no unscoped allow.
+- `scripts/lint-dnr-rules.mjs` - structural lint for packaged DNR rule files: unique ids, block/scoped-allow only, plus audited main-frame-only sensitive-route `allowAllRequests`; no degenerate filter or unscoped resource allow.
 - `scripts/test-lint-dnr-rules.mjs` - fixture-driven checks for the DNR rule lint.
 - `scripts/lint-dnr-budget.mjs` - independent gate keeping every packaged static ruleset within the 29,000-rule release budget.
 - `scripts/test-lint-dnr-budget.mjs` - synthetic manifest/ruleset checks for the combined static budget gate.
@@ -83,8 +83,9 @@ quiet card carrying one of the user's own notes.
 - `scripts/benchmark-performance.mjs` - local multi-card scroll/frame/CDP performance benchmark.
 - `scripts/build-content.mjs` - concatenates content-script partials into `src/content.js`.
 - `scripts/update-lists.mjs` - EasyList/DNR ingestion script; dry-run by default and requires `--write` before mutating generated list artifacts.
+- `scripts/reviewed-ad-exceptions.json` - exact compatibility profiles for the existing GPT/managed-library exception filters, type ceilings, and publisher scopes; widening it is a reviewable policy change.
 - `scripts/test-update-lists.mjs` - ranked EasyList selection checks, including stable tail spread and inseparable block/allow groups.
-- `rules/rules_1.json` - hand-curated static DNR seed rules and local DNR smoke-test probe.
+- `rules/rules_1.json` - hand-curated static DNR seed rules, packaged sensitive-navigation allows, and the local DNR smoke-test probe.
 - `rules/easylist_dnr.json` - generated static DNR rules packaged with the extension.
 - `docs/privacy-policy.md` - published privacy policy for the Chrome Web Store listing.
 - `docs/images/` - README screenshots, copied from `dist/store/` output; regenerate with `npm run build:store-assets` when the card or popup changes.
