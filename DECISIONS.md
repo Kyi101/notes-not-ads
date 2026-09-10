@@ -2319,3 +2319,29 @@ poorly. The private experiment and raw results live outside Git under
 - A future exception needs an actual reproducer where content playback fails,
   a narrow request profile, and a decision explaining why serving that request
   is consistent with the product.
+
+## 2026-09-10 - A Release Artifact Is Not Overwritten Once It Exists
+
+**Decision**: `npm run release:verify` reads the archive for the current version
+before the packager deletes it, compares digests after rebuilding, and restores
+the original if the bytes would change. `--replace` is the deliberate override.
+
+**Why**: A digest recorded with a store submission has to keep describing a file
+that exists. `dist/notes-not-ads-1.0.3.zip` was rebuilt at a later revision
+during the 1.0.4 work and quietly became a different archive — it picked up
+`src/sensitive-gate.js`, which did not exist at 1.0.3 — so the digest submitted
+with that release matched nothing local afterwards. The gate that exists to make
+a release traceable was itself destroying the trace, without a word.
+
+**Consequences**:
+- A byte-identical rebuild is still fine and expected. The packager is
+  deterministic, so re-running the gate on the same revision reproduces the same
+  archive; only a rebuild that would change the bytes is refused. Verified by
+  running the gate again after a commit that touched only scripts, which the
+  packager does not ship: same digest, no refusal.
+- The refusal restores the original file rather than leaving a half-written one,
+  and prints both digests so it is obvious which archive is which.
+- The predicate is pure and tested with the real 1.0.3 digests as its case,
+  alongside the dirty-tree and stale-bundle predicates. The restore path was
+  exercised end to end by planting a wrong archive, watching the gate refuse,
+  and confirming the planted bytes survived.

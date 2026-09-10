@@ -77,7 +77,7 @@ quiet card carrying one of the user's own notes.
 - `scripts/diagnose-false-positives.mjs` - FP-capture harness: records reason, signature, ancestry, original text/links/sources, and screenshots for every replaced slot on given URLs or eval cases.
 - `scripts/diagnose-controlled-testers.mjs` - exploratory controlled-tester harness for Canyoublockit, GetBlockify, and Turtlecute baseline extraction.
 - `scripts/package-release.mjs` - clean Git archive release ZIP builder for Chrome Web Store upload.
-- `scripts/release-verify.mjs` - release gate: refuses a dirty tracked tree or a stale `src/content.js`, runs the gates and smoke, packages, and prints revision plus SHA-256.
+- `scripts/release-verify.mjs` - release gate: refuses a dirty tracked tree, a stale `src/content.js`, or a rebuild that would change the bytes of an artifact already on disk; runs the gates and smoke, packages, and prints revision plus SHA-256. `--replace` overrides the last of those.
 - `scripts/test-release-verify.mjs` - the release gate's two pure predicates.
 - `scripts/test-build-content.mjs` - proves a CRLF checkout builds the same bundle as an LF one.
 - `scripts/benchmark-performance.mjs` - local multi-card scroll/frame/CDP performance benchmark.
