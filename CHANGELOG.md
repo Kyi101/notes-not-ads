@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.0.4 — 2026-09
+
+Closes the remaining findings from a private security review by @ilyafefelov,
+who also contributed the hardening that replaced the first attempt at two of
+them.
+
+- The pages where the extension promises to do nothing — banks, checkouts,
+  sign-in routes — are now recognised from the address itself, by rules packaged
+  with the extension. Previously that decision was made after the page had begun
+  loading, so a checkout page could lose a stylesheet or script before the
+  extension got out of the way. The packaged rules apply before the first
+  request is made.
+- The exemption a sensitive page receives no longer follows the tab elsewhere.
+  Visiting a bank and then an ordinary site in the same tab used to leave that
+  tab unblocked until the new page finished loading.
+- Removes 27 packaged rules whose only effect was to permit advertising on named
+  publishers. These came from filter-list exceptions that exist to keep sites
+  working, but some of them keep a site working by letting its ads through.
+  Exceptions covering the scripts that lay out ad slots are kept, because
+  blocking those breaks a page's layout without blocking an ad; they are now a
+  reviewed, frozen list rather than a pattern match.
+- A player that refuses to resume after an ad fails to load may now stop on some
+  video sites. That is a deliberate tradeoff rather than an oversight: no case
+  was found where serving the ad was necessary, and permitting one in case a
+  player copes badly is not something an ad blocker should ship.
+- Adds a small script that runs at the start of every page load to make the
+  first point possible. It reads the address and does nothing else.
+
+No new permissions. Details will be published with the security advisory.
+
 ## 1.0.3 — 2026-09
 
 Stops the extension replacing the content of classifieds listings.

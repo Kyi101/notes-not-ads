@@ -17,3 +17,8 @@ prototypes/
 docs/superpowers/
 docs/chrome-web-store.md
 scripts/serve-prototype.mjs
+
+# Personal Claude Code settings. Deliberately not committed: this repo takes
+# outside contributions, and a permission granted here would apply to anyone who
+# clones it and runs Claude Code in this directory.
+.claude/settings.local.json
