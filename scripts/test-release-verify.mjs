@@ -3,7 +3,11 @@
 // around them is just spawning npm, and a test that spent four minutes running
 // the gates twice would stop being run.
 import assert from "node:assert/strict";
-import { describeDirtyTree, isBundleStale } from "./release-verify.mjs";
+import {
+  describeArtifactClobber,
+  describeDirtyTree,
+  isBundleStale
+} from "./release-verify.mjs";
 
 // A clean tree prints nothing at all.
 assert.equal(describeDirtyTree(""), null);
@@ -46,5 +50,38 @@ assert.equal(
   isBundleStale("function scan() { return 1; }", "function scan() { return 2; }"),
   true
 );
+
+// --- Refusing to overwrite an artifact that already exists ----------------
+//
+// A digest recorded with a store submission has to keep describing a file that
+// exists. dist/notes-not-ads-1.0.3.zip was rebuilt at a later revision during
+// the 1.0.4 work and quietly became a different archive, so the digest
+// submitted with 1.0.3 matched nothing local afterwards.
+
+// Nothing on disk yet: nothing to protect.
+assert.equal(
+  describeArtifactClobber({ version: "1.0.4", existingDigest: "", builtDigest: "abc" }),
+  null
+);
+
+// A byte-identical rebuild is expected — the packager is deterministic, so
+// re-running the gate on the same revision must not be an error.
+assert.equal(
+  describeArtifactClobber({ version: "1.0.4", existingDigest: "abc", builtDigest: "abc" }),
+  null
+);
+
+// Different bytes under a version that already has an artifact: refuse, and say
+// both digests so the operator can see which file is which.
+const refusal = describeArtifactClobber({
+  version: "1.0.3",
+  existingDigest: "4585acbd",
+  builtDigest: "7385c23a"
+});
+assert.ok(refusal, "a rebuild that changes the bytes must be refused");
+assert.match(refusal, /Refusing to replace the existing 1\.0\.3 artifact/);
+assert.match(refusal, /4585acbd/);
+assert.match(refusal, /7385c23a/);
+assert.match(refusal, /Bump the version instead/);
 
 console.log("PASS release verify predicates");

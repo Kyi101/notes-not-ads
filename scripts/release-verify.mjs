@@ -14,7 +14,7 @@
 // Usage: npm run release:verify
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -64,6 +64,32 @@ export function describeDirtyTree(porcelain) {
 export function isBundleStale(committed, rebuilt) {
   const normalize = (text) => String(text || "").replace(/\r\n/g, "\n");
   return normalize(committed) !== normalize(rebuilt);
+}
+
+// An artifact already on disk for this version is evidence that this version was
+// already built, and possibly already uploaded. Replacing it silently is how a
+// digest recorded with a store submission stops describing any file that exists:
+// `dist/notes-not-ads-1.0.3.zip` was rebuilt at a later revision during the
+// 1.0.4 work and quietly became a different archive, so the digest submitted
+// with 1.0.3 no longer matched anything local.
+//
+// A byte-identical rebuild is fine and expected — the packager is deterministic,
+// so re-running the gate on the same revision reproduces the same archive. Only a
+// rebuild that would change the bytes is refused.
+export function describeArtifactClobber({ version, existingDigest, builtDigest }) {
+  if (!existingDigest || existingDigest === builtDigest) {
+    return null;
+  }
+
+  return [
+    `Refusing to replace the existing ${version} artifact: rebuilding it here would change its bytes.`,
+    `  on disk  ${existingDigest}`,
+    `  rebuilt  ${builtDigest}`,
+    "",
+    "If that version was uploaded, its recorded digest describes the file on disk, and overwriting",
+    "it destroys the only local copy of what shipped. Bump the version instead.",
+    "If it was never uploaded, delete the file and run this again, or pass --replace."
+  ].join("\n");
 }
 
 async function main() {
@@ -120,17 +146,42 @@ async function main() {
   }
 
   step("Package");
+  const manifest = JSON.parse(
+    await readFile(path.join(projectRoot, "manifest.json"), "utf8")
+  );
+  const zipPath = path.join(projectRoot, "dist", `notes-not-ads-${manifest.version}.zip`);
+
+  // Read the existing archive before the packager deletes it, so a refusal can
+  // put it back exactly as it was.
+  let existing = null;
+  try {
+    existing = await readFile(zipPath);
+  } catch (_error) {
+    existing = null;
+  }
+
   const { stdout: packed } = await run(
     process.execPath,
     [path.join(projectRoot, "scripts/package-release.mjs")],
     { cwd: projectRoot }
   );
-  process.stdout.write(packed);
 
-  const manifest = JSON.parse(
-    await readFile(path.join(projectRoot, "manifest.json"), "utf8")
-  );
-  const zipPath = path.join(projectRoot, "dist", `notes-not-ads-${manifest.version}.zip`);
+  const digestOf = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  const clobber = process.argv.includes("--replace")
+    ? null
+    : describeArtifactClobber({
+        version: manifest.version,
+        existingDigest: existing ? digestOf(existing) : "",
+        builtDigest: digestOf(await readFile(zipPath))
+      });
+
+  if (clobber) {
+    await writeFile(zipPath, existing);
+    console.error(`\n${clobber}`);
+    process.exit(1);
+  }
+
+  process.stdout.write(packed);
   const { stdout: revision } = await run("git", ["rev-parse", "HEAD"], { cwd: projectRoot });
   const digest = createHash("sha256").update(await readFile(zipPath)).digest("hex");
 
