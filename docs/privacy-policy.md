@@ -93,6 +93,13 @@ Notes Not Ads uses these Chrome permissions:
 - `http://*/*` and `https://*/*`: inspect and replace likely ad/clutter surfaces
   on normal webpages
 
+A small script runs at the start of every page load and does one thing: it reads
+the page's address to decide whether this is a page the extension should leave
+alone — a bank, a checkout, a sign-in route. It reads nothing else, touches no
+page content, stores nothing, and stays silent on ordinary pages. It exists so
+that the extension can get out of the way before a sensitive page starts
+loading, rather than after.
+
 On YouTube only, the extension additionally runs a dedicated content script and
 injects a page-level (main-world) script, declared as a web-accessible
 resource, that removes ad entries from YouTube's own player data so video ads
