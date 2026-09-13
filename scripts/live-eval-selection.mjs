@@ -2,6 +2,20 @@ export function isManualLiveEvalCase(testCase) {
   return testCase.manualOnly === true || testCase.track === "manual";
 }
 
+// The tracks the default automated run is allowed to visit. A whitelist rather
+// than "everything except manual and discovery": the missing manualOnly flag on
+// olx-ua-item failed open because the runner excluded by marker, and a
+// misspelled track — "regresion" — would fail open the same way one level up.
+// A case has to say it belongs here, or it does not run unattended.
+export const DEFAULT_LIVE_EVAL_TRACKS = Object.freeze(["regression", "controlled"]);
+
+export function isDefaultLiveEvalCase(testCase) {
+  return (
+    !isManualLiveEvalCase(testCase) &&
+    DEFAULT_LIVE_EVAL_TRACKS.includes(testCase.track)
+  );
+}
+
 export function selectLiveEvalCases(cases, options = {}) {
   if (options.url) {
     return [
@@ -17,9 +31,7 @@ export function selectLiveEvalCases(cases, options = {}) {
   let selected = [...cases];
 
   if (!options.group && !options.track && !options.caseId) {
-    selected = selected.filter((testCase) => {
-      return !isManualLiveEvalCase(testCase) && testCase.track !== "discovery";
-    });
+    selected = selected.filter(isDefaultLiveEvalCase);
   }
 
   if (options.group) {
