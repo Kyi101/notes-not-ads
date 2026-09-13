@@ -73,13 +73,35 @@ try {
       (match) => actionById.get(`${match.rulesetId}:${match.ruleId}`) || "unknown"
     );
     const actual = actions.includes("block") ? "block" : "allow";
+    const matchedRuleIds = new Set(
+      matched.map((match) => `${match.rulesetId}:${match.ruleId}`)
+    );
+    const missingRequiredRules = (testCase.requiredRuleIds || []).filter(
+      (ruleId) => !matchedRuleIds.has(ruleId)
+    );
+    const presentForbiddenRules = (testCase.forbiddenRuleIds || []).filter(
+      (ruleId) => matchedRuleIds.has(ruleId)
+    );
 
-    if (actual === testCase.expect) {
+    if (
+      actual === testCase.expect &&
+      missingRequiredRules.length === 0 &&
+      presentForbiddenRules.length === 0
+    ) {
       console.log(`  ok   ${testCase.id}`);
     } else {
-      console.log(`  FAIL ${testCase.id} — want ${testCase.expect}, got ${actual}`);
+      const details = [
+        actual === testCase.expect ? null : `want ${testCase.expect}, got ${actual}`,
+        missingRequiredRules.length
+          ? `missing required rules ${missingRequiredRules.join(", ")}`
+          : null,
+        presentForbiddenRules.length
+          ? `matched forbidden rules ${presentForbiddenRules.join(", ")}`
+          : null
+      ].filter(Boolean).join("; ");
+      console.log(`  FAIL ${testCase.id} — ${details}`);
       failures.push(
-        `${testCase.id}: want ${testCase.expect}, got ${actual} for ${testCase.url} (${testCase.why})`
+        `${testCase.id}: ${details} for ${testCase.url} (${testCase.why})`
       );
     }
   }

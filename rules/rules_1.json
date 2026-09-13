@@ -1571,7 +1571,7 @@
     "priority": 1000,
     "action": { "type": "allowAllRequests" },
     "condition": {
-      "regexFilter": "^https?://[^/@]+/([^/?#]+/)*(checkout|cart|basket|payment|payments)(/|[?#]|$)",
+      "regexFilter": "^https?://(?:[^/@]+@)?[^/@]+/([^/?#]+/)*(checkout|cart|basket|payment|payments)(/|[?#]|$)",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -1580,7 +1580,7 @@
     "priority": 1000,
     "action": { "type": "allowAllRequests" },
     "condition": {
-      "regexFilter": "^https?://[^/@]+/([^/?#]+/)*(billing|invoice|invoices|pay|order|orders)(/|[?#]|$)",
+      "regexFilter": "^https?://(?:[^/@]+@)?[^/@]+/([^/?#]+/)*(billing|invoice|invoices|pay|order|orders)(/|[?#]|$)",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -1589,7 +1589,7 @@
     "priority": 1000,
     "action": { "type": "allowAllRequests" },
     "condition": {
-      "regexFilter": "^https?://[^/@]+/([^/?#]+/)*(purchase|subscribe|subscription|login|signin)(/|[?#]|$)",
+      "regexFilter": "^https?://(?:[^/@]+@)?[^/@]+/([^/?#]+/)*(purchase|subscribe|subscription|login|signin)(/|[?#]|$)",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -1598,7 +1598,7 @@
     "priority": 1000,
     "action": { "type": "allowAllRequests" },
     "condition": {
-      "regexFilter": "^https?://[^/@]+/([^/?#]+/)*(sign-in|password|account/security)(/|[?#]|$)",
+      "regexFilter": "^https?://(?:[^/@]+@)?[^/@]+/([^/?#]+/)*(sign-in|password|account/security)(/|[?#]|$)",
       "resourceTypes": ["main_frame"]
     }
   }

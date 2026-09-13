@@ -2346,3 +2346,24 @@ a release traceable was itself destroying the trace, without a word.
   alongside the dirty-tree and stale-bundle predicates. The restore path was
   exercised end to end by planting a wrong archive, watching the gate refuse,
   and confirming the planted bytes survived.
+
+## 2026-09-13 - Parse Userinfo Before Matching Sensitive Paths
+
+**Decision**: Keep the sensitive host-word profile userinfo-blind, but let the
+four packaged sensitive-path profiles parse one optional userinfo segment
+before matching the hostname and path. The runtime classifiers already parse
+the URL structurally and therefore need no corresponding change.
+
+**Why**: The original path profiles used `[^/@]+` for the entire authority.
+That correctly kept userinfo out of host-word matching, but it also rejected
+every URL containing `@`, including a real sensitive route such as
+`https://user@ordinary.example/checkout`. A cold MV3 worker could then miss the
+parser-time protection that the packaged rules are meant to guarantee.
+
+**Consequences**:
+- Rules 172-175 accept `(?:[^/@]+@)?` before the hostname; rule 171 remains
+  unchanged so `https://bank@ordinary.example/` cannot spoof a sensitive host.
+- The Chrome matcher fixture requires rule 172 for a userinfo-plus-checkout URL
+  and explicitly forbids every sensitive profile for the host-word spoof case.
+- The structural DNR lint treats host-word and path profiles separately and
+  rejects a path profile that does not parse optional userinfo.
