@@ -70,7 +70,7 @@ try {
       priority: 1000,
       action: { type: "allowAllRequests" },
       condition: {
-        regexFilter: "^https?://[^/@]+/([^/?#]+/)*(checkout|payment)(/|[?#]|$)",
+        regexFilter: "^https?://(?:[^/@]+@)?[^/@]+/([^/?#]+/)*(checkout|payment)(/|[?#]|$)",
         resourceTypes: ["main_frame"]
       }
     }
@@ -124,6 +124,19 @@ try {
       }
     }],
     "exclude userinfo"
+  );
+  await expectReject(
+    "userinfo-blind path allowAllRequests",
+    [{
+      id: 1,
+      priority: 1000,
+      action: { type: "allowAllRequests" },
+      condition: {
+        regexFilter: "^https?://[^/@]+/checkout(/|[?#]|$)",
+        resourceTypes: ["main_frame"]
+      }
+    }],
+    "optional userinfo"
   );
   await expectReject("wildcard filter", [blockRule(1, "*")], "too broadly");
   await expectReject("short filter", [blockRule(1, "||ad^")], "too broadly");

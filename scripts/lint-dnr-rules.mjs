@@ -139,14 +139,22 @@ function validateMainFrameAllow(rule, where) {
     return;
   }
 
+  const hostProfile = typeof regex === "string" && regex.endsWith("(?::[0-9]+)?/");
+  const pathProfile = typeof regex === "string" && regex.endsWith("(/|[?#]|$)");
+  const hasAuditedPrefix = hostProfile
+    ? regex.startsWith("^https?://[^/@")
+    : pathProfile
+      ? regex.startsWith("^https?://(?:[^/@]+@)?[^/@]+/")
+      : false;
+
   if (
     typeof regex !== "string" ||
-    !regex.startsWith("^https?://[^/@") ||
+    !hasAuditedPrefix ||
     regex.includes(".*") ||
-    !regex.endsWith("(/|[?#]|$)") && !regex.endsWith("(?::[0-9]+)?/")
+    !hostProfile && !pathProfile
   ) {
     throw new Error(
-      `DNR lint violation: ${where} allowAllRequests regex must be HTTP(S)-anchored, exclude userinfo, and end on an audited host/path boundary.`
+      `DNR lint violation: ${where} allowAllRequests regex must be HTTP(S)-anchored, exclude userinfo from host-word matching, parse optional userinfo before path matching, and end on an audited host/path boundary.`
     );
   }
   if (condition.urlFilter !== undefined) {

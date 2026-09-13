@@ -416,6 +416,31 @@
       "initiator": "https://example.com",
       "expect": "allow",
       "why": "Hand-reviewed re-admit. The affiliate widget serves the product picture in an affiliate link rather than an impression, it is image-only, and it is unscoped, so dropping it would blank product images anywhere the widget is used."
+    },
+    {
+      "id": "sensitive-path-with-userinfo",
+      "url": "https://user@ordinary.example/checkout",
+      "type": "main_frame",
+      "initiator": "https://news.example",
+      "expect": "allow",
+      "requiredRuleIds": ["ruleset_1:172"],
+      "why": "Runtime URL classification treats /checkout as sensitive even when the URL carries userinfo. The packaged navigation rule must protect parser-time requests before the worker wakes."
+    },
+    {
+      "id": "userinfo-host-word-is-not-sensitive",
+      "url": "https://bank@ordinary.example/",
+      "type": "main_frame",
+      "initiator": "https://news.example",
+      "expect": "allow",
+      "forbiddenRuleIds": [
+        "ruleset_1:170",
+        "ruleset_1:171",
+        "ruleset_1:172",
+        "ruleset_1:173",
+        "ruleset_1:174",
+        "ruleset_1:175"
+      ],
+      "why": "Userinfo is not the hostname. A bank-looking username on an ordinary host without a sensitive path must not exempt the page from request blocking."
     }
   ]
 }
