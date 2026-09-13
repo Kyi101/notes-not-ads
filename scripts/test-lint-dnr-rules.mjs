@@ -138,6 +138,40 @@ try {
     }],
     "optional userinfo"
   );
+
+  // The ends of this regex are exactly what the lint audits, and the middle
+  // accepts an "@" — so "bank@ordinary.example" would read as a bank. This shape
+  // passed the lint when the two grammars were first split, and was caught in
+  // review. It is the reason the lint now looks between the ends.
+  await expectReject(
+    "host-word allowAllRequests smuggling userinfo mid-regex",
+    [{
+      id: 1,
+      priority: 1000,
+      action: { type: "allowAllRequests" },
+      condition: {
+        regexFilter: "^https?://[^/@]*(bank|brokerage)[^/@]*(?:@[^/]+)?[^/@]*(?::[0-9]+)?/",
+        resourceTypes: ["main_frame"]
+      }
+    }],
+    "can accept an \"@\" outside a negated class"
+  );
+
+  // Same idea on a path profile: the audited leading group may parse userinfo,
+  // and nothing after it may.
+  await expectReject(
+    "path allowAllRequests accepting userinfo after the audited group",
+    [{
+      id: 1,
+      priority: 1000,
+      action: { type: "allowAllRequests" },
+      condition: {
+        regexFilter: "^https?://(?:[^/@]+@)?[^/@]+/(?:@|x)?(checkout|payment)(/|[?#]|$)",
+        resourceTypes: ["main_frame"]
+      }
+    }],
+    "after the audited userinfo group"
+  );
   await expectReject("wildcard filter", [blockRule(1, "*")], "too broadly");
   await expectReject("short filter", [blockRule(1, "||ad^")], "too broadly");
   await expectReject(

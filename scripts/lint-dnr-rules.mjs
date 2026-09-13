@@ -105,6 +105,15 @@ for (const target of targets) {
   console.log(`  ${label}: ${rules.length} rules`);
 }
 
+// True if the regex could match a literal "@" somewhere. Negated classes are
+// removed first because "[^/@]" is how a regex says "not an @", and an "@"
+// inside one is the opposite of accepting it. Escaped and literal "@" outside
+// such a class, or a positive class containing one, are what is left.
+function canAcceptAt(regex) {
+  const withoutNegatedClasses = regex.replace(/\[\^[^\]]*\]/g, "");
+  return withoutNegatedClasses.includes("@");
+}
+
 function validateMainFrameAllow(rule, where) {
   const condition = rule.condition || {};
   if (rule.priority !== 1000) {
@@ -159,6 +168,28 @@ function validateMainFrameAllow(rule, where) {
   }
   if (condition.urlFilter !== undefined) {
     throw new Error(`DNR lint violation: ${where} allowAllRequests must not mix regexFilter and urlFilter.`);
+  }
+
+  // The checks above look at how the regex starts and ends. The spoof they exist
+  // to prevent lives in the middle: a host-word profile is only userinfo-blind
+  // if nothing in it can ever consume an "@", so that "bank@ordinary.example"
+  // cannot read as a bank. A profile whose ends looked right but carried an
+  // "(?:@[^/]+)?" between them passed this lint and matched the spoof — found
+  // in review of the change that split the two grammars. So the middle is
+  // checked too: strip every negated class, since "[^…@…]" can never match an
+  // "@", and whatever "@" remains is one the regex could accept.
+  if (hostProfile && canAcceptAt(regex)) {
+    throw new Error(
+      `DNR lint violation: ${where} host-word allowAllRequests regex can accept an "@" outside a negated class, so userinfo could spoof a protected host. Only path profiles may parse userinfo, and only in the audited leading group.`
+    );
+  }
+  if (pathProfile) {
+    const afterUserinfo = regex.slice("^https?://(?:[^/@]+@)?".length);
+    if (canAcceptAt(afterUserinfo)) {
+      throw new Error(
+        `DNR lint violation: ${where} path allowAllRequests regex accepts an "@" after the audited userinfo group.`
+      );
+    }
   }
 }
 
