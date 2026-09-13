@@ -212,6 +212,9 @@ npm run eval:live -- --url https://example.com/page --id one-off
 ```
 
 Cases live in `evals/live-sites.json`. Reports are written to `runs/live-site-evals/`, which is gitignored.
+The default selection includes only regression and controlled cases. A case
+marked with either `track: manual` or `manualOnly: true` is listable with a
+targeted dry run but is refused by the automated browser runner.
 
 The runner records:
 

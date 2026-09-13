@@ -71,6 +71,8 @@ quiet card carrying one of the user's own notes.
 - `scripts/test-page-gate.mjs` - offline hostname/path classification of every surface into none/off/full.
 - `scripts/live-eval-health.mjs` - pure page-health classification for live eval validity.
 - `scripts/test-live-eval-health.mjs` - deterministic page-health regression checks.
+- `scripts/live-eval-selection.mjs` - pure live-eval case selection and manual-case classification.
+- `scripts/test-live-eval-selection.mjs` - deterministic default/manual live-eval selection contract.
 - `scripts/test-adblock-tester.mjs` - optional live benchmark against adblock-tester.com.
 - `scripts/eval-live-sites.mjs` - live-site eval runner for real ad-heavy pages and controlled test pages.
 - `scripts/diagnose-live-miss.mjs` - targeted capture for supplied live misses: screenshots, frames, overlays, popups, and request hosts.

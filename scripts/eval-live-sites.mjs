@@ -5,6 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assessPageHealth } from "./live-eval-health.mjs";
+import {
+  isManualLiveEvalCase,
+  selectLiveEvalCases
+} from "./live-eval-selection.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -15,14 +19,14 @@ const casesPath = path.join(projectRoot, "evals/live-sites.json");
 const runsRoot = path.join(projectRoot, "runs/live-site-evals");
 const args = parseArgs(process.argv.slice(2));
 const casesFile = JSON.parse(await readFile(casesPath, "utf8"));
-const selectedCases = selectCases(casesFile.cases, args);
+const selectedCases = selectLiveEvalCases(casesFile.cases, args);
 
 if (args.dryRun) {
   printDryRun(selectedCases, args);
   process.exit(0);
 }
 
-const manualCases = selectedCases.filter((testCase) => testCase.manualOnly);
+const manualCases = selectedCases.filter(isManualLiveEvalCase);
 if (manualCases.length > 0) {
   console.error(
     `Selected ${manualCases.length} manual-only case${manualCases.length === 1 ? "" : "s"}; use --dry-run to list them and test manually.`
@@ -149,53 +153,6 @@ function parseArgs(argv) {
   return parsed;
 }
 
-function selectCases(cases, options) {
-  if (options.url) {
-    return [
-      {
-        id: options.customId || slugFromUrl(options.url),
-        group: options.group || "custom",
-        url: options.url,
-        notes: "One-off URL supplied on the command line."
-      }
-    ];
-  }
-
-  let selected = [...cases];
-
-  if (!options.group && !options.track && !options.caseId) {
-    selected = selected.filter((testCase) => {
-      return testCase.manualOnly !== true && testCase.track !== "discovery";
-    });
-  }
-
-  if (options.group) {
-    selected = selected.filter((testCase) => testCase.group === options.group);
-  }
-
-  if (options.track) {
-    selected = selected.filter((testCase) => testCase.track === options.track);
-  }
-
-  if (options.caseId) {
-    selected = selected.filter((testCase) => testCase.id === options.caseId);
-  }
-
-  if (options.limit > 0) {
-    selected = selected.slice(0, options.limit);
-  }
-
-  return selected;
-}
-
-function slugFromUrl(value) {
-  try {
-    return new URL(value).hostname.replace(/^www\./, "").replace(/[^a-z0-9]+/gi, "-");
-  } catch (_error) {
-    return "custom-url";
-  }
-}
-
 function printDryRun(cases, options) {
   console.log(`Selected ${cases.length} live eval case${cases.length === 1 ? "" : "s"}.`);
   console.log(`group: ${options.group || "all"}`);
@@ -209,7 +166,7 @@ function printDryRun(cases, options) {
     const expectation = formatPolicyExpectation(testCase.policy);
     const track = testCase.track || "untracked";
     const category = testCase.category || "uncategorized";
-    const manual = testCase.manualOnly ? " manual-only" : "";
+    const manual = isManualLiveEvalCase(testCase) ? " manual-only" : "";
     console.log(
       `[DRY] ${testCase.group}/${testCase.id} track=${track} category=${category}${manual} policy=${sitePolicy.protocol}${expectation} ${testCase.url}`
     );
