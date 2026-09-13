@@ -965,6 +965,7 @@
       "group": "protected-manual",
       "track": "manual",
       "category": "classifieds",
+      "manualOnly": true,
       "url": "https://www.olx.ua/uk/list/q-iphone/",
       "notes": "Manual: open any item from this grid. Reported 2026-09-03 with 15 false positives (ad-photo, ad_description, ad-parameters-container, ad-footer-bar-section, ad-action-box, ad-card x6, qa-static-ad-map-container). Item URLs expire, so the entry point is the grid and the check is manual. The deterministic version of this case is tests/fixtures/classifieds-item.html."
     }

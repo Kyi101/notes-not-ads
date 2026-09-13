@@ -826,8 +826,9 @@ nothing.
 list into a labeled matrix with `track` and `category` metadata. Keep the
 default live eval small: default `npm run eval:live` / `eval:live:dry` selects
 only regression and controlled cases. Broad discovery must be requested
-explicitly with `--track discovery`; logged-in protected workflows are marked
-`manualOnly` and cannot be executed by the automated runner.
+explicitly with `--track discovery`; cases marked by either `track: manual` or
+`manualOnly: true` cannot be executed by the automated runner. Keeping both
+markers authoritative makes an omitted duplicate field fail closed.
 
 **Why**: Antigravity/Gemini sweeps showed that broad automated browsing can
 surface useful leads, but it also creates noisy findings: bot walls, login
