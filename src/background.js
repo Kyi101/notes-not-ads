@@ -364,9 +364,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // broader and could survive a same-host route change, so reserve it for
   // sensitivity discovered only from the DOM.
   if (message.allow === true && isSensitiveUrl(senderUrl)) {
-    // Do not mutate the session rules after the frame matched
-    // allowAllRequests: replacing the ruleset can discard that frame-scoped
-    // decision in Chromium. There is no tab rule to install for this case.
+    // The packaged allowAllRequests rule already covers this page, so there is
+    // no tab rule to install. (An earlier note here said a session-rule update
+    // would discard the frame's allowAllRequests decision. Tested 2026-09-28 on
+    // Chromium 148 and not so; the CI failures behind it were Chromium applying
+    // that decision late. See DECISIONS.md.)
     sendResponse({ ok: true });
     return false;
   }
@@ -408,10 +410,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   }
 
   // URL-visible sensitive navigations match the preinstalled allowAllRequests
-  // rules before this event and need no tab authorization. More importantly,
-  // mutating session rules here can discard Chromium's frame-scoped
-  // allowAllRequests decision. Only an ordinary destination needs an immediate
-  // teardown; DOM-only sensitivity is installed later by the content script.
+  // rules before this event and need no tab authorization. Only an ordinary
+  // destination needs an immediate teardown; DOM-only sensitivity is installed
+  // later by the content script. (Session-rule updates here do not cost a
+  // loading checkout frame its allowAllRequests decision, contrary to an
+  // earlier note; tested 2026-09-28. See DECISIONS.md.)
   const sensitiveByUrl = isSensitiveUrl(changeInfo.url || "");
   if (sensitiveByUrl) {
     return;
