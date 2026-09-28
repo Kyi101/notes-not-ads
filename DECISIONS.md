@@ -2467,3 +2467,36 @@ people from the bad ones, such as fake software downloads.
   Yandex labels its ads "Реклама", which `AD_LABEL_RE` matches, so the same
   heading bug is likely there. Portal-style engines (Baidu, Naver, Seznam) are
   not listed: their domains also carry pushed ads, and they need a per-site call.
+
+## 2026-09-28 - Main Takes Changes Only Through Pull Requests With Green CI
+
+**Decision**: Branch protection on `main` now applies to admins. The two CI
+checks ("Deterministic gates", "Extension loads in Chromium") stay required;
+required approvals drop from 1 to 0 and code-owner review is turned off. Linear
+history and conversation resolution are unchanged.
+
+**Why**: Every recent commit reached `main` through the admin bypass, so the
+required checks were required of nobody who actually pushes. CI runs the
+Chromium suite, including `npm run test:dnr-match`, which `npm run check` does
+not, and it has caught bugs that passed locally (the `gpt.js` matcher case on
+2026-09-09, and two async races in the 1.0.4 advisory work). `release:verify`
+runs locally and does not look at CI's result, so with the bypass a commit CI
+would reject could reach a release.
+
+**Why no approvals and no code-owner review**: Hlib is the only collaborator;
+contributors work from forks. GitHub does not let an author approve their own
+pull request, so with admins enforced either setting would lock Hlib out of his
+own repo, and for outside pull requests they add nothing, because only Hlib can
+merge. CODEOWNERS still flags the engine paths in the diff view, which is the
+job it was written for.
+
+**Alternatives rejected**:
+- *Keep the bypass.* The rule then describes a process nobody follows.
+- *Drop the rule.* Loses the one thing worth keeping: CI green before `main`
+  moves.
+
+**Consequences**:
+- Every change, an agent's included, goes branch -> pull request -> both checks
+  green -> rebase merge. A few minutes of CI per change.
+- If a second maintainer ever gets write access, restore one required approval
+  and code-owner review.

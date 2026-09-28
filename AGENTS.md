@@ -131,6 +131,7 @@ quiet card carrying one of the user's own notes.
 - Register content-script message listeners synchronously before async storage loading, so popup messages cannot race listener setup.
 - Anything that reads a repo file line by line splits on `/\r?\n/`, not `"\n"`. A Windows checkout with `core.autocrlf=true` hands back a trailing `\r` on every line, which silently broke the mandatory pre-PR gate and would have shipped a bundle with trailing whitespace on every line.
 - Update the Map when files move or structure changes.
+- Changes reach `main` only through a pull request with both CI checks green; a direct push is refused, Hlib's included. Branch, `gh pr create`, wait for CI, then `gh pr merge --rebase --delete-branch` (linear history is required). See `DECISIONS.md` 2026-09-28.
 - Working state lives in a local, untracked `STATUS.md`. Create it if missing.
 - Update `DECISIONS.md` when scope, permissions, or architecture change.
 
