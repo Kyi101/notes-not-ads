@@ -2370,6 +2370,9 @@ parser-time protection that the packaged rules are meant to guarantee.
 
 ## 2026-09-24 - Keep Google Search In Scope, Take AI Mode Out
 
+**Superseded 2026-09-28**: all of Google Search and Bing are now out of DOM
+replacement. The AI Mode fix below still holds as part of that.
+
 **Decision**: Google AI Mode (`/search?...&udm=50`) gets no DOM replacement on
 any Google Search host; request blocking stays on. The rest of Google Search
 stays fully in scope. Fixes #26.
@@ -2410,3 +2413,52 @@ Search off would drop real catches to fix one surface that sells nothing.
 - Separate gap, not acted on: Google products served from a ccTLD are fully in
   scope, because the domain list names only `google.com`. Verified with the
   page gate: `google.com/maps` is `off`, `google.co.uk/maps` is `full`.
+
+## 2026-09-28 - Leave Search Engine Ads Alone
+
+**Decision**: Google (every country domain, so Search, AI Mode and Maps) and
+Bing get no DOM replacement; request blocking stays on. The Search carve-out
+from 2026-08-16 is removed. MSN, a portal whose ads are pushed at people, stays
+in scope.
+
+**Why**: Hlib looked closely at what the extension does on Google Search. The
+card covers the "Sponsored results" heading and none of the ads under it;
+"Sponsored products" is not covered; a few shopping cards sometimes are. So the
+Search catches recorded on 2026-09-24 were mostly the label, and removing the
+label while the ads stay makes them look like ordinary results — the opposite
+of the product's intent. Read from the code, not from a capture of the page,
+each piece has a likely cause: `sponsored results` is in
+`AD_LABEL_RE` and a box holding only a caption counts as an ad on its own (a
+rule meant for a caption left behind after an ad was blocked, which on Google
+never happens because Search ads arrive inside the page); `sponsored products`
+is not in the pattern; each ad has more than 120 characters of text, where the
+label check stops looking; shopping cards are small with short text, so their
+"Sponsored" tag sometimes counts.
+
+The deciding argument is about intent rather than accuracy. A search ad answers
+a query the person typed, and when someone is shopping the shopping cards are
+often the most useful block on the page. The extension cannot tell a useful
+search ad from a useless one, so the honest default is to leave the surface
+alone and keep the "Sponsored" label visible, which is what actually protects
+people from the bad ones, such as fake software downloads.
+
+**Alternatives rejected**:
+- *A Google-only rule that replaces whole sponsored blocks.* Technically
+  feasible with a saved results page as a fixture, and it would have made
+  Search catches real. Rejected on intent, not cost: it replaces the ads people
+  sometimes came for.
+- *Keep the generic scanner on Search and just stop it taking the label.* Leaves
+  Search ads handled by accident — occasional shopping cards — and keeps the AI
+  Overview false-positive risk from 2026-09-24.
+
+**Consequences**:
+- Removes three problems at once: the hidden "Sponsored results" heading, AI
+  Mode (#26), and the untested AI Overview risk.
+- Closes the ccTLD gap noted on 2026-09-24: `GOOGLE_HOST_RE` now switches every
+  Google country domain off, so `google.co.uk/maps` matches `google.com/maps`.
+- `scripts/test-page-gate.mjs` asserts Google Search, another Search tab, a
+  ccTLD, AI Mode, ccTLD Maps and two Bing hosts as `off`, and MSN as `full`.
+  The six Search/Maps/Bing cases fail against the previous tree.
+- Other search engines (DuckDuckGo, Yahoo Search, Yandex, Ecosia, Brave Search)
+  are not listed yet. The stance covers them; nobody has checked what the
+  scanner does there.

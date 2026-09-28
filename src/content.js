@@ -107,8 +107,12 @@
   //
   // Reported 2026-08-16: cards appeared during Google Workspace registration and
   // on Google Account. `google.com` is listed whole rather than by subdomain
-  // because Google ships new product hosts continuously; Search is carved back
-  // in below by path.
+  // because Google ships new product hosts continuously; its country domains are
+  // matched by `GOOGLE_HOST_RE` below.
+  //
+  // Search engines are here too, Search included, for a different reason: their
+  // ads answer a query the person typed, so they stay visible and labelled. Cards
+  // are for ads pushed at people. See DECISIONS.md 2026-09-28.
   const DOM_REPLACEMENT_DISABLED_DOMAINS = [
     "linkedin.com",
     "youtube.com",
@@ -116,6 +120,8 @@
     "music.youtube.com",
     "google.com",
     "labs.google",
+    // Search engines
+    "bing.com",
     // Microsoft
     "microsoft.com",
     "microsoftonline.com",
@@ -296,15 +302,10 @@
     "olx.ba"
   ];
 
-  // Search results carry ads and stay in scope; every other surface on the same
-  // domain is a product UI. Covers ccTLDs so google.co.uk behaves like google.com.
-  const SEARCH_RESULTS_HOST_RE = /^(www\.)?google\.[a-z]{2,3}(\.[a-z]{2,3})?$/i;
-
-  // AI Mode lives at /search too, marked only by `udm=50`. It is Gemini's chat
-  // surface, an answer rather than a result list, so it gets Gemini's treatment:
-  // requests are still blocked, nothing on the page is replaced. See DECISIONS.md
-  // 2026-09-24.
-  const GOOGLE_AI_MODE_UDM = "50";
+  // Google on its country domains, where Search and Maps live for most of the
+  // world. `google.com` in the list above covers its own subdomains but not
+  // google.co.uk or google.com.ua, and a domain list cannot say "every ccTLD".
+  const GOOGLE_HOST_RE = /^(www\.)?google\.[a-z]{2,3}(\.[a-z]{2,3})?$/i;
 
   const SENSITIVE_HOST_WORDS = [
     "bank",
@@ -3894,24 +3895,11 @@
       return false;
     }
 
-    // Decided here rather than by falling through to the domain list, which names
-    // google.com but not every ccTLD, so AI Mode on google.co.uk would stay in.
-    if (isSearchResultsPage()) {
-      return !isGoogleAiMode();
+    if (GOOGLE_HOST_RE.test(location.hostname)) {
+      return false;
     }
 
     return !isDomainDisabled(location.hostname, DOM_REPLACEMENT_DISABLED_DOMAINS);
-  }
-
-  function isSearchResultsPage() {
-    return (
-      SEARCH_RESULTS_HOST_RE.test(location.hostname) &&
-      location.pathname.startsWith("/search")
-    );
-  }
-
-  function isGoogleAiMode() {
-    return new URLSearchParams(location.search).get("udm") === GOOGLE_AI_MODE_UDM;
   }
 
   function isSensitivePage() {

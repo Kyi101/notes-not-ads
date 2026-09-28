@@ -36,7 +36,6 @@ const sandbox = {
   document: { body: null, querySelectorAll: () => [] },
   chrome: { runtime: {} },
   console,
-  URLSearchParams,
   __out: {}
 };
 sandbox.window = sandbox;
@@ -201,19 +200,20 @@ const CASES = [
   ["https://accounts.google.com/signin", "none", "Sign-in — manifest excluded"],
   ["https://www.notion.so/workspace", "none", "Notion — already shipped"],
 
-  // --- Deliberately still in scope. Search carries ads and Hlib wants them
-  // handled; the exclusion is for products, not for search results.
-  ["https://www.google.com/search?q=car+insurance", "full", "Google Search stays in scope"],
-  ["https://www.google.com/search?q=car+insurance&udm=2", "full", "other Search tabs stay in scope"],
-  ["https://www.google.com.ua/search?q=car+insurance", "full", "Search on a ccTLD stays in scope"],
+  // --- Search engines. Their ads answer a query the person typed, so they stay
+  // visible and labelled: blocking on, nothing replaced (2026-09-28). A card
+  // here used to cover the "Sponsored results" heading and leave the ads.
+  ["https://www.google.com/search?q=car+insurance", "off", "Google Search"],
+  ["https://www.google.com/search?q=car+insurance&udm=2", "off", "another Google Search tab"],
+  ["https://www.google.com.ua/search?q=car+insurance", "off", "Google Search on a ccTLD"],
+  ["https://www.google.com/search?q=deepseek+flash+vs+pro+v4&sourceid=chrome&ie=UTF-8&udm=50", "off", "Google AI Mode, as reported in #26"],
+  ["https://www.google.com.ua/search?q=x&udm=50", "off", "Google AI Mode on a ccTLD"],
+  ["https://www.google.co.uk/maps", "off", "Google Maps on a ccTLD the domain list does not name"],
+  ["https://www.bing.com/search?q=car+insurance", "off", "Bing Search"],
+  ["https://cn.bing.com/search?q=car+insurance", "off", "Bing on a regional subdomain"],
 
-  // --- AI Mode shares the Search path but is Gemini's chat surface (#26):
-  // blocking stays on, nothing is replaced. Wherever `udm` sits in the query.
-  ["https://www.google.com/search?q=deepseek+flash+vs+pro+v4&sourceid=chrome&ie=UTF-8&udm=50", "off", "Google AI Mode, as reported"],
-  ["https://www.google.com/search?udm=50&q=x", "off", "AI Mode, udm first"],
-  ["https://www.google.com.ua/search?q=x&udm=50", "off", "AI Mode on a ccTLD the domain list does not name"],
-  ["https://www.google.com/search?q=udm%3D50", "full", "udm=50 as search text is not AI Mode"],
-  ["https://www.bing.com/search?q=car+insurance", "full", "Bing stays in scope"],
+  // --- Deliberately still in scope.
+  ["https://www.msn.com/", "full", "MSN is a portal, not search — its ads are pushed"],
   ["https://www.tiktok.com/foryou", "full", "consumer TikTok stays in scope — only ads.tiktok.com is a console"],
   ["https://www.pinterest.com/ideas/", "full", "consumer Pinterest stays in scope — only ads.pinterest.com is a console"],
 

@@ -141,3 +141,4 @@ quiet card carrying one of the user's own notes.
 - Do not expand into procedural filters, scriptlets, or a full adblocker stack without a specific product decision and tests.
 - Do not request broad extra permissions without a specific reason.
 - Do not replace navigation, forms, comments, article bodies, checkout/payment pages, text editors, Gmail, Google Docs, or banking-like pages.
+- Do not replace ads on search engines. They answer a query the person typed and carry a "Sponsored" label; cards are for ads pushed at people. See `DECISIONS.md` 2026-09-28.

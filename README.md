@@ -57,12 +57,15 @@ GitHub, OpenAI and Claude, Apple and iCloud, AWS and the developer-infra
 dashboards, Slack and the collaboration suites, and the main business-software
 tenants. YouTube keeps a dedicated, purpose-built pruning layer instead.
 
-Google Search is deliberately carved back in by path, because search results
-carry ads. Everything else on `google.com` — Account, Workspace, Admin, Ads,
-Analytics, Cloud, News, Photos, Meet, Gemini — is left alone. So is AI Mode,
-which shares the Search address but is Gemini's chat, not a results page. The family is
-listed whole rather than subdomain by subdomain because Google ships new
-product hosts continuously, and an enumerated list goes stale silently.
+Search engines get the same treatment, for a different reason: Google Search on
+every country domain, and Bing. Their ads answer something the person typed and
+carry a "Sponsored" label. A card there covered that label and left the ads
+beside it looking like ordinary results, so search ads now stay visible and
+labelled, and cards are kept for ads pushed at people. Everything else on
+Google — Account, Workspace, Admin, Ads, Analytics, Cloud, News, Photos, Meet,
+Gemini — is product UI and left alone as well. Google is listed whole rather
+than subdomain by subdomain because Google ships new product hosts continuously,
+and an enumerated list goes stale silently.
 
 The selector strategy is deliberately conservative. Missing some ads is preferable to breaking a page.
 
