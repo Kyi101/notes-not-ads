@@ -1198,8 +1198,10 @@ function isDomReplacementAllowed(settings) {
     return false;
   }
 
+  // Decided here rather than by falling through to the domain list, which names
+  // google.com but not every ccTLD, so AI Mode on google.co.uk would stay in.
   if (isSearchResultsPage()) {
-    return true;
+    return !isGoogleAiMode();
   }
 
   return !isDomainDisabled(location.hostname, DOM_REPLACEMENT_DISABLED_DOMAINS);
@@ -1210,6 +1212,10 @@ function isSearchResultsPage() {
     SEARCH_RESULTS_HOST_RE.test(location.hostname) &&
     location.pathname.startsWith("/search")
   );
+}
+
+function isGoogleAiMode() {
+  return new URLSearchParams(location.search).get("udm") === GOOGLE_AI_MODE_UDM;
 }
 
 function isSensitivePage() {

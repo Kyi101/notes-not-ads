@@ -2367,3 +2367,46 @@ parser-time protection that the packaged rules are meant to guarantee.
   and explicitly forbids every sensitive profile for the host-word spoof case.
 - The structural DNR lint treats host-word and path profiles separately and
   rejects a path profile that does not parse optional userinfo.
+
+## 2026-09-24 - Keep Google Search In Scope, Take AI Mode Out
+
+**Decision**: Google AI Mode (`/search?...&udm=50`) gets no DOM replacement on
+any Google Search host; request blocking stays on. The rest of Google Search
+stays fully in scope. Fixes #26.
+
+**What was wrong**: AI Mode is Gemini's chat surface, and Gemini is already left
+alone as a product surface. AI Mode reached the scanner only because it shares
+the `/search` path that re-admits Search, and that carve-out looked at host and
+path alone. On a signed-in browser the extension put a card over the opening of
+an AI answer. Which heuristic claimed it is still unknown: Google serves a
+captcha to automated browsers, so the page could not be captured. The likeliest
+shape is a streaming answer box that is still empty when first scanned, since
+emptiness is accepted as corroboration for a weak ad name.
+
+**Why AI Mode alone rather than all of Search**: the 2026-08-16 entry kept
+Search in scope on the absence of evidence against it. Hlib's own use now
+supplies evidence for it: Search ads and shopping ads do get replaced. Turning
+Search off would drop real catches to fix one surface that sells nothing.
+
+**Alternatives rejected**:
+- *All of Google Search off.* Recommended before the evidence above; it would
+  have cost the Search and shopping ads that currently get replaced.
+- *Find and narrow the heuristic that fired.* Not reproducible without the
+  page's markup, and once AI Mode is out of scope it no longer matters for #26.
+- *A Search-specific rule that only replaces "Sponsored" blocks.* The right
+  shape if Search keeps producing false positives, but the live evals cannot
+  reach Google Search, so it would break without anything noticing. Not worth
+  building until a second Search false positive arrives.
+
+**Consequences**:
+- AI Mode is decided explicitly, not by falling through to
+  `DOM_REPLACEMENT_DISABLED_DOMAINS`. That list names `google.com` but no
+  ccTLD, so the fall-through would have left AI Mode in scope on
+  `google.com.ua` or `google.co.uk`. The page-gate test caught this.
+- `scripts/test-page-gate.mjs` now passes the query string to the gate and has
+  six new cases. The three AI Mode cases fail against the previous tree.
+- Still exposed: AI Overviews on the normal results tab stream in the same way.
+  No report yet.
+- Separate gap, not acted on: Google products served from a ccTLD are fully in
+  scope, because the domain list names only `google.com`. Verified with the
+  page gate: `google.com/maps` is `off`, `google.co.uk/maps` is `full`.

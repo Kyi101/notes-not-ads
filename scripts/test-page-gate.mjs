@@ -32,10 +32,11 @@ const body = (
 const source = `function __gate(){\n${body}\n__out.isPageAllowed = isPageAllowed;\n__out.isDomReplacementAllowed = isDomReplacementAllowed;\n__out.SENSITIVE_DOMAINS = SENSITIVE_DOMAINS;\n}\n__gate();`;
 
 const sandbox = {
-  location: { hostname: "", pathname: "" },
+  location: { hostname: "", pathname: "", search: "" },
   document: { body: null, querySelectorAll: () => [] },
   chrome: { runtime: {} },
   console,
+  URLSearchParams,
   __out: {}
 };
 sandbox.window = sandbox;
@@ -203,6 +204,15 @@ const CASES = [
   // --- Deliberately still in scope. Search carries ads and Hlib wants them
   // handled; the exclusion is for products, not for search results.
   ["https://www.google.com/search?q=car+insurance", "full", "Google Search stays in scope"],
+  ["https://www.google.com/search?q=car+insurance&udm=2", "full", "other Search tabs stay in scope"],
+  ["https://www.google.com.ua/search?q=car+insurance", "full", "Search on a ccTLD stays in scope"],
+
+  // --- AI Mode shares the Search path but is Gemini's chat surface (#26):
+  // blocking stays on, nothing is replaced. Wherever `udm` sits in the query.
+  ["https://www.google.com/search?q=deepseek+flash+vs+pro+v4&sourceid=chrome&ie=UTF-8&udm=50", "off", "Google AI Mode, as reported"],
+  ["https://www.google.com/search?udm=50&q=x", "off", "AI Mode, udm first"],
+  ["https://www.google.com.ua/search?q=x&udm=50", "off", "AI Mode on a ccTLD the domain list does not name"],
+  ["https://www.google.com/search?q=udm%3D50", "full", "udm=50 as search text is not AI Mode"],
   ["https://www.bing.com/search?q=car+insurance", "full", "Bing stays in scope"],
   ["https://www.tiktok.com/foryou", "full", "consumer TikTok stays in scope — only ads.tiktok.com is a console"],
   ["https://www.pinterest.com/ideas/", "full", "consumer Pinterest stays in scope — only ads.pinterest.com is a console"],
@@ -229,6 +239,7 @@ for (const [url, expected, label] of CASES) {
   const parsed = new URL(url);
   sandbox.location.hostname = parsed.hostname;
   sandbox.location.pathname = parsed.pathname;
+  sandbox.location.search = parsed.search;
 
   const excludedByManifest = manifestExcluded.includes(parsed.hostname);
   const pageAllowed = excludedByManifest ? false : gate.isPageAllowed(settings);

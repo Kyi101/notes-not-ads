@@ -59,7 +59,8 @@ tenants. YouTube keeps a dedicated, purpose-built pruning layer instead.
 
 Google Search is deliberately carved back in by path, because search results
 carry ads. Everything else on `google.com` — Account, Workspace, Admin, Ads,
-Analytics, Cloud, News, Photos, Meet, Gemini — is left alone. The family is
+Analytics, Cloud, News, Photos, Meet, Gemini — is left alone. So is AI Mode,
+which shares the Search address but is Gemini's chat, not a results page. The family is
 listed whole rather than subdomain by subdomain because Google ships new
 product hosts continuously, and an enumerated list goes stale silently.
 

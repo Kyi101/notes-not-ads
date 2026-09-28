@@ -300,6 +300,12 @@
   // domain is a product UI. Covers ccTLDs so google.co.uk behaves like google.com.
   const SEARCH_RESULTS_HOST_RE = /^(www\.)?google\.[a-z]{2,3}(\.[a-z]{2,3})?$/i;
 
+  // AI Mode lives at /search too, marked only by `udm=50`. It is Gemini's chat
+  // surface, an answer rather than a result list, so it gets Gemini's treatment:
+  // requests are still blocked, nothing on the page is replaced. See DECISIONS.md
+  // 2026-09-24.
+  const GOOGLE_AI_MODE_UDM = "50";
+
   const SENSITIVE_HOST_WORDS = [
     "bank",
     "brokerage",
@@ -3888,8 +3894,10 @@
       return false;
     }
 
+    // Decided here rather than by falling through to the domain list, which names
+    // google.com but not every ccTLD, so AI Mode on google.co.uk would stay in.
     if (isSearchResultsPage()) {
-      return true;
+      return !isGoogleAiMode();
     }
 
     return !isDomainDisabled(location.hostname, DOM_REPLACEMENT_DISABLED_DOMAINS);
@@ -3900,6 +3908,10 @@
       SEARCH_RESULTS_HOST_RE.test(location.hostname) &&
       location.pathname.startsWith("/search")
     );
+  }
+
+  function isGoogleAiMode() {
+    return new URLSearchParams(location.search).get("udm") === GOOGLE_AI_MODE_UDM;
   }
 
   function isSensitivePage() {
