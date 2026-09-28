@@ -283,6 +283,17 @@ assert.equal(
   'the functional re-admit list must be honoured'
 );
 
+// The gate keys profiles by filter, so a duplicate silently replaces the first.
+// Checked before anything reads the gate, so it is reported as what it is.
+const registry = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'reviewed-ad-exceptions.json'), 'utf8')
+).libraryProfiles;
+assert.equal(
+  new Set(registry.map((profile) => profile.urlFilter)).size,
+  registry.length,
+  'reviewed-ad-exceptions.json lists the same urlFilter twice'
+);
+
 // The shipped artifact must agree with the gate that produced it.
 const shipped = JSON.parse(
   fs.readFileSync(path.join(projectRoot, 'rules/easylist_dnr.json'), 'utf8')
@@ -296,4 +307,56 @@ assert.deepEqual(
   'rules/easylist_dnr.json still ships exceptions that permit ad delivery'
 );
 
-console.log('PASS ad-delivery exception gate');
+// Every reviewed profile, not a sample of them (#20). The leak check above
+// catches a shipped allow the registry does not cover; this catches the other
+// direction, a registry entry that ships nothing, which is what a regeneration
+// produces from a dropped or misspelled profile. A typo is invisible to the gate
+// on its own, because the gate checks the typo against itself; against the
+// artifact it is a mismatch. An upstream narrowing also fails here until the
+// registry follows, which keeps the registry the true record of what ships.
+const shippedAllows = shipped.filter((rule) => rule.action.type === 'allow');
+
+for (const { urlFilter, resourceTypes, initiatorDomains } of registry) {
+  const ceiling = resourceTypes ?? undefined;
+  const publisher = initiatorDomains[0];
+
+  assert.equal(
+    refuseAdDeliveryException({ urlFilter, resourceTypes: ceiling, initiatorDomains: [publisher] }),
+    null,
+    `${urlFilter} must be kept for ${publisher} at its full type ceiling`
+  );
+  assert.ok(
+    refuseAdDeliveryException({
+      urlFilter,
+      resourceTypes: ceiling,
+      initiatorDomains: [publisher, 'unreviewed.example']
+    }),
+    `${urlFilter} must not admit an unreviewed publisher`
+  );
+  if (resourceTypes) {
+    const beyond = resourceTypes.includes('sub_frame') ? 'image' : 'sub_frame';
+    assert.ok(
+      refuseAdDeliveryException({
+        urlFilter,
+        resourceTypes: [...resourceTypes, beyond],
+        initiatorDomains: [publisher]
+      }),
+      `${urlFilter} must not widen past ${resourceTypes.join(', ')}`
+    );
+  }
+
+  const rules = shippedAllows.filter((rule) => rule.condition.urlFilter === urlFilter);
+  assert.ok(rules.length > 0, `${urlFilter} is in the registry but ships no allow rule`);
+  assert.deepEqual(
+    [...new Set(rules.flatMap((rule) => rule.condition.initiatorDomains || []))].sort(),
+    [...initiatorDomains].sort(),
+    `${urlFilter}: shipped publishers differ from the registry`
+  );
+  assert.deepEqual(
+    [...new Set(rules.flatMap((rule) => rule.condition.resourceTypes || []))].sort(),
+    [...(resourceTypes || [])].sort(),
+    `${urlFilter}: shipped resource types differ from the registry`
+  );
+}
+
+console.log(`PASS ad-delivery exception gate (${registry.length} reviewed profiles)`);
