@@ -2500,3 +2500,55 @@ job it was written for.
   green -> rebase merge. A few minutes of CI per change.
 - If a second maintainer ever gets write access, restore one required approval
   and code-owner review.
+
+## 2026-09-28 - Chromium Applies allowAllRequests Late; The Parser-Time Checks Retry
+
+**Decision**: The three parser-time page checks in `scripts/test-extension.mjs`
+(a checkout page keeps its parser-time script; the checkout control loads; the
+checkout allow does not follow the tab to a same-host ordinary page) retry up
+to three times, logging every retry. Nothing else retries: the packaged-rule
+checks (`testMatchOutcome`), the tab-allow checks, and the ordinary-page control
+fail on the first attempt. The draft advisory `GHSA-jjm4-mmwp-m3v3` is closed as
+out of scope, and the behaviour is to be reported to Chromium.
+
+**What was found**: these checks failed in 4 of 9 CI runs on 2026-09-28, both
+ways round, on diffs that could not cause it; every rerun passed. Reproduced
+locally with `runs/race-probe/stress.mjs`, which loops both checks against the
+built extension with `declarativeNetRequestFeedback` and logs every rule match:
+0 failures in 40 at full speed, 13 in 80 with the browser pinned to one busy
+core. In every failure the checkout main frame matched the packaged
+`allowAllRequests` rule (ruleset_1:172), yet its parser-time script was matched
+first and blocked by the ordinary rule (ruleset_1:10), while the favicon a moment
+later was allowed; or, after checkout -> ordinary in one tab, the ordinary page's
+script matched rule 172. There were no session rules and no misjudged extension
+messages. The same loop against an extension holding only rules 10 and 172 and a
+logger, none of this project's code, failed both ways too (8 in 80). Chromium
+148.0.7778.96.
+
+So on a loaded machine Chromium matches a new document's first subresource
+requests against the frame's previous `allowAllRequests` state. Nothing an
+extension can use applies earlier than `allowAllRequests` at navigation, so
+there is no fix here for path-based checkout routes.
+
+**Also corrected**: `src/background.js` said a session-rule update discards a
+frame's `allowAllRequests` decision. `runs/race-probe/checkout-mutation.mjs`
+held a checkout page mid-load and made no-op and real session-rule updates,
+toggled a static ruleset, and loaded an ordinary page in another tab: none cost
+the page its allow. The comments now say so. The code still installs no tab
+rule for URL-covered pages, which remains correct: the packaged rule covers them.
+
+**Alternatives rejected**:
+- *Leave the checks strict and rerun CI.* Now that admins are held to the
+  required checks, a platform race would block roughly every other merge.
+- *Drop the checks.* A missing or mis-scoped checkout rule would then surface
+  only in `testMatchOutcome`, not in a real page load.
+- *Retry everything in the smoke.* Would hide this extension's own races, the
+  kind CI caught twice during the 1.0.4 work.
+
+**Consequences**:
+- A real regression fails all three attempts and says so in the error; a retry
+  prints `RETRY <check> (attempt n of 3)` so the race stays visible in CI logs.
+- Honest limit: on a slow or heavily loaded machine a checkout page's earliest
+  script can occasionally be blocked if a packaged rule matches it, and the page
+  after a checkout page can have its earliest requests allowed.
+- If Chromium fixes this, the retries can go; the stress loop is the way to check.

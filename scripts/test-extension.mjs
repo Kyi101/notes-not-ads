@@ -27,6 +27,36 @@ const DEFAULT_EXTENSION_SETTINGS = {
   disabledDomains: []
 };
 
+// Chromium attaches a main frame's allowAllRequests decision late on a loaded
+// machine, so a new document's first subresource requests are matched against
+// the frame's previous state: a checkout page's parser-time script is blocked,
+// or the page after it inherits the checkout allow. Reproduced 2026-09-28 with
+// an extension holding only the two rules involved, so it is not this code; see
+// DECISIONS.md. Only the parser-time page checks that race it throw this, and
+// only they are retried. The rules themselves and the tab-allow checks fail on
+// the first attempt, and a real regression fails every attempt. Declared up
+// here because the checks run at top level, before a class further down exists.
+class ParserTimeRaceError extends Error {}
+
+const PARSER_TIME_ATTEMPTS = 3;
+
+async function retryParserTimeRace(label, attempt) {
+  for (let n = 1; ; n += 1) {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (!(error instanceof ParserTimeRaceError)) {
+        throw error;
+      }
+      if (n >= PARSER_TIME_ATTEMPTS) {
+        error.message += ` Failed on all ${n} attempts, so this is not Chromium's allowAllRequests timing.`;
+        throw error;
+      }
+      console.log(`RETRY ${label} (attempt ${n} of ${PARSER_TIME_ATTEMPTS}): ${error.message}`);
+    }
+  }
+}
+
 const server = await startFixtureServer();
 const userDataDir = await mkdtemp(path.join(os.tmpdir(), "attention-redirector-"));
 
@@ -2654,68 +2684,69 @@ async function assertTabAllowDoesNotOutliveTheSensitivePage(
 // for the same reason as the lifetime check: an injected one runs after
 // `document_end` and already worked.
 async function assertSensitivePathKeepsParserTimeRequests(browserContext, origin, serviceWorker) {
-  const page = await browserContext.newPage();
-
-  try {
-    const matcherCases = await serviceWorker.evaluate(async (urls) => {
-      const rows = [];
-      for (const [url, type] of urls) {
-        const outcome = await chrome.declarativeNetRequest.testMatchOutcome({
-          url,
-          type,
-          initiator: "https://news.example",
-          method: "get"
-        });
-        rows.push({ url, type, matchedRules: outcome.matchedRules });
-      }
-      return rows;
-    }, [
-      ...[
-        "https://accounts.google.com/",
-        "https://checkout.example/",
-        "https://example.com/checkout",
-        "https://example.com/shop/account/security?continue=1",
-        "https://example.com/blog/sign-in/"
-      ].map((url) => [url, "main_frame"]),
-      ["https://example.com/blog/checkout-guide", "main_frame"],
-      ["https://bank@ordinary.example/", "main_frame"],
-      ["https://g.doubleclick.net/checkout/frame.html", "sub_frame"]
-    ]);
-    const hasSensitiveAllow = (row) => row.matchedRules.some(
-      (rule) => rule.rulesetId === "ruleset_1" && rule.ruleId >= 170 && rule.ruleId <= 175
+  const matcherCases = await serviceWorker.evaluate(async (urls) => {
+    const rows = [];
+    for (const [url, type] of urls) {
+      const outcome = await chrome.declarativeNetRequest.testMatchOutcome({
+        url,
+        type,
+        initiator: "https://news.example",
+        method: "get"
+      });
+      rows.push({ url, type, matchedRules: outcome.matchedRules });
+    }
+    return rows;
+  }, [
+    ...[
+      "https://accounts.google.com/",
+      "https://checkout.example/",
+      "https://example.com/checkout",
+      "https://example.com/shop/account/security?continue=1",
+      "https://example.com/blog/sign-in/"
+    ].map((url) => [url, "main_frame"]),
+    ["https://example.com/blog/checkout-guide", "main_frame"],
+    ["https://bank@ordinary.example/", "main_frame"],
+    ["https://g.doubleclick.net/checkout/frame.html", "sub_frame"]
+  ]);
+  const hasSensitiveAllow = (row) => row.matchedRules.some(
+    (rule) => rule.rulesetId === "ruleset_1" && rule.ruleId >= 170 && rule.ruleId <= 175
+  );
+  if (
+    !matcherCases.slice(0, 5).every(hasSensitiveAllow) ||
+    matcherCases.slice(5).some(hasSensitiveAllow)
+  ) {
+    throw new Error(
+      `The packaged sensitive-navigation profiles are missing or overbroad: ${JSON.stringify(matcherCases)}`
     );
-    if (
-      !matcherCases.slice(0, 5).every(hasSensitiveAllow) ||
-      matcherCases.slice(5).some(hasSensitiveAllow)
-    ) {
-      throw new Error(
-        `The packaged sensitive-navigation profiles are missing or overbroad: ${JSON.stringify(matcherCases)}`
-      );
-    }
-
-    await page.goto(`${origin}/parser-time-probe.html`);
-    await page.waitForTimeout(700);
-    if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
-      throw new Error(
-        "The probe loaded on an ordinary path, so this check cannot tell the sensitive case apart."
-      );
-    }
-
-    await page.goto(`${origin}/checkout/parser-time-probe.html`);
-    await page.waitForTimeout(1200);
-
-    if (!(await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded)))) {
-      throw new Error(
-        "A checkout page lost a parser-time resource. The safety allow arrived after the parser had already asked for it, so the extension blocked something on a page where it promises to do nothing."
-      );
-    }
-
-    console.log(
-      "Sensitive-path timing OK — a checkout route keeps its parser-time requests."
-    );
-  } finally {
-    await page.close().catch(() => {});
   }
+
+  await retryParserTimeRace("checkout parser-time", async () => {
+    const page = await browserContext.newPage();
+    try {
+      await page.goto(`${origin}/parser-time-probe.html`);
+      await page.waitForTimeout(700);
+      if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
+        throw new Error(
+          "The probe loaded on an ordinary path, so this check cannot tell the sensitive case apart."
+        );
+      }
+
+      await page.goto(`${origin}/checkout/parser-time-probe.html`);
+      await page.waitForTimeout(1200);
+
+      if (!(await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded)))) {
+        throw new ParserTimeRaceError(
+          "A checkout page lost a parser-time resource. The safety allow arrived after the parser had already asked for it, so the extension blocked something on a page where it promises to do nothing."
+        );
+      }
+    } finally {
+      await page.close().catch(() => {});
+    }
+  });
+
+  console.log(
+    "Sensitive-path timing OK — a checkout route keeps its parser-time requests."
+  );
 }
 
 async function assertUrlSensitiveAllowDoesNotOutliveSameHostRoute(
@@ -2723,26 +2754,32 @@ async function assertUrlSensitiveAllowDoesNotOutliveSameHostRoute(
   origin,
   serviceWorker
 ) {
-  const page = await browserContext.newPage();
-  try {
-    await page.goto(`${origin}/checkout/parser-time-probe.html`);
-    if (!(await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded)))) {
-      throw new Error("The sensitive control did not load, so the route-lifetime check is invalid.");
-    }
-    const tabId = await findTabIdForUrl(serviceWorker, page.url());
-    await waitForNoDnrTabAllow(serviceWorker, tabId);
+  await retryParserTimeRace("same-host route lifetime", async () => {
+    const page = await browserContext.newPage();
+    try {
+      await page.goto(`${origin}/checkout/parser-time-probe.html`);
+      if (!(await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded)))) {
+        throw new ParserTimeRaceError(
+          "The sensitive control did not load, so the route-lifetime check is invalid."
+        );
+      }
+      // Not retried: a tab allow left behind is this extension's doing.
+      const tabId = await findTabIdForUrl(serviceWorker, page.url());
+      await waitForNoDnrTabAllow(serviceWorker, tabId);
 
-    await page.goto(`${origin}/parser-time-probe.html`);
-    await page.waitForTimeout(500);
-    if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
-      throw new Error(
-        "A URL-sensitive allow followed the tab to an ordinary route on the same host."
-      );
+      await page.goto(`${origin}/parser-time-probe.html`);
+      await page.waitForTimeout(500);
+      if (await page.evaluate(() => Boolean(window.__attentionRedirectorDnrProbeLoaded))) {
+        throw new ParserTimeRaceError(
+          "A URL-sensitive allow followed the tab to an ordinary route on the same host."
+        );
+      }
+    } finally {
+      await page.close().catch(() => {});
     }
-    console.log(
-      "Sensitive-route lifetime OK — the declarative allow does not follow a same-host ordinary route."
-    );
-  } finally {
-    await page.close().catch(() => {});
-  }
+  });
+
+  console.log(
+    "Sensitive-route lifetime OK — the declarative allow does not follow a same-host ordinary route."
+  );
 }
