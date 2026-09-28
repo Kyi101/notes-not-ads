@@ -58,7 +58,8 @@ dashboards, Slack and the collaboration suites, and the main business-software
 tenants. YouTube keeps a dedicated, purpose-built pruning layer instead.
 
 Search engines get the same treatment, for a different reason: Google Search on
-every country domain, and Bing. Their ads answer something the person typed and
+every country domain, Bing, DuckDuckGo, Yahoo Search, Yandex, Ecosia, Brave
+Search, Startpage and Qwant. Their ads answer something the person typed and
 carry a "Sponsored" label. A card there covered that label and left the ads
 beside it looking like ordinary results, so search ads now stay visible and
 labelled, and cards are kept for ads pushed at people. Everything else on

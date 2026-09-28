@@ -211,9 +211,22 @@ const CASES = [
   ["https://www.google.co.uk/maps", "off", "Google Maps on a ccTLD the domain list does not name"],
   ["https://www.bing.com/search?q=car+insurance", "off", "Bing Search"],
   ["https://cn.bing.com/search?q=car+insurance", "off", "Bing on a regional subdomain"],
+  ["https://duckduckgo.com/?q=car+insurance", "off", "DuckDuckGo"],
+  ["https://html.duckduckgo.com/html/?q=car+insurance", "off", "DuckDuckGo HTML"],
+  ["https://search.yahoo.com/search?p=car+insurance", "off", "Yahoo Search"],
+  ["https://uk.search.yahoo.com/search?p=car+insurance", "off", "Yahoo Search, regional"],
+  ["https://www.ecosia.org/search?q=car+insurance", "off", "Ecosia"],
+  ["https://search.brave.com/search?q=car+insurance", "off", "Brave Search"],
+  ["https://www.startpage.com/do/search?q=car+insurance", "off", "Startpage"],
+  ["https://www.qwant.com/?q=car+insurance", "off", "Qwant"],
+  ["https://ya.ru/search/?text=car+insurance", "off", "Yandex on ya.ru"],
+  ["https://yandex.ru/search/?text=car+insurance", "off", "Yandex"],
+  ["https://yandex.com.tr/search/?text=car+insurance", "off", "Yandex on a two-part TLD"],
 
   // --- Deliberately still in scope.
   ["https://www.msn.com/", "full", "MSN is a portal, not search — its ads are pushed"],
+  ["https://www.yahoo.com/", "full", "Yahoo portal — only search.yahoo.com is search"],
+  ["https://finance.yahoo.com/", "full", "Yahoo Finance, a live-eval site"],
   ["https://www.tiktok.com/foryou", "full", "consumer TikTok stays in scope — only ads.tiktok.com is a console"],
   ["https://www.pinterest.com/ideas/", "full", "consumer Pinterest stays in scope — only ads.pinterest.com is a console"],
 

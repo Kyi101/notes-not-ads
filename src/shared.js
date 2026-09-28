@@ -119,8 +119,22 @@ const DOM_REPLACEMENT_DISABLED_DOMAINS = [
   "music.youtube.com",
   "google.com",
   "labs.google",
-  // Search engines
+  // Search engines. Yahoo by host only: yahoo.com itself is a portal whose ads
+  // are pushed. Yandex whole, like Google: search plus a product family.
   "bing.com",
+  "duckduckgo.com",
+  "search.yahoo.com",
+  "ecosia.org",
+  "search.brave.com",
+  "startpage.com",
+  "qwant.com",
+  "ya.ru",
+  "yandex.ru",
+  "yandex.com",
+  "yandex.by",
+  "yandex.kz",
+  "yandex.uz",
+  "yandex.com.tr",
   // Microsoft
   "microsoft.com",
   "microsoftonline.com",

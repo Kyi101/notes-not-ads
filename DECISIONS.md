@@ -2416,10 +2416,14 @@ Search off would drop real catches to fix one surface that sells nothing.
 
 ## 2026-09-28 - Leave Search Engine Ads Alone
 
-**Decision**: Google (every country domain, so Search, AI Mode and Maps) and
-Bing get no DOM replacement; request blocking stays on. The Search carve-out
-from 2026-08-16 is removed. MSN, a portal whose ads are pushed at people, stays
-in scope.
+**Decision**: Search engines get no DOM replacement; request blocking stays on.
+That is Google on every country domain (so Search, AI Mode and Maps), Bing,
+DuckDuckGo, Yahoo Search, Ecosia, Brave Search, Startpage, Qwant and Yandex. The
+Search carve-out from 2026-08-16 is removed. Portals whose ads are pushed at
+people stay in scope: MSN, and Yahoo, which is listed by its search host only
+because `yahoo.com`, `sports.yahoo.com` and `finance.yahoo.com` are live-eval
+sites. Yandex is listed whole, like Google, because it is search plus a product
+family; its portal home page loses cards as the price of that.
 
 **Why**: Hlib looked closely at what the extension does on Google Search. The
 card covers the "Sponsored results" heading and none of the ads under it;
@@ -2456,9 +2460,10 @@ people from the bad ones, such as fake software downloads.
   Mode (#26), and the untested AI Overview risk.
 - Closes the ccTLD gap noted on 2026-09-24: `GOOGLE_HOST_RE` now switches every
   Google country domain off, so `google.co.uk/maps` matches `google.com/maps`.
-- `scripts/test-page-gate.mjs` asserts Google Search, another Search tab, a
-  ccTLD, AI Mode, ccTLD Maps and two Bing hosts as `off`, and MSN as `full`.
-  The six Search/Maps/Bing cases fail against the previous tree.
-- Other search engines (DuckDuckGo, Yahoo Search, Yandex, Ecosia, Brave Search)
-  are not listed yet. The stance covers them; nobody has checked what the
-  scanner does there.
+- `scripts/test-page-gate.mjs` asserts every listed engine as `off` and MSN and
+  the Yahoo portal as `full`. The Google, Maps and Bing cases fail against the
+  previous tree.
+- Nobody has checked what the scanner did on the engines other than Google.
+  Yandex labels its ads "Реклама", which `AD_LABEL_RE` matches, so the same
+  heading bug is likely there. Portal-style engines (Baidu, Naver, Seznam) are
+  not listed: their domains also carry pushed ads, and they need a per-site call.
