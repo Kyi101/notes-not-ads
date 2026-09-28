@@ -12,6 +12,12 @@
   of an answer (#26, reported by @ilyafefelov).
 - Google's own products on country domains, such as Maps on google.co.uk, are
   now left alone the way they already were on google.com.
+- Checkout, payment and sign-in pages reached through an address with a
+  username in it, such as `https://user@shop.example/checkout`, are now
+  recognised by the packaged rules before the page starts loading, like any
+  other checkout address. The rules used to miss that form, so blocking could
+  stay on for the start of a page where the extension promises to do nothing
+  (#20, fixed by @ilyafefelov in #25).
 
 ## 1.0.4 — 2026-09
 
