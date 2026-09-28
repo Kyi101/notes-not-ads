@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.5 — 2026-09
+
+- Search engines are left alone. On Google Search the card covered the
+  "Sponsored results" heading and none of the ads under it, which removed the
+  one sign that those results were ads. An ad on a search engine answers
+  something you searched for, so it now stays visible and labelled. Google on
+  every country domain, Bing, DuckDuckGo, Yahoo Search, Yandex, Ecosia, Brave
+  Search, Startpage and Qwant get no cards; network blocking stays on.
+- The first report came from Google's AI Mode, where a card covered the opening
+  of an answer (#26, reported by @ilyafefelov).
+- Google's own products on country domains, such as Maps on google.co.uk, are
+  now left alone the way they already were on google.com.
+
 ## 1.0.4 — 2026-09
 
 Closes the remaining findings from a private security review by @ilyafefelov,
