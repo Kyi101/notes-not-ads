@@ -321,19 +321,18 @@ function isAdWrapperCandidate(element, origin = element) {
     }
   }
 
-  if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
+  if (hasProtectedControls(element)) {
     return false;
   }
 
   const identifiers = getIdentifierText(element);
-  const sources = getSourceValues(element).join(" ");
 
   return Boolean(
     brandingTakeover ||
       AD_IDENTIFIER_RE.test(identifiers) ||
       VIDEO_AD_IDENTIFIER_RE.test(identifiers) ||
       hasAdLabel(element) ||
-      AD_SOURCE_RE.test(sources)
+      hasAdLikeSource(element)
   );
 }
 
@@ -515,7 +514,7 @@ function safeToReplace(element) {
     return false;
   }
 
-  if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
+  if (hasProtectedControls(element)) {
     return false;
   }
 
@@ -543,6 +542,23 @@ function safeToReplace(element) {
   }
 
   return true;
+}
+
+// A weak/minified class and ad-sized geometry cannot justify removing an app
+// control. A declared ad unit may still contain its own close/CTA button.
+function hasProtectedControls(element) {
+  if (element.matches(FORM_OR_EDITOR_SELECTOR) || element.querySelector(FORM_OR_EDITOR_SELECTOR)) {
+    return true;
+  }
+  if (element.matches(INTERACTIVE_CONTROL_SELECTOR)) {
+    return true;
+  }
+  return Boolean(
+    element.querySelector(INTERACTIVE_CONTROL_SELECTOR) &&
+    !STRONG_AD_IDENTIFIER_RE.test(getIdentifierText(element)) &&
+    !hasExplicitAdDataAttribute(element) &&
+    !hasAdLikeSource(element)
+  );
 }
 
 // `element.shadowRoot` is null for a CLOSED root, so the guard above sees
@@ -577,14 +593,13 @@ function isOpaqueCustomElement(element) {
 // ancestors, so a container holding an opaque custom element could be claimed
 // and take the hidden control down with it.
 function containsOpaqueCustomElement(element) {
-  return Array.from(element.querySelectorAll("*"))
-    .slice(0, 200)
-    .some(isOpaqueCustomElement);
+  // querySelectorAll already walks the whole subtree. Truncating its result
+  // saved no traversal and let a later custom element lose its hidden controls.
+  return Array.from(element.querySelectorAll("*")).some(isOpaqueCustomElement);
 }
 
 function hasStrongAdSignal(element) {
   const identifiers = getIdentifierText(element);
-  const rect = element.getBoundingClientRect();
 
   return Boolean(
     isBrandingTakeover(element) ||
@@ -593,16 +608,12 @@ function hasStrongAdSignal(element) {
       VIDEO_AD_IDENTIFIER_RE.test(identifiers) ||
       hasAdLabel(element) ||
       hasAdLikeSource(element) ||
-      hasScriptAdIframe(element) ||
-      (isCommonAdSize(rect) &&
-        (AD_SOURCE_RE.test(getSourceValues(element).join(" ")) ||
-          AD_IDENTIFIER_RE.test(identifiers)))
+      hasScriptAdIframe(element)
   );
 }
 
 function isExplicitAdSlot(element) {
   const identifiers = getIdentifierText(element);
-  const sourceText = getSourceValues(element).join(" ");
   const rect = element.getBoundingClientRect();
 
   if (isBrandingTakeover(element)) {
@@ -613,7 +624,7 @@ function isExplicitAdSlot(element) {
     return true;
   }
 
-  if (AD_SOURCE_RE.test(sourceText)) {
+  if (hasAdLikeSource(element)) {
     return true;
   }
 
@@ -627,7 +638,7 @@ function isExplicitAdSlot(element) {
 
   if (
     /(google_ads_iframe|div-gpt-ad|adsbygoogle|adthrive|safeframe|doubleclick|googlesyndication|ima-ad-container)/i.test(
-      `${identifiers} ${sourceText}`
+      identifiers
     )
   ) {
     return true;
@@ -907,7 +918,7 @@ function inspectElement(element, extraReasons = []) {
     reasons.push("ad/sponsor label");
   }
 
-  if (AD_SOURCE_RE.test(sources.join(" "))) {
+  if (hasAdLikeSource(element)) {
     score += 4;
     reasons.push("ad-like source URL");
   }
@@ -1051,8 +1062,8 @@ function getSafetyBlocks(element) {
     blocks.push("unsafe identifier");
   }
 
-  if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
-    blocks.push("contains form/editor controls");
+  if (hasProtectedControls(element)) {
+    blocks.push("contains form/editor or app controls");
   }
 
   if (closestAcrossRoots(element, "a[href]") && !hasAdLikeSource(element)) {

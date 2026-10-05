@@ -19,6 +19,7 @@ quiet card carrying one of the user's own notes.
 - Syntax/parser/manifest check: `npm run check`
 - Full local check: `npm run check`
 - Browser smoke: `npm run test:extension`
+- Focused false-positive and late-note regressions: `npm run test:scanner`
 - Live external benchmark: `npm run test:adblock-tester`
 - Live site eval dry run: `npm run eval:live:dry`
 - Live site eval: `npm run eval:live -- --limit 5`
@@ -53,6 +54,7 @@ quiet card carrying one of the user's own notes.
 - `options.html`, `options.css`, `options.js` - settings UI.
 - `welcome.html`, `welcome.css`, `welcome.js` - post-install onboarding page.
 - `scripts/test-extension.mjs` - Playwright extension smoke test.
+- `scripts/test-scanner-regressions.mjs` - offline browser regressions for source evidence, controls, opaque widgets and late note assignment.
 - `scripts/test-cosmetic-filters.mjs` - Node smoke for cosmetic filter parsing and domain/exclusion behavior.
 - `scripts/test-site-policy.mjs` - deterministic risk-tier classifier precedence tests.
 - `scripts/test-release-contract.mjs` - guardrail that keeps packaged DNR and per-site allow behavior in the release runtime.
@@ -69,7 +71,7 @@ quiet card carrying one of the user's own notes.
 - `scripts/triage-report.mjs` - deterministic first-pass triage of a filed issue; routes on facts only and leaves anything needing taste alone.
 - `scripts/test-triage-report.mjs` - triage routing cases, including the page-wide false positive.
 - `scripts/test-page-gate.mjs` - offline hostname/path classification of every surface into none/off/full.
-- `scripts/live-eval-health.mjs` - pure page-health classification for live eval validity.
+- `scripts/live-eval-health.mjs` - page-health classification and browser text-visibility measurement for valid live observations.
 - `scripts/test-live-eval-health.mjs` - deterministic page-health regression checks.
 - `scripts/live-eval-selection.mjs` - pure live-eval case selection and manual-case classification.
 - `scripts/test-live-eval-selection.mjs` - deterministic default/manual live-eval selection contract.
@@ -92,8 +94,10 @@ quiet card carrying one of the user's own notes.
 - `docs/privacy-policy.md` - published privacy policy for the Chrome Web Store listing.
 - `docs/images/` - README screenshots, copied from `dist/store/` output; regenerate with `npm run build:store-assets` when the card or popup changes.
 - `docs/site-risk-policy.md` - risk-tiered blocking protocol contract for protected, standard, ad-heavy, and hostile pages.
+- `docs/audit-2026-10-05.md` - recent-report audit, reproduced false-positive fixes, regression evidence and remaining verification limits.
 - `evals/live-sites.json` - regression, discovery, controlled, and manual-only URL cases for the live eval runner, including track/category metadata and authored site-policy expectations where useful.
 - `tests/fixtures/ad-clutter.html` - deterministic clutter/ad fixture page.
+- `tests/fixtures/false-positive-surfaces.html` - encoded previews, interactive controls and real-ad positive controls for scanner regressions.
 - `tests/fixtures/classifieds-item.html` - deterministic classifieds item page: listing content that must survive, real slots on the same page that must not.
 - `tests/fixtures/host-prevalence.json` - web-prevalence scores used to rank EasyList request hosts inside the static DNR budget.
 - `tests/fixtures/observed-ad-hosts.json` - request-host counts captured by this project's live evals and pinned ahead of the unmeasured tail.

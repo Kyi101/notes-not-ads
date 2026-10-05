@@ -161,6 +161,16 @@ const DOM_REPLACEMENT_DISABLED_DOMAINS = [
   "midjourney.com",
   "cursor.com",
   "v0.app",
+  // Creative app controls are user content, even when previews look like ads.
+  // ElevenLabs voice-library controls were reported in #33.
+  "elevenlabs.io",
+  "krea.ai",
+  "runwayml.com",
+  "runway.com",
+  "suno.com",
+  "descript.com",
+  // Interactive game profiles and the icon editor (#32).
+  "gdbrowser.com",
   // Apple
   "apple.com",
   "icloud.com",
@@ -349,13 +359,28 @@ const HARD_UNSAFE_ANCESTOR_SELECTOR = [
   "[role='listbox']",
   "[role='search']",
   "[role='form']",
+  "button",
+  "[role='button']",
+  "[role='toolbar']",
+  "[role='tab']",
+  "[role='switch']",
+  "[role='checkbox']",
+  "[role='radio']",
+  "[role='slider']",
+  "[role='spinbutton']",
+  "[role='combobox']",
   "[class*='dropdown']",
-  "[contenteditable='true']",
+  "[contenteditable]:not([contenteditable='false'])",
   ".attention-redirector-slot",
   ".attention-redirector-card",
   ".attention-redirector-inspector",
   ".attention-redirector-inspector-box"
 ].join(",");
+
+const FORM_OR_EDITOR_SELECTOR =
+  "form,input,textarea,select,[contenteditable]:not([contenteditable='false'])";
+const INTERACTIVE_CONTROL_SELECTOR =
+  "button,[role='button'],[role='toolbar'],[role='tab'],[role='switch'],[role='checkbox'],[role='radio'],[role='slider'],[role='spinbutton'],[role='combobox']";
 
 const SOFT_UNSAFE_ANCESTOR_SELECTOR = ["article", "footer"].join(",");
 
@@ -738,7 +763,7 @@ const AD_MEDIA_SELECTOR =
   "iframe,img,picture,video,canvas,ins,embed,object,amp-ad";
 
 const AD_SOURCE_RE =
-  /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;
+  /(^|[.-])(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)([.-]|$)/i;
 
 const AD_SCRIPT_TEXT_RE =
   /(googletag|div-gpt-ad|slotRenderEnded|prebid|bidmatic|mgid|collectCommercialData|rcvlink)/i;

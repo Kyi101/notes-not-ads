@@ -78,7 +78,13 @@ try {
   const fixtureUrl = `http://127.0.0.1:${server.port}/ad-clutter.html`;
 
   await assertDnrBehavior(context, serviceWorker, fixtureUrl);
-  await assertLinkedinAppBypass(context, serviceWorker);
+  for (const url of [
+    "https://www.linkedin.com/mynetwork/attention-redirector-fixture",
+    "https://elevenlabs.io/app/voice-library",
+    "https://gdbrowser.com/u/qalli"
+  ]) {
+    await assertProductAppBypass(context, serviceWorker, url);
+  }
   await assertYoutubePruneBehavior(context, serviceWorker);
   await assertClassifiedsGuard(
     context,
@@ -1519,13 +1525,12 @@ async function assertDnrBehavior(context, serviceWorker, fixtureUrl) {
   await waitForEnabledRulesets(serviceWorker, true);
 }
 
-async function assertLinkedinAppBypass(context, serviceWorker) {
+async function assertProductAppBypass(context, serviceWorker, fixtureUrl) {
   if (!serviceWorker) {
-    throw new Error("No extension service worker available for LinkedIn checks.");
+    throw new Error("No extension service worker available for app checks.");
   }
 
-  const fixtureUrl = "https://www.linkedin.com/mynetwork/attention-redirector-fixture";
-  const probeUrl = "https://www.linkedin.com/attention-redirector-dnr-probe.js";
+  const probeUrl = new URL("/attention-redirector-dnr-probe.js", fixtureUrl).href;
 
   await context.route(fixtureUrl, async (route) => {
     await route.fulfill({
@@ -1576,7 +1581,7 @@ async function assertLinkedinAppBypass(context, serviceWorker) {
     replacementState.lateText !== "Sponsored"
   ) {
     throw new Error(
-      `LinkedIn app fixture received generic DOM replacements: ${JSON.stringify(replacementState)}`
+      `${fixtureUrl} app fixture received generic DOM replacements: ${JSON.stringify(replacementState)}`
     );
   }
 
@@ -1584,9 +1589,10 @@ async function assertLinkedinAppBypass(context, serviceWorker) {
   await page.close();
   if (dnrProbe.loaded) {
     throw new Error(
-      `LinkedIn DOM bypass also disabled DNR: ${JSON.stringify(dnrProbe)}`
+      `${fixtureUrl} DOM bypass also disabled DNR: ${JSON.stringify(dnrProbe)}`
     );
   }
+  console.log(`App protection OK — ${new URL(fixtureUrl).hostname}: controls preserved, network blocking active.`);
 }
 
 async function assertYoutubePruneBehavior(context, serviceWorker) {

@@ -57,6 +57,17 @@ GitHub, OpenAI and Claude, Apple and iCloud, AWS and the developer-infra
 dashboards, Slack and the collaboration suites, and the main business-software
 tenants. YouTube keeps a dedicated, purpose-built pruning layer instead.
 
+Creative tools ElevenLabs, Krea, Runway (`runwayml.com` and `runway.com`),
+Suno and Descript also get no generic replacements. GDBrowser's game profiles
+and icon editor are protected after an icon-kit false-positive report. These
+exclusions retain network blocking and include each named site's subdomains.
+
+On other sites, native buttons, ARIA controls, toolbars and editable regions
+are protected even when their classes or dimensions resemble ads. Encoded
+image data and URL paths/queries are not evidence of an ad network: source
+matching uses the hostname of an HTTP(S) resource. A declared ad unit may
+still be replaced as a whole when it contains its own close or action button.
+
 Search engines get the same treatment, for a different reason: Google Search on
 every country domain, Bing, DuckDuckGo, Yahoo Search, Yandex, Ecosia, Brave
 Search, Startpage and Qwant. Their ads answer something the person typed and
@@ -123,6 +134,13 @@ npm run test:onboarding
 `test:onboarding` uses a fresh browser profile so `onInstalled` fires, then verifies that the welcome page auto-opens, that its CTA opens Options, and that a saved theme preference is applied.
 
 `test:extension` launches Chromium with the unpacked extension, serves `tests/fixtures/ad-clutter.html` from a local server, and verifies DNR blocking, site/global DNR allow behavior, replacement patterns, latency, framework-owned DOM reconciliation, note rotation across surfaces, the empty-note collapse, reduced-motion handling, popup/options persistence, settings migration, user-facing missed-ad reporting, and inspector behavior.
+
+`npm run test:scanner` runs offline Chromium regressions for false positives:
+encoded previews, source-URL boundaries, native/ARIA/editor controls, deep
+custom elements and late note insertion. It also checks real ad slots on the
+same fixture, and runs in CI. Late cards avoid neighbouring notes when the note
+list permits it; existing cards keep their notes. With only two notes, inserting
+between different notes cannot avoid matching both neighbours.
 
 The test starts a local `127.0.0.1` server and opens Chromium, so it may need permission in sandboxed agent sessions.
 

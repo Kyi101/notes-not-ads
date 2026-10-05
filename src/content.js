@@ -162,6 +162,16 @@
     "midjourney.com",
     "cursor.com",
     "v0.app",
+    // Creative app controls are user content, even when previews look like ads.
+    // ElevenLabs voice-library controls were reported in #33.
+    "elevenlabs.io",
+    "krea.ai",
+    "runwayml.com",
+    "runway.com",
+    "suno.com",
+    "descript.com",
+    // Interactive game profiles and the icon editor (#32).
+    "gdbrowser.com",
     // Apple
     "apple.com",
     "icloud.com",
@@ -350,13 +360,28 @@
     "[role='listbox']",
     "[role='search']",
     "[role='form']",
+    "button",
+    "[role='button']",
+    "[role='toolbar']",
+    "[role='tab']",
+    "[role='switch']",
+    "[role='checkbox']",
+    "[role='radio']",
+    "[role='slider']",
+    "[role='spinbutton']",
+    "[role='combobox']",
     "[class*='dropdown']",
-    "[contenteditable='true']",
+    "[contenteditable]:not([contenteditable='false'])",
     ".attention-redirector-slot",
     ".attention-redirector-card",
     ".attention-redirector-inspector",
     ".attention-redirector-inspector-box"
   ].join(",");
+
+  const FORM_OR_EDITOR_SELECTOR =
+    "form,input,textarea,select,[contenteditable]:not([contenteditable='false'])";
+  const INTERACTIVE_CONTROL_SELECTOR =
+    "button,[role='button'],[role='toolbar'],[role='tab'],[role='switch'],[role='checkbox'],[role='radio'],[role='slider'],[role='spinbutton'],[role='combobox']";
 
   const SOFT_UNSAFE_ANCESTOR_SELECTOR = ["article", "footer"].join(",");
 
@@ -739,7 +764,7 @@
     "iframe,img,picture,video,canvas,ins,embed,object,amp-ad";
 
   const AD_SOURCE_RE =
-    /(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)/i;
+    /(^|[.-])(doubleclick|googlesyndication|googleadservices|adservice|adserver|adsystem|taboola|outbrain|criteo|rubiconproject|openx|pubmatic|adnxs|adsbygoogle|imasdk|ima3|vast|vpaid|schulist\.link|bidmatic|adtelligent|mgid|rcvlink|onetag-sys|lijit|mfadsrvr|360yield|id5-sync|zfctrack)([.-]|$)/i;
 
   const AD_SCRIPT_TEXT_RE =
     /(googletag|div-gpt-ad|slotRenderEnded|prebid|bidmatic|mgid|collectCommercialData|rcvlink)/i;
@@ -3032,19 +3057,18 @@
       }
     }
 
-    if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
+    if (hasProtectedControls(element)) {
       return false;
     }
 
     const identifiers = getIdentifierText(element);
-    const sources = getSourceValues(element).join(" ");
 
     return Boolean(
       brandingTakeover ||
         AD_IDENTIFIER_RE.test(identifiers) ||
         VIDEO_AD_IDENTIFIER_RE.test(identifiers) ||
         hasAdLabel(element) ||
-        AD_SOURCE_RE.test(sources)
+        hasAdLikeSource(element)
     );
   }
 
@@ -3226,7 +3250,7 @@
       return false;
     }
 
-    if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
+    if (hasProtectedControls(element)) {
       return false;
     }
 
@@ -3254,6 +3278,23 @@
     }
 
     return true;
+  }
+
+  // A weak/minified class and ad-sized geometry cannot justify removing an app
+  // control. A declared ad unit may still contain its own close/CTA button.
+  function hasProtectedControls(element) {
+    if (element.matches(FORM_OR_EDITOR_SELECTOR) || element.querySelector(FORM_OR_EDITOR_SELECTOR)) {
+      return true;
+    }
+    if (element.matches(INTERACTIVE_CONTROL_SELECTOR)) {
+      return true;
+    }
+    return Boolean(
+      element.querySelector(INTERACTIVE_CONTROL_SELECTOR) &&
+      !STRONG_AD_IDENTIFIER_RE.test(getIdentifierText(element)) &&
+      !hasExplicitAdDataAttribute(element) &&
+      !hasAdLikeSource(element)
+    );
   }
 
   // `element.shadowRoot` is null for a CLOSED root, so the guard above sees
@@ -3288,14 +3329,13 @@
   // ancestors, so a container holding an opaque custom element could be claimed
   // and take the hidden control down with it.
   function containsOpaqueCustomElement(element) {
-    return Array.from(element.querySelectorAll("*"))
-      .slice(0, 200)
-      .some(isOpaqueCustomElement);
+    // querySelectorAll already walks the whole subtree. Truncating its result
+    // saved no traversal and let a later custom element lose its hidden controls.
+    return Array.from(element.querySelectorAll("*")).some(isOpaqueCustomElement);
   }
 
   function hasStrongAdSignal(element) {
     const identifiers = getIdentifierText(element);
-    const rect = element.getBoundingClientRect();
 
     return Boolean(
       isBrandingTakeover(element) ||
@@ -3304,16 +3344,12 @@
         VIDEO_AD_IDENTIFIER_RE.test(identifiers) ||
         hasAdLabel(element) ||
         hasAdLikeSource(element) ||
-        hasScriptAdIframe(element) ||
-        (isCommonAdSize(rect) &&
-          (AD_SOURCE_RE.test(getSourceValues(element).join(" ")) ||
-            AD_IDENTIFIER_RE.test(identifiers)))
+        hasScriptAdIframe(element)
     );
   }
 
   function isExplicitAdSlot(element) {
     const identifiers = getIdentifierText(element);
-    const sourceText = getSourceValues(element).join(" ");
     const rect = element.getBoundingClientRect();
 
     if (isBrandingTakeover(element)) {
@@ -3324,7 +3360,7 @@
       return true;
     }
 
-    if (AD_SOURCE_RE.test(sourceText)) {
+    if (hasAdLikeSource(element)) {
       return true;
     }
 
@@ -3338,7 +3374,7 @@
 
     if (
       /(google_ads_iframe|div-gpt-ad|adsbygoogle|adthrive|safeframe|doubleclick|googlesyndication|ima-ad-container)/i.test(
-        `${identifiers} ${sourceText}`
+        identifiers
       )
     ) {
       return true;
@@ -3618,7 +3654,7 @@
       reasons.push("ad/sponsor label");
     }
 
-    if (AD_SOURCE_RE.test(sources.join(" "))) {
+    if (hasAdLikeSource(element)) {
       score += 4;
       reasons.push("ad-like source URL");
     }
@@ -3762,8 +3798,8 @@
       blocks.push("unsafe identifier");
     }
 
-    if (element.querySelector("form,input,textarea,select,[contenteditable='true']")) {
-      blocks.push("contains form/editor controls");
+    if (hasProtectedControls(element)) {
+      blocks.push("contains form/editor or app controls");
     }
 
     if (closestAcrossRoots(element, "a[href]") && !hasAdLikeSource(element)) {
@@ -4591,6 +4627,34 @@
       if (state.noteCursor === null) {
         state.noteCursor = hashString(location.hostname + location.pathname);
       }
+      // Late scans can insert between cards that have already spent the cursor.
+      // Keep those cards stable and skip a note used by either nearest neighbour.
+      // With two notes between two different neighbours, satisfying both is
+      // impossible; prefer avoiding the preceding note without rewriting it.
+      if (notes.length > 1) {
+        const top = slot.getBoundingClientRect().top;
+        const neighbours = queryAllScanRoots(".attention-redirector-slot")
+          .filter((other) => other !== slot && other.querySelector(":scope > .attention-redirector-card"))
+          .map((other) => ({
+            top: other.getBoundingClientRect().top,
+            note: Number.parseInt(other.dataset.attentionRedirectorNote, 10) % notes.length
+          }))
+          .filter((entry) => Number.isInteger(entry.note))
+          .sort((a, b) => a.top - b.top);
+        const previous = neighbours.filter((entry) => entry.top <= top).at(-1)?.note;
+        const next = neighbours.find((entry) => entry.top > top)?.note;
+        const start = state.noteCursor;
+        for (let offset = 0; offset < notes.length; offset += 1) {
+          const candidate = (start + offset) % notes.length;
+          if (candidate !== previous && candidate !== next) {
+            state.noteCursor = start + offset;
+            break;
+          }
+        }
+        if (notes.length > 1 && state.noteCursor % notes.length === previous) {
+          state.noteCursor += 1;
+        }
+      }
       slot.dataset.attentionRedirectorNote = String(state.noteCursor);
       state.noteCursor += 1;
     }
@@ -4794,34 +4858,37 @@
         if (!src || /^(about:|javascript:)/i.test(src)) {
           return false;
         }
-        return !AD_SOURCE_RE.test(src);
+        return !isAdSourceUrl(src);
       });
   }
 
   function hasAdLikeSource(element) {
-    const srcValues = Array.from(
-      element.querySelectorAll("iframe,img,embed,source")
-    )
-      .map((node) => {
-        return [
-          node.getAttribute("src"),
-          node.getAttribute("data-src"),
-          node.getAttribute("srcdoc")
-        ]
-          .filter(Boolean)
-          .join(" ");
-      })
-      .join(" ");
+    return [element, ...element.querySelectorAll("iframe,img,embed,source")].some((node) => {
+      if (["src", "data-src"].some((attribute) => isAdSourceUrl(node.getAttribute(attribute)))) {
+        return true;
+      }
+      // srcdoc is HTML, not a URL. Inspect its resource attributes without
+      // executing it; words in prose or encoded image bytes are not ad evidence.
+      const srcdoc = node.getAttribute("srcdoc");
+      if (!srcdoc) return false;
+      const embedded = document.createElement("template");
+      embedded.innerHTML = srcdoc;
+      return [...embedded.content.querySelectorAll("iframe,img,embed,source,script")].some((resource) =>
+        ["src", "data-src"].some((attribute) => isAdSourceUrl(resource.getAttribute(attribute)))
+      );
+    });
+  }
 
-    const ownSrc = [
-      element.getAttribute("src"),
-      element.getAttribute("data-src"),
-      element.getAttribute("srcdoc")
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    return AD_SOURCE_RE.test(`${ownSrc} ${srcValues}`);
+  function isAdSourceUrl(value) {
+    if (!value || !String(value).trim()) return false;
+    try {
+      const url = new URL(value, document.baseURI);
+      // GDBrowser's generated PNGs can contain e.g. `ima3` by chance. A data/blob
+      // payload, query, fragment or username never identifies a resource host.
+      return /^https?:$/.test(url.protocol) && AD_SOURCE_RE.test(url.hostname);
+    } catch (_error) {
+      return false;
+    }
   }
 
   function hasAdScriptEvidence(element) {

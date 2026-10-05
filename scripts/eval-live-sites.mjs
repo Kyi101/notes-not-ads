@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { assessPageHealth } from "./live-eval-health.mjs";
+import { assessPageHealth, measureReadableText } from "./live-eval-health.mjs";
 import {
   isManualLiveEvalCase,
   selectLiveEvalCases
@@ -197,10 +197,11 @@ async function runCase(context, worker, testCase, options) {
       ? await sendExtensionMessage(worker, tabId, { type: "AR_GET_STATUS" })
       : null;
     const pageMetrics = await collectPageMetrics(page);
+    pageMetrics.readableTextLength = await page.evaluate(measureReadableText);
     const pageHealth = assessPageHealth({
       httpStatus,
       title: pageMetrics.title,
-      bodyTextLength: pageMetrics.bodyTextLength
+      bodyTextLength: pageMetrics.readableTextLength
     });
     const sitePolicy = classifyEvalSitePolicy(testCase, {
       url: pageMetrics.url,
