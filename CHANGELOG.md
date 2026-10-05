@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.6 — 2026-10-05
 
 - Protect ElevenLabs controls (#33), GDBrowser profiles and icon tools (#32),
   and the Krea, Runway, Suno and Descript app families from generic replacement.
