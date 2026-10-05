@@ -2552,3 +2552,67 @@ rule for URL-covered pages, which remains correct: the packaged rule covers them
   script can occasionally be blocked if a packaged rule matches it, and the page
   after a checkout page can have its earliest requests allowed.
 - If Chromium fixes this, the retries can go; the stress loop is the way to check.
+
+## 2026-10-05 - Protect Creative Apps And Require Typed Source Evidence
+
+**Decision**: Add ElevenLabs, Krea, Runway (both current and previous domains),
+Suno, Descript and GDBrowser to the existing DOM-only exclusion tier. Network
+blocking remains active. This follows the ElevenLabs controls report (#33) and
+GDBrowser icon-kit report (#32), and the existing policy for product interfaces.
+No new permissions, DNR rules, dependencies or remote services.
+
+**General fixes**: Match ad-source vocabulary only against the hostname of an
+HTTP(S) URL, at dot/hyphen boundaries. Data/blob bytes, paths, queries,
+fragments and userinfo are not network identity. Inspect resource attributes
+inside `srcdoc` using an inert template, rather than searching its raw HTML.
+The wrapper, safety and inspector paths all use the same source predicate.
+Keep native/ARIA controls and every supported editable spelling out of direct
+replacement; refuse wrappers around controls without stronger ad evidence.
+Declared ad units with close/CTA buttons remain eligible. Remove the first-200
+cutoff when checking a wrapper for opaque custom elements: it already queried
+the whole subtree, and the cutoff hid later controls from the safety decision.
+
+**Evidence and limits**: Fifteen controlled browser regressions fail against
+`4415140` and pass with the fixes; real network slots, embedded creatives and
+ad units with buttons still replace. GDBrowser's public renderer uses PNG data
+URLs, but the original reported replacement did not recur during the live
+capture. The data-URL cause is a demonstrated general failure mode, not a
+confirmed explanation of #32. ElevenLabs returned a blank app in the fresh
+browser, so signed-in controls were not inspected. Routed fixtures verify the
+reported hosts' bypass and continued DNR blocking without accessing accounts.
+
+**Tradeoff**: First-party ad endpoints identified only by a URL path now need
+other evidence (a label, identifier or cosmetic rule). This is intentional:
+an image named after a vast forest or an antivirus product is not an ad host.
+The live regression comparison measures the coverage cost. These heuristics
+still do not establish that every remaining suspected container is an ad.
+
+## 2026-10-05 - Assign Late Notes Around Existing Neighbours
+
+**Decision**: Continue rotating notes, but when a new slot gets a note, skip
+the notes used by its nearest existing neighbours. Retain the selected index
+on the slot so settings refreshes do not reshuffle established cards. A single
+note avoids the neighbour walk entirely.
+
+**Why**: Sorting each scan's batch did not sort cards across scans. A late
+shadow fixture arrived between previously rendered cards and received the next
+global index, which happened to match a neighbour. The unchanged full smoke
+reproduced the index-18 failure; a controlled two-scan case reproduces it
+without relying on machine load. No retries were added.
+
+**Limit**: With two notes, a new card inserted between two different existing
+notes cannot differ from both while those cards stay fixed. Prefer avoiding
+the preceding note. Geometry changes after assignment can also reorder cards;
+continually changing a note under the reader is not an acceptable correction.
+
+## 2026-10-05 - Treat Incomplete Diagnoses As Errors
+
+**Decision**: The false-positive capture harness now uses the live evaluator's
+page-health checks and exits unsuccessfully when a target is blank or returns
+an error. It keeps the report and screenshots for investigation.
+
+**Why**: The first ElevenLabs attempt rendered a white page but was reported as
+`ok` with zero replacements. That was an invalid observation, not evidence of
+safety. The same audit found that GitHub trims a form-only issue title, so
+triage now accepts both a bare form prefix and a prefix followed by a summary,
+while still rejecting a suffix attached without a separating space.

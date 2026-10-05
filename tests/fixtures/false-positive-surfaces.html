@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Content and controls that resemble ads</title>
+<style>
+  .sample { width: 300px; height: 250px; margin: 12px; }
+  img { width: 100%; height: 100%; }
+</style>
+<!-- GDBrowser renders its icon kit to PNG data URLs. Encoded bytes are not
+     network names. These small payloads deliberately contain a matching token. -->
+<div id="encoded-icons" class="sample"><img data-src="data:image/png;base64,AAAAima3AAAA" alt="Game icons"></div>
+<div id="blob-preview" class="sample"><img data-src="blob:https://ordinary.example/openx-preview" alt="My preview"></div>
+<div id="query-photo" class="sample"><img data-src="https://images.example/photo.png?caption=doubleclick" alt="My photo"></div>
+<div id="path-photo" class="sample"><img data-src="https://images.example/vast-forest.png" alt="Forest"></div>
+<div id="hostname-photo" class="sample"><img data-src="https://images.avast.com/logo.png" alt="Product logo"></div>
+<div id="userinfo-photo" class="sample"><img data-src="https://doubleclick@images.example/photo.png" alt="My photo"></div>
+<div id="embedded-preview" class="sample"><iframe title="Preview" srcdoc="&lt;img src='data:image/png;base64,AAAAima3AAAA'&gt;"></iframe></div>
+
+<!-- An accidental ad class must not turn a button, ARIA control, editable
+     element or the wrapper around a control into a slot. -->
+<button id="native-control" class="sample ad">Choose a language</button>
+<div id="aria-control" class="sample ad" role="button" tabindex="0">Choose a voice</div>
+<div id="control-wrapper" class="sample ad"><button>Play voice</button></div>
+<div id="editable-control" class="sample ad" contenteditable="">Write here</div>
+<div id="plaintext-control" class="sample ad" contenteditable="plaintext-only">Write here</div>
+<div id="toolbar-wrapper" class="sample" role="toolbar"><div class="ad-slot" style="width:300px;height:250px">Tools</div></div>
+<div id="deep-widget" class="sample ad-slot"></div>
+<script>
+  const wrapper = document.getElementById('deep-widget');
+  for (let index = 0; index < 205; index += 1) wrapper.append(document.createElement('span'));
+  const widget = document.createElement('private-widget');
+  widget.attachShadow({mode: 'closed'}).innerHTML = '<input type="password">';
+  wrapper.append(widget);
+</script>
+
+<!-- Positive controls: source URLs and declared ad units still work. -->
+<div id="real-network-slot" class="sample"><img data-src="https://cdn.doubleclick.net/creative.png" alt=""></div>
+<div id="real-hyphenated-network" class="sample"><img data-src="https://aax.amazon-adsystem.com/creative.png" alt=""></div>
+<div id="real-embedded-slot" class="sample"><iframe style="width:300px;height:250px" srcdoc="&lt;img src='https://cdn.doubleclick.net/creative.png'&gt;"></iframe></div>
+<div id="real-ad-controls" class="sample ad-slot"><button>Close ad</button><span>Sponsored</span></div>
+<div id="real-empty-slot" class="sample ad"></div>

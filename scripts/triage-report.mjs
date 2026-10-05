@@ -81,7 +81,7 @@ function readHost(value) {
 function carriesUnredactedPageUrl(site, report) {
   const candidates = [];
   if (answered(site)) candidates.push(site);
-  for (const line of (report || "").split("\n")) {
+  for (const line of (report || "").split(/\r?\n/)) {
     if (line.startsWith("Page: ")) candidates.push(line.slice(6));
   }
 
@@ -98,7 +98,11 @@ function carriesUnredactedPageUrl(site, report) {
 }
 
 export function triage({ title = "", body = "" } = {}) {
-  const form = FORMS.find((candidate) => title.startsWith(candidate.titlePrefix));
+  const normalizedTitle = title.trim();
+  const form = FORMS.find((candidate) => {
+    const prefix = candidate.titlePrefix.trim();
+    return normalizedTitle === prefix || normalizedTitle.startsWith(`${prefix} `);
+  });
 
   if (!form) {
     return {

@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assessPageHealth, measureReadableText } from "./live-eval-health.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -75,12 +76,13 @@ await writeFile(
   `${JSON.stringify(report, null, 2)}\n`
 );
 console.log(`\nReport: ${path.relative(projectRoot, runDir)}/summary.json`);
+if (report.totals.errors) process.exitCode = 1;
 
 async function captureTarget(browserContext, target, options) {
   const page = await browserContext.newPage();
 
   try {
-    await page.goto(target.url, {
+    const response = await page.goto(target.url, {
       waitUntil: "domcontentloaded",
       timeout: options.timeoutMs
     });
@@ -98,6 +100,9 @@ async function captureTarget(browserContext, target, options) {
     await page.waitForTimeout(options.waitMs);
 
     const slots = await collectReplacedSlots(page);
+    const title = await page.title().catch(() => "");
+    const bodyTextLength = await page.evaluate(measureReadableText);
+    const pageHealth = assessPageHealth({ httpStatus: response?.status(), title, bodyTextLength });
 
     const pageShotPath = path.join(runDir, `${target.id}-page.png`);
     await page
@@ -119,7 +124,6 @@ async function captureTarget(browserContext, target, options) {
     }
 
     const finalUrl = page.url();
-    const title = await page.title().catch(() => "");
     await page.close();
 
     return {
@@ -127,7 +131,10 @@ async function captureTarget(browserContext, target, options) {
       url: target.url,
       finalUrl,
       title,
-      status: "ok",
+      status: pageHealth ? "error" : "ok",
+      error: pageHealth?.message || "",
+      pageHealth,
+      readableTextLength: bodyTextLength,
       slots
     };
   } catch (error) {

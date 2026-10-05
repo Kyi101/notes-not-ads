@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Protect ElevenLabs controls (#33), GDBrowser profiles and icon tools (#32),
+  and the Krea, Runway, Suno and Descript app families from generic replacement.
+  Network blocking remains active.
+- Stop treating encoded image bytes, preview blobs, URL paths, queries and
+  credentials as ad-network evidence. Preserve native/ARIA controls, editable
+  regions, and wrappers whose custom controls appear after 200 descendants.
+- Avoid repeating a neighbouring note when a card arrives in a later scan,
+  while keeping existing cards stable.
+- Recognise issue-form titles with no added summary, and report blank/error
+  pages as failed diagnoses instead of clean false-positive captures.
+
 ## 1.0.5 — 2026-09
 
 - Search engines are left alone. On Google Search the card covered the

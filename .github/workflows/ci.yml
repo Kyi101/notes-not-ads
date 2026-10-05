@@ -52,6 +52,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # An MV3 extension cannot be loaded headless, so the run needs a display.
       - run: xvfb-run -a npm run test:extension
+      - run: npm run test:scanner
       - run: xvfb-run -a npm run test:onboarding
       - run: xvfb-run -a npm run test:dnr-match
 

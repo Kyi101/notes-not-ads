@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { ISSUE_FORMS } from "./report-contract.mjs";
 import {
   triage,
   parseIssueBody,
@@ -21,6 +22,15 @@ const classify = (input) => {
 // block per answered field, "_No response_" for a skipped optional one.
 function form(pairs) {
   return pairs.map(([heading, value]) => `### ${heading}\n\n${value}\n`).join("\n");
+}
+
+// GitHub trims the form's trailing title space when no summary was entered.
+// Both #32 and #33 arrived this way and were wrongly sent back to the chooser.
+for (const template of Object.values(ISSUE_FORMS)) {
+  for (const title of [template.titlePrefix.trim(), `  ${template.titlePrefix.trim()}  `]) {
+    assert.equal(classify({ title }).kind, template.kind, title);
+  }
+  assert.equal(classify({ title: `${template.titlePrefix.trim()}suffix` }).kind, "unknown");
 }
 
 const INSPECTOR_REPORT = [
