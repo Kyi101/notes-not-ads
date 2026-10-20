@@ -91,6 +91,7 @@ text is included verbatim, and on a signed-in page that text can be yours.
 ## Before you open a pull request
 
 ```bash
+python3 scripts/public-push-guard.py install
 npm ci
 npm run check
 npm run test:extension
@@ -106,3 +107,9 @@ run in CI.
 ## Licence
 
 GPLv3, following EasyList. By contributing you agree your work ships under it.
+
+## Public source privacy
+
+Read [the public source policy](docs/public-source-policy.md) before contributing.
+Only explicitly approved product files belong in public commits; keep personal
+working documents and creative/distribution material outside the repository.
