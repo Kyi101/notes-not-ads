@@ -10,7 +10,7 @@ _metadata/
 .superpowers/
 
 # Working files for whoever is building this: notes on how the work is going,
-# not a record of what shipped. README.md and DECISIONS.md are that record.
+# kept separate from the public source and product documentation.
 STATUS.md
 prompts/
 prototypes/
@@ -22,3 +22,41 @@ scripts/serve-prototype.mjs
 # outside contributions, and a permission granted here would apply to anyone who
 # clones it and runs Claude Code in this directory.
 .claude/settings.local.json
+
+# Private creation, distribution, strategy and agent working material.
+# The public file allowlist and Git hooks remain authoritative even with git add -f.
+AGENTS.md
+CLAUDE.md
+AUTONOMY.md
+STATUS.md
+DECISIONS.md
+NOTES.md
+.agents/
+.codex/
+.claude/
+private/
+internal/
+notes/
+chats/
+conversations/
+transcripts/
+sessions/
+strategy/
+strategies/
+distribution/
+marketing/
+campaigns/
+social/
+prompts/
+prototypes/
+captures/
+proofs/
+renders/
+.env
+.env.*
+*.mp4
+*.webm
+*.mov
+*.gif
+*.zip
+__pycache__/
